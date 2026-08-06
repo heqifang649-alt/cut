@@ -4,8 +4,66 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { isMetadataSidecar, isRejectBin, isRenderPlan, isShot, isSlot, isValidationResult } from "../lib/types.ts";
 
 const root = new URL("../", import.meta.url);
+
+const validShot = {
+  id: "shot-1",
+  source: "runway",
+  path: "D:/media/runway-001.mp4",
+  start: 0,
+  end: 5,
+  duration: 5,
+  tags: ["close_up", "detail"],
+  reject: false,
+  origin: "ai",
+  productVisibility: 0.92,
+  productCentered: true,
+  motionEnergy: "medium",
+};
+
+const validSlot = {
+  id: "detail",
+  label: "Detail",
+  requireTags: ["detail"],
+  preferTags: ["close_up"],
+  minDuration: 1,
+  maxDuration: 5,
+  minProductVisibility: 0.8,
+  requireProductCentered: true,
+  requireMotionEnergy: "medium",
+};
+
+test("phase 1 frozen data contracts accept valid structures", () => {
+  assert.equal(isShot(validShot), true);
+  assert.equal(isSlot(validSlot), true);
+  assert.equal(isValidationResult({ verdict: "reject", rejectReason: "human:hand_anomaly", artifacts: [{ type: "human:hand_anomaly", confidence: 0.91 }] }), true);
+  assert.equal(isRejectBin({ videoPath: validShot.path, rejectReason: "human:hand_anomaly", rejectedAt: "2026-08-06T00:00:00.000Z" }), true);
+  assert.equal(isMetadataSidecar({ video: "runway-001.mp4", tags: ["close_up", "detail"], duration: 5, platform: "runway", prompt: "archive only" }), true);
+  assert.equal(isRenderPlan({ id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: validShot }], createdAt: "2026-08-06T00:00:00.000Z" }), true);
+});
+
+test("phase 1 frozen data contracts reject invalid structures", () => {
+  assert.equal(isShot({ ...validShot, motionEnergy: "extreme" }), false);
+  assert.equal(isSlot({ ...validSlot, minDuration: -1 }), false);
+  assert.equal(isValidationResult({ verdict: "maybe", artifacts: [] }), false);
+  assert.equal(isValidationResult({ verdict: "reject", rejectReason: "brand:color_mismatch", artifacts: [] }), false);
+  assert.equal(isValidationResult({ verdict: "accept", artifacts: [], tags: ["detail"] }), false);
+  assert.equal(isValidationResult({ verdict: "accept", artifacts: [], metrics: { elapsed: 1 } }), false);
+  assert.equal(isValidationResult({ verdict: "review", artifacts: [{ type: "human:hand_anomaly", confidence: 0.7, timestamp: 2.3 }] }), false);
+  assert.equal(isRejectBin({ videoPath: validShot.path, rejectReason: "unknown", rejectedAt: "2026-08-06T00:00:00.000Z" }), false);
+  assert.equal(isMetadataSidecar({ video: "runway-001.mp4", tags: "close_up", duration: 5, platform: "runway" }), false);
+  assert.equal(isSlot({ ...validSlot, brandColorPalette: ["#ffffff"] }), false);
+  assert.equal(isRenderPlan({ id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: { ...validShot, origin: "generated" } }], createdAt: "2026-08-06T00:00:00.000Z" }), false);
+});
+
+test("phase 1 feature flags are declared off by default", async () => {
+  const example = await readFile(new URL(".env.example", root), "utf8");
+  for (const flag of ["ENABLE_NEW_VALIDATOR", "ENABLE_NEW_SHOTPOOL", "ENABLE_NEW_SCHEDULER", "ENABLE_NEW_RENDERER", "ENABLE_NEW_REVIEW"]) {
+    assert.match(example, new RegExp(`^${flag}=false$`, "m"));
+  }
+});
 
 test("cross-process style mutations remain valid and do not lose updates", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "cutflow-store-"));
