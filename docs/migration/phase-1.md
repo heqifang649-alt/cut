@@ -2,7 +2,7 @@
 
 ## 状态
 
-已完成（2026-08-06）。已停止，等待确认后才能进入 Phase 2。
+已完成（2026-08-06）。Contract Audit 后完成三项获批的 P0 修正并冻结契约。
 
 ## 修改目的
 
@@ -14,6 +14,8 @@
 - `.env.example`：声明五个迁移 Feature Flag，全部默认关闭。
 - `lib/types.ts`：增加冻结的数据契约与纯结构校验函数。
 - `tests/stability.test.mjs`：增加 Phase 1 合法/非法契约与 Flag 默认值测试。
+- `lib/types.ts`：Contract Audit P0 修正——Shot 三个 Metadata Budget 字段必填、Slot 增加目标输出时长、RenderPlan 禁止空镜头并增加 ScheduleResult 失败结果。
+- `tests/stability.test.mjs`：增加缺失预算字段、缺失目标时长、空镜头 RenderPlan 和 ScheduleResult 的契约测试。
 - `docs/backlog.md`：记录 Phase 范围外的遗留/待评审脚本，不实施修复。
 - `docs/migration/phase-1.md`：记录 Phase 1 完成证据。
 
@@ -40,6 +42,14 @@
 - `git diff --check`：通过。
 - 网站健康检查：Worker 在线、Codex 可用、ChatCut 可用。
 - 旧流程兼容验证：`app/` 与 `worker/` 修改文件数为 0；运行时新 Flag 引用数为 0；网站继续正常运行。
+
+## Contract Audit 结论
+
+- Shot 的 `productVisibility`、`productCentered`、`motionEnergy` 已改为必填，保证进入 ShotPool 前即为完整 Shot。
+- Slot 已增加 `targetDuration`，语义为目标输出时长；Scheduler 后续可在合理范围内调整，不把它解释为严格固定时长。
+- RenderPlan 已禁止 `shot = null`；无法匹配镜头时使用 `ScheduleResult Failed`，不生成不完整 RenderPlan。
+- 所有获批 P0 已关闭；P1/P2 保持原状，不继续演进 Schema。
+- Contract Audit 复核通过，正式执行 Contract Freeze。除真实线上问题外，后续 Phase 不得修改这些 Contract。
 
 ## 回滚方法
 

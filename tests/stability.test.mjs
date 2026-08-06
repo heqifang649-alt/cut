@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
-import { isMetadataSidecar, isRejectBin, isRenderPlan, isShot, isSlot, isValidationResult } from "../lib/types.ts";
+import { isMetadataSidecar, isRejectBin, isRenderPlan, isScheduleResult, isShot, isSlot, isValidationResult } from "../lib/types.ts";
 
 const root = new URL("../", import.meta.url);
 
@@ -27,6 +27,7 @@ const validSlot = {
   id: "detail",
   label: "Detail",
   requireTags: ["detail"],
+  targetDuration: 2,
   preferTags: ["close_up"],
   minDuration: 1,
   maxDuration: 5,
@@ -42,11 +43,17 @@ test("phase 1 frozen data contracts accept valid structures", () => {
   assert.equal(isRejectBin({ videoPath: validShot.path, rejectReason: "human:hand_anomaly", rejectedAt: "2026-08-06T00:00:00.000Z" }), true);
   assert.equal(isMetadataSidecar({ video: "runway-001.mp4", tags: ["close_up", "detail"], duration: 5, platform: "runway", prompt: "archive only" }), true);
   assert.equal(isRenderPlan({ id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: validShot }], createdAt: "2026-08-06T00:00:00.000Z" }), true);
+  assert.equal(isScheduleResult({ status: "success", renderPlan: { id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: validShot }], createdAt: "2026-08-06T00:00:00.000Z" } }), true);
+  assert.equal(isScheduleResult({ status: "failed", reason: "no_matching_shot", slotId: "detail" }), true);
 });
 
 test("phase 1 frozen data contracts reject invalid structures", () => {
   assert.equal(isShot({ ...validShot, motionEnergy: "extreme" }), false);
+  assert.equal(isShot((({ productVisibility: _visibility, ...shot }) => shot)(validShot)), false);
+  assert.equal(isShot((({ productCentered: _centered, ...shot }) => shot)(validShot)), false);
+  assert.equal(isShot((({ motionEnergy: _energy, ...shot }) => shot)(validShot)), false);
   assert.equal(isSlot({ ...validSlot, minDuration: -1 }), false);
+  assert.equal(isSlot((({ targetDuration: _target, ...slot }) => slot)(validSlot)), false);
   assert.equal(isValidationResult({ verdict: "maybe", artifacts: [] }), false);
   assert.equal(isValidationResult({ verdict: "reject", rejectReason: "brand:color_mismatch", artifacts: [] }), false);
   assert.equal(isValidationResult({ verdict: "accept", artifacts: [], tags: ["detail"] }), false);
@@ -56,6 +63,8 @@ test("phase 1 frozen data contracts reject invalid structures", () => {
   assert.equal(isMetadataSidecar({ video: "runway-001.mp4", tags: "close_up", duration: 5, platform: "runway" }), false);
   assert.equal(isSlot({ ...validSlot, brandColorPalette: ["#ffffff"] }), false);
   assert.equal(isRenderPlan({ id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: { ...validShot, origin: "generated" } }], createdAt: "2026-08-06T00:00:00.000Z" }), false);
+  assert.equal(isRenderPlan({ id: "plan-1", batchId: "batch-1", slots: [{ slot: validSlot, shot: null }], createdAt: "2026-08-06T00:00:00.000Z" }), false);
+  assert.equal(isScheduleResult({ status: "failed", reason: "no_matching_shot", slotId: "" }), false);
 });
 
 test("phase 1 feature flags are declared off by default", async () => {

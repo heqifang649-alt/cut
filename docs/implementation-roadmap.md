@@ -137,13 +137,19 @@ Baseline 只记录当前状态，不修改 Architecture，不增加功能。
 #### Shot
 
 - 包含 `id/source/path/start/end/duration/tags/reject/rejectReason/origin`。
-- Metadata Budget 缓存字段仅允许：`productVisibility`、`productCentered`、`motionEnergy`。
+- Metadata Budget 缓存字段仅允许且必须完整提供：`productVisibility`、`productCentered`、`motionEnergy`。
 - `tags` 来自 Metadata Import，不经过 Validator。
 
 #### Slot
 
-- 包含 tag、时长和三个创意缓存条件。
+- 包含 tag、`targetDuration` 目标输出时长、候选时长范围和三个创意缓存条件。
+- `targetDuration` 不是严格固定时长；Scheduler 可以在 Slot 的合理时长范围内调整。
 - 不包含 `brandColorPalette`。
+
+#### RenderPlan / ScheduleResult
+
+- RenderPlan 只表示已经能够直接进入 Renderer 的完整计划，不允许 `shot = null`。
+- Scheduler 无法找到镜头时返回 `ScheduleResult Failed`，不得生成不完整 RenderPlan。
 
 #### ValidationResult
 

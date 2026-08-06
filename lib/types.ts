@@ -192,15 +192,16 @@ export type Shot = {
   reject: boolean;
   rejectReason?: string;
   origin: "real" | "ai";
-  productVisibility?: number;
-  productCentered?: boolean;
-  motionEnergy?: MotionEnergy;
+  productVisibility: number;
+  productCentered: boolean;
+  motionEnergy: MotionEnergy;
 };
 
 export type Slot = {
   id: string;
   label: string;
   requireTags: string[];
+  targetDuration: number;
   preferTags?: string[];
   minDuration?: number;
   maxDuration?: number;
@@ -248,9 +249,13 @@ export type MetadataSidecar = {
 export type RenderPlan = {
   id: string;
   batchId: string;
-  slots: Array<{ slot: Slot; shot: Shot | null }>;
+  slots: Array<{ slot: Slot; shot: Shot }>;
   createdAt: string;
 };
+
+export type ScheduleResult =
+  | { status: "success"; renderPlan: RenderPlan }
+  | { status: "failed"; reason: "no_matching_shot"; slotId: string };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const hasOnlyKeys = (value: Record<string, unknown>, allowed: string[]) => Object.keys(value).every((key) => allowed.includes(key));
@@ -278,17 +283,18 @@ export function isShot(value: unknown): value is Shot {
     && typeof value.reject === "boolean"
     && isOptionalString(value.rejectReason)
     && (value.origin === "real" || value.origin === "ai")
-    && isOptionalNonNegativeNumber(value.productVisibility)
-    && isOptionalBoolean(value.productCentered)
-    && (value.motionEnergy === undefined || isMotionEnergy(value.motionEnergy));
+    && isNonNegativeNumber(value.productVisibility)
+    && typeof value.productCentered === "boolean"
+    && isMotionEnergy(value.motionEnergy);
 }
 
 export function isSlot(value: unknown): value is Slot {
   if (!isRecord(value)) return false;
-  return hasOnlyKeys(value, ["id", "label", "requireTags", "preferTags", "minDuration", "maxDuration", "minProductVisibility", "requireProductCentered", "requireMotionEnergy"])
+  return hasOnlyKeys(value, ["id", "label", "requireTags", "targetDuration", "preferTags", "minDuration", "maxDuration", "minProductVisibility", "requireProductCentered", "requireMotionEnergy"])
     && isString(value.id)
     && isString(value.label)
     && isStringArray(value.requireTags)
+    && isNonNegativeNumber(value.targetDuration)
     && (value.preferTags === undefined || isStringArray(value.preferTags))
     && isOptionalNonNegativeNumber(value.minDuration)
     && isOptionalNonNegativeNumber(value.maxDuration)
@@ -331,5 +337,18 @@ export function isMetadataSidecar(value: unknown): value is MetadataSidecar {
 
 export function isRenderPlan(value: unknown): value is RenderPlan {
   if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
-  return value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && (entry.shot === null || isShot(entry.shot)));
+  return value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
+}
+
+export function isScheduleResult(value: unknown): value is ScheduleResult {
+  if (!isRecord(value)) return false;
+  if (value.status === "success") {
+    return hasOnlyKeys(value, ["status", "renderPlan"]) && isRenderPlan(value.renderPlan);
+  }
+  if (value.status === "failed") {
+    return hasOnlyKeys(value, ["status", "reason", "slotId"])
+      && value.reason === "no_matching_shot"
+      && isString(value.slotId);
+  }
+  return false;
 }
