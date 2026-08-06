@@ -4,6 +4,7 @@ import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promi
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { renderBatchFromEdl } from "./batch-renderer.mjs";
+import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
 const ROOT = process.cwd();
@@ -312,6 +313,26 @@ async function runBatchEdit(batch) {
   const batchDir = path.join(ROOT, "storage", "batches", batch.id);
   const outputDir = path.join(batchDir, "output");
   await mkdir(outputDir, { recursive: true });
+  if (isNewValidatorEnabled()) {
+    const validationResults = [];
+    const productFiles = batch.files.filter((file) => file.kind === "products");
+    for (const [index, file] of productFiles.entries()) {
+      await throwIfCanceled(batch.id);
+      await update(batch.id, (item) => {
+        item.renderingLabel = `隔离运行新质量门禁（${index + 1}/${productFiles.length}）`;
+        item.lastWorkerActivityAt = new Date().toISOString();
+      });
+      validationResults.push({
+        videoPath: resolveFilePath(file),
+        result: await validateVideo(resolveFilePath(file), { ffmpeg: FFMPEG }),
+      });
+    }
+    await writeFile(path.join(batchDir, "validation-results.json"), JSON.stringify({
+      isolated: true,
+      generatedAt: new Date().toISOString(),
+      results: validationResults,
+    }, null, 2), "utf8");
+  }
   const edlPath = path.join(batchDir, "edit", "batch-edl.json");
   const resumeFromEdl = batch.status === "editing" && await stat(edlPath).then((value) => value.isFile()).catch(() => false);
   let thread = { id: batch.threadId };
