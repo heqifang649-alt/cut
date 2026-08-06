@@ -6,6 +6,8 @@
 > 迁移方式：Strangler Pattern  
 > 目标：稳定迁移，不做一次性重构
 
+所有 Phase 的完成判定统一以 `docs/migration/definition-of-done.md` 为准。任何一项 DoD 未满足，不得进入下一 Phase。
+
 ## 1. 结论
 
 建议的 Phase 1 → Phase 6 顺序合理，保持不变，不增加 Phase 0，不增加架构模块，不增加冻结范围外的功能。
@@ -517,4 +519,3 @@ Phase 6 完成不等于可以删除旧 Pipeline。
 - 已确认 `legacy/` 中的代码不再被生产调用。
 
 旧代码删除、Flag 清理和 `legacy/` 删除属于迁移后的独立清理决策，不在当前 Roadmap 内自动执行。
-

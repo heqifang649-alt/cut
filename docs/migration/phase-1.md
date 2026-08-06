@@ -28,3 +28,6 @@
 
 发现的问题只记录到 `docs/backlog.md`，不在本阶段顺手处理。
 
+## Definition of Done
+
+完成时必须逐项复制并勾选 `docs/migration/definition-of-done.md` 中的十项强制条件。任意一项未完成，本 Phase 保持未完成状态。
