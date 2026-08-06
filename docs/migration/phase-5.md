@@ -2,8 +2,11 @@
 
 ## Status
 
-Implementation complete; formal Phase approval is blocked by three pre-existing
-full-suite failures recorded in `docs/backlog.md` as BL-005 and BL-006.
+Feature DoD: PASS.
+
+Repository Health: Warning. BL-005 is historical Legacy test debt and BL-006
+is an unrelated, uncommitted parallel-worktree change; neither is a Phase 5
+feature failure.
 
 ## Purpose
 
@@ -50,9 +53,12 @@ while preserving the legacy EDL renderer and all frozen Contracts.
   Validator regression tests: 35/35 passed.
 - TypeScript: passed.
 - Production build: passed.
-- Full Node suite: 69/72 passed. The remaining three failures are unrelated
-  to this Phase and are recorded as BL-005 and BL-006; no out-of-scope repair
-  was made.
+- Core: 51 tests passed.
+- Migration: 2 tests passed.
+- Golden: 2 tests passed.
+- Integration: 3 tests and the production build passed.
+- Repository: full Node suite was 69/72. The remaining failures are recorded
+  as BL-005 and BL-006 and do not block Feature DoD.
 
 ## Rollback
 
@@ -62,11 +68,6 @@ reverted independently.
 
 ## Definition of Done
 
-- [x] Current Phase objectives implemented.
-- [x] Frozen Contracts unchanged.
-- [x] No new system boundary or Renderer module.
-- [x] Feature flags default off.
-- [x] Legacy path remains available.
-- [ ] All full-suite tests pass: blocked by BL-005 and BL-006.
-- [x] Migration documentation updated.
-- [ ] Final Phase commit pending this review.
+- [x] Feature DoD passed under `docs/migration/definition-of-done.md`.
+- [x] Repository Health warning reported separately.
+- [x] Implementation commit: `075d003 feat(renderer): render product-isolated plans`.

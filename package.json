@@ -16,6 +16,12 @@
     "worker:once": "node worker/processor.mjs --once",
     "test": "next build",
     "test:unit": "node --test tests/stability.test.mjs",
+    "test:core": "node --test tests/core/index.test.mjs",
+    "test:migration": "node --test tests/migration/index.test.mjs",
+    "test:golden": "node --test tests/golden/index.test.mjs",
+    "test:integration": "node --test tests/integration/index.test.mjs",
+    "test:legacy": "node --test tests/legacy/index.test.mjs",
+    "test:repository": "node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "check": "next build"
   },

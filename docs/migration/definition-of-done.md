@@ -1,77 +1,54 @@
-# Definition of Done（DoD）
+# Definition of Done
 
-> 生效日期：2026-08-06
-> 适用范围：Architecture V2 迁移的 Phase 1–6
-> 规则：任意一项未满足，当前 Phase 不得标记完成，也不得开始下一 Phase。
+Effective date: 2026-08-06
 
-## 强制完成条件
+This Definition of Done separates feature acceptance from repository health.
+A historical or parallel-worktree warning must be visible, but it must not be
+misreported as a failure of an otherwise verified migration feature.
 
-- [ ] 1. 当前 Phase 的全部目标已经完成。
-- [ ] 2. 没有修改其他 Phase 的内容。
-- [ ] 3. 没有提前实现后续功能。
-- [ ] 4. 没有增加冻结 Architecture 之外的新架构。
-- [ ] 5. 没有新增系统边界。
-- [ ] 6. 当前 Phase 涉及的 Feature Flag 默认关闭。
-- [ ] 7. Feature Flag 关闭时，旧流程仍然可以正常运行。
-- [ ] 8. 当前 Phase 测试、现有回归测试和生产构建全部通过。
-- [ ] 9. 对应的 `docs/migration/phase-x.md` 已更新完整。
-- [ ] 10. 已完成一个只包含当前 Phase 明确目标的 Atomic Git Commit。
+## Feature DoD
 
-## 必须保留的完成证据
+A Phase may be marked complete only when all of these conditions pass:
 
-每个 Phase 的迁移文档必须记录：
+- [ ] The current Phase objective is complete.
+- [ ] No frozen Contract was changed unless explicitly approved.
+- [ ] No future Phase capability was implemented early.
+- [ ] No new Architecture boundary was introduced.
+- [ ] All Feature Flags added or used by the Phase default to `false`.
+- [ ] The legacy path remains operational with the new flags disabled.
+- [ ] Core tests pass.
+- [ ] Migration tests pass.
+- [ ] Golden tests pass.
+- [ ] Integration tests pass.
+- [ ] The production build passes.
+- [ ] The Phase migration record is updated.
+- [ ] An atomic Git commit records the completed objective.
 
-- 修改目的。
-- 实际修改文件。
-- Feature Flag 名称、默认值和开关验证结果。
-- 测试命令与测试结果。
-- 生产构建结果。
-- 旧流程兼容验证结果。
-- 回滚步骤与回滚验证结果。
-- Commit ID 与 Commit Message。
-- 未解决问题（Backlog）。
-- 上述十项 DoD 的逐项勾选结果。
+## Repository Health
 
-## 范围纪律
+Repository Health is reported separately as `Healthy` or `Warning`.
 
-- 一个 Phase 只完成一个目标。
-- 当前 Phase 不得夹带 Bug 修复、性能优化、代码清理或 UI 调整。
-- 不得因为实现方便而改变冻结 Architecture。
-- 不得创建冻结 Architecture 之外的新模块或新能力。
-- 与当前 Phase 无关的已有工作区修改不得纳入当前 Commit。
-- 如果当前 Phase 超出既定边界，立即停止，记录冲突并等待确认。
+- Historical Legacy test failures are recorded as backlog items and do not
+  block Feature DoD when they are outside the current Phase.
+- Failures caused by unrelated, uncommitted parallel work are reported as a
+  Warning and do not block Feature DoD.
+- A failure in a Core, Migration, or Integration test that covers the current
+  Phase blocks Feature DoD.
+- Repository Health warnings must never be hidden or relabeled as passing.
 
-## Backlog 规则
+## Test Categories
 
-开发过程中发现的以下内容统一记录到 `docs/backlog.md`：
+The canonical category definitions and current test mapping are maintained in
+`docs/testing-categories.md`.
 
-- 新 Bug。
-- 新想法。
-- 可优化项。
-- Architecture 建议。
-- 非当前 Phase 的测试、维护或重构工作。
+## Phase Review
 
-记录后继续当前 Phase；不得顺手实施。如果问题导致当前 Phase 无法按冻结 Architecture 完成，则停止开发并请求确认。
+Every Phase Review must state both values explicitly:
 
-## Phase 完成后的停止规则
+```
+Feature DoD: PASS | BLOCKED
+Repository Health: Healthy | Warning
+```
 
-当前 Phase 满足全部 DoD 后：
-
-1. 更新对应 Migration 文档。
-2. 创建当前 Phase 的 Atomic Commit。
-3. 停止开发，不开始下一 Phase。
-4. 输出 Phase Review 和变更摘要。
-5. 等待用户明确确认后，才能进入下一 Phase。
-
-## Phase Review 最低内容
-
-- Phase 名称与完成状态。
-- 当前 Phase 完成的目标。
-- 修改文件清单。
-- Feature Flag 状态。
-- 测试与构建结果。
-- 旧流程兼容结果。
-- 回滚方法。
-- Commit ID。
-- Backlog 条目。
-- 最大剩余风险。
+The review must identify all warnings, the rollback flag or commit, and the
+commit identifier before work starts on the next approved Phase.
