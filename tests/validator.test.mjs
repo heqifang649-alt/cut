@@ -78,5 +78,8 @@ test("worker writes only an isolated validation artifact before continuing the l
   assert.match(source, /validation-results\.json/);
   assert.match(source, /isolated:\s*true/);
   assert.match(source, /renderBatchFromEdl/);
-  assert.doesNotMatch(source, /validationResults[\s\S]*ShotPool/);
+  const validatorStart = source.indexOf("if (isNewValidatorEnabled())");
+  const shotPoolStart = source.indexOf("if (isNewShotPoolEnabled())", validatorStart);
+  const validatorBlock = source.slice(validatorStart, shotPoolStart);
+  assert.doesNotMatch(validatorBlock, /ShotPool/);
 });

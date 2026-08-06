@@ -19,3 +19,4 @@
 |---|---|---|---|---|---|---|---|
 | BL-001 | 2026-08-06 | Phase 1 前置检查 | 历史遗留 | `scripts/_patch-edl-and-rerender.py` 与 `scripts/_restore-batch.py` 硬编码批次 `d737c0af-b50d-4e99-bdd6-e231cf2bab66`，属于一次性恢复脚本，无参数、测试或代码引用。建议删除，但不在 Phase 1 处理。 | 当前保持未跟踪，不影响生产；误执行会直接修改运行数据。 | Architecture 迁移完成后的 Legacy 清理 | Open |
 | BL-002 | 2026-08-06 | Phase 1 | 待评审工具 | `scripts/auto-fix-failed.cmd` 与 `scripts/auto_fix_failed.py` 在 Phase 1 期间出现，意图作为 failed 批次恢复工具，但当前会直接删除数据锁、合成质量通过记录，并硬编码本机 Python 路径。未经过 Architecture、并发安全和质量门禁评审。 | 当前保持未跟踪且未执行；误用可能绕过现有原子锁和质量审核规则。 | 独立运维工具评审；不得在 Phase 1 顺手纳入 | Open |
+| BL-003 | 2026-08-06 | Phase 3 | 阈值校准 | 20 条可访问 NAS 原片抽样中 18 条命中 `tech:duration_invalid`，说明当前 2–15 秒 Validator 时长阈值与长原片素材存在偏差。 | 不能据此直接放宽质量门禁；可能影响后续 ShotPool 入池数量。 | 使用真实批次确认“原片检测时长”与“可剪片段时长”的业务边界后再评估 | Open |

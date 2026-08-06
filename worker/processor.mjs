@@ -4,6 +4,7 @@ import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promi
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { renderBatchFromEdl } from "./batch-renderer.mjs";
+import { importBatchToShotPool, isNewShotPoolEnabled } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
@@ -332,6 +333,17 @@ async function runBatchEdit(batch) {
       generatedAt: new Date().toISOString(),
       results: validationResults,
     }, null, 2), "utf8");
+  }
+  if (isNewShotPoolEnabled()) {
+    await update(batch.id, (item) => {
+      item.renderingLabel = "隔离写入新 ShotPool";
+      item.lastWorkerActivityAt = new Date().toISOString();
+    });
+    await importBatchToShotPool({
+      batch,
+      batchDir,
+      validate: (videoPath) => validateVideo(videoPath, { ffmpeg: FFMPEG }),
+    });
   }
   const edlPath = path.join(batchDir, "edit", "batch-edl.json");
   const resumeFromEdl = batch.status === "editing" && await stat(edlPath).then((value) => value.isFile()).catch(() => false);
