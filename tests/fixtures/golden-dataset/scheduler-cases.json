@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "batchId": "golden-fashion-v1",
+  "createdAt": "2026-08-06T00:00:00.000Z",
+  "success": {
+    "shotPool": {
+      "version": 1,
+      "batchId": "golden-fashion-v1",
+      "shots": [
+        {
+          "id": "hook-generic",
+          "source": "golden-hook-generic.mp4",
+          "path": "D:/golden/hook-generic.mp4",
+          "start": 0,
+          "end": 1.4,
+          "duration": 1.4,
+          "tags": ["full_body"],
+          "reject": false,
+          "origin": "real",
+          "productVisibility": 0.9,
+          "productCentered": true,
+          "motionEnergy": "medium"
+        },
+        {
+          "id": "hook-street",
+          "source": "golden-hook-street.mp4",
+          "path": "D:/golden/hook-street.mp4",
+          "start": 0,
+          "end": 1.5,
+          "duration": 1.5,
+          "tags": ["full_body", "street"],
+          "reject": false,
+          "origin": "real",
+          "productVisibility": 0.9,
+          "productCentered": true,
+          "motionEnergy": "medium"
+        },
+        {
+          "id": "detail-generic",
+          "source": "golden-detail-generic.mp4",
+          "path": "D:/golden/detail-generic.mp4",
+          "start": 0,
+          "end": 1.7,
+          "duration": 1.7,
+          "tags": ["detail"],
+          "reject": false,
+          "origin": "real",
+          "productVisibility": 0.95,
+          "productCentered": true,
+          "motionEnergy": "medium"
+        },
+        {
+          "id": "detail-fabric",
+          "source": "golden-detail-fabric.mp4",
+          "path": "D:/golden/detail-fabric.mp4",
+          "start": 0,
+          "end": 1.7,
+          "duration": 1.7,
+          "tags": ["detail", "fabric"],
+          "reject": false,
+          "origin": "real",
+          "productVisibility": 0.95,
+          "productCentered": true,
+          "motionEnergy": "medium"
+        }
+      ]
+    },
+    "scriptTemplate": {
+      "id": "golden-street-13s",
+      "name": "golden street sequence",
+      "totalDuration": 3.2,
+      "slots": [
+        {
+          "id": "hook",
+          "label": "Hook",
+          "requireTags": ["full_body"],
+          "targetDuration": 1.4,
+          "preferTags": ["street"],
+          "minDuration": 1,
+          "maxDuration": 2,
+          "minProductVisibility": 0.8,
+          "requireProductCentered": true,
+          "requireMotionEnergy": "medium"
+        },
+        {
+          "id": "detail",
+          "label": "Detail",
+          "requireTags": ["detail"],
+          "targetDuration": 1.8,
+          "preferTags": ["fabric"],
+          "minDuration": 1,
+          "maxDuration": 2,
+          "minProductVisibility": 0.8,
+          "requireProductCentered": true,
+          "requireMotionEnergy": "medium"
+        }
+      ]
+    },
+    "expectedShotIds": ["hook-street", "detail-fabric"]
+  },
+  "failed": {
+    "shotPool": {
+      "version": 1,
+      "batchId": "golden-fashion-v1",
+      "shots": [
+        {
+          "id": "only-full-body",
+          "source": "golden-only-full-body.mp4",
+          "path": "D:/golden/only-full-body.mp4",
+          "start": 0,
+          "end": 1.4,
+          "duration": 1.4,
+          "tags": ["full_body"],
+          "reject": false,
+          "origin": "real",
+          "productVisibility": 0.9,
+          "productCentered": true,
+          "motionEnergy": "medium"
+        }
+      ]
+    },
+    "scriptTemplate": {
+      "id": "golden-failure",
+      "name": "golden failure sequence",
+      "totalDuration": 3.2,
+      "slots": [
+        {
+          "id": "hook",
+          "label": "Hook",
+          "requireTags": ["full_body"],
+          "targetDuration": 1.4
+        },
+        {
+          "id": "detail",
+          "label": "Detail",
+          "requireTags": ["detail"],
+          "targetDuration": 1.8
+        }
+      ]
+    },
+    "expected": {
+      "status": "failed",
+      "reason": "no_matching_shot",
+      "slotId": "detail"
+    }
+  }
+}

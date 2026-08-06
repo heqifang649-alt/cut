@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "accept-clean-street-look",
+      "input": {
+        "technical": {
+          "width": 1080,
+          "height": 1920,
+          "duration": 3.2,
+          "bitrate": 2500000,
+          "frameRate": 30,
+          "frameRateConsistent": true
+        },
+        "temporalArtifacts": [],
+        "artifacts": []
+      },
+      "expected": {
+        "verdict": "accept",
+        "artifacts": []
+      }
+    },
+    {
+      "id": "review-low-confidence-motion",
+      "input": {
+        "technical": {
+          "width": 1080,
+          "height": 1920,
+          "duration": 3.2,
+          "bitrate": 2500000,
+          "frameRate": 30,
+          "frameRateConsistent": true
+        },
+        "temporalArtifacts": [
+          { "type": "tech:stutter", "confidence": 0.6 }
+        ],
+        "artifacts": []
+      },
+      "expected": {
+        "verdict": "review",
+        "rejectReason": "review:low_confidence",
+        "artifacts": [
+          { "type": "tech:stutter", "confidence": 0.6 }
+        ]
+      }
+    },
+    {
+      "id": "reject-low-resolution",
+      "input": {
+        "technical": {
+          "width": 640,
+          "height": 1136,
+          "duration": 3.2,
+          "bitrate": 2500000,
+          "frameRate": 30,
+          "frameRateConsistent": true
+        },
+        "temporalArtifacts": [],
+        "artifacts": []
+      },
+      "expected": {
+        "verdict": "reject",
+        "rejectReason": "tech:low_resolution",
+        "artifacts": []
+      }
+    }
+  ]
+}
