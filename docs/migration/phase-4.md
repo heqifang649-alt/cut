@@ -44,10 +44,9 @@ connected RenderPlan to the production Renderer.
 - Phase 2/3 contract and validator tests used for compatibility: 8/8 passed.
 - TypeScript check: passed.
 - `git diff --check`: passed.
-- Production build could not be completed in this checkout because the
-  existing dependency tree is missing `picocolors`; no dependency or lockfile
-  changes were made. This is recorded as an environment limitation, not a
-  Scheduler failure.
+- Production build: passed after restoring the existing locked
+  `picocolors@1.1.1` dependency. No source, dependency-version, or lockfile
+  changes were required.
 
 ## Performance
 
@@ -66,8 +65,7 @@ path. The Phase 4 commit can also be reverted independently.
 ## Backlog
 
 - Existing `BL-003` duration-gate data finding remains unchanged.
-- Missing `picocolors` in the local dependency tree must be repaired by the
-  environment owner before claiming a production-build verification.
+- None introduced by this phase.
 
 ## Definition of Done
 
