@@ -3,10 +3,10 @@ import { existsSync } from "node:fs";
 import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { renderBatchFromEdl } from "./batch-renderer.mjs";
+import { isNewRendererEnabled, renderBatchFromEdl, renderBatchFromRenderPlans } from "./batch-renderer.mjs";
 import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
-import { isNewSchedulerEnabled, scheduleShotPool } from "./shot-scheduler.mjs";
+import { createProductViews, isNewSchedulerEnabled, scheduleProductView } from "./shot-scheduler.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
 const ROOT = process.cwd();
@@ -346,17 +346,61 @@ async function runBatchEdit(batch) {
       validate: (videoPath) => validateVideo(videoPath, { ffmpeg: FFMPEG }),
     });
   }
+  let scheduledProducts = [];
   if (isNewSchedulerEnabled()) {
     const scriptTemplatePath = path.join(batchDir, "script-template.json");
     const scriptTemplate = await readJson(scriptTemplatePath, null);
-    if (scriptTemplate) {
-      const scheduleResult = scheduleShotPool({
-        batchId: batch.id,
-        shotPool: await loadShotPool(batch.id, batchDir),
-        scriptTemplate,
-      });
-      await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), scheduleResult);
-    }
+    const productGroups = await readJson(path.join(batchDir, "product-groups.json"), null);
+    if (!scriptTemplate) throw new Error("New Scheduler requires script-template.json");
+    if (!Array.isArray(productGroups?.groups)) throw new Error("New Scheduler requires confirmed product-groups.json");
+    const productViews = createProductViews({
+      shotPool: await loadShotPool(batch.id, batchDir),
+      productGroups: productGroups.groups,
+    });
+    scheduledProducts = productViews.map((productView) => ({
+      product: productView.product,
+      sourceNamesByShotId: productView.sourceNamesByShotId,
+      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate }),
+    }));
+    await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), {
+      isolated: true,
+      batchId: batch.id,
+      createdAt: new Date().toISOString(),
+      products: scheduledProducts,
+    });
+  }
+  if (isNewRendererEnabled()) {
+    if (!isNewSchedulerEnabled()) throw new Error("New Renderer requires ENABLE_NEW_SCHEDULER=true");
+    if (!scheduledProducts.length) throw new Error("New Renderer requires at least one Product View");
+    const failed = scheduledProducts.filter(({ scheduleResult }) => scheduleResult.status === "failed");
+    if (failed.length) throw new Error(`Schedule Failed: ${failed.map(({ product, scheduleResult }) => `${product.id}:${scheduleResult.slotId}`).join(", ")}`);
+    const refreshed = (await readBatches()).find((item) => item.id === batch.id) || batch;
+    const { files, summary } = await renderBatchFromRenderPlans({
+      root: ROOT,
+      batch: refreshed,
+      batchDir,
+      ffmpeg: FFMPEG,
+      scheduledProducts,
+      isCanceled: () => isCanceled(batch.id),
+      onProgress: async (done, total, label) => update(batch.id, (item) => {
+        item.progress = 50 + Math.round((done / total) * 47);
+        item.renderingLabel = `${label}（${done}/${total}）`;
+        item.lastWorkerActivityAt = new Date().toISOString();
+      }),
+      onActivity: async (label) => update(batch.id, (item) => {
+        item.renderingLabel = label;
+        item.lastWorkerActivityAt = new Date().toISOString();
+      }),
+    });
+    await update(batch.id, (item) => {
+      item.status = files.length ? "review" : "failed";
+      item.progress = files.length ? 100 : 92;
+      item.error = files.length ? undefined : "New RenderPlan renderer produced no reviewable MP4 output.";
+      item.files = item.files.filter((file) => file.kind !== "output").concat(files);
+      item.renderSummary = summary;
+      item.renderingLabel = undefined;
+    });
+    return;
   }
   const edlPath = path.join(batchDir, "edit", "batch-edl.json");
   const resumeFromEdl = batch.status === "editing" && await stat(edlPath).then((value) => value.isFile()).catch(() => false);

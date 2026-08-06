@@ -5,13 +5,65 @@ const EPSILON = 1e-9;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 
+function isAcceptShot(shot) {
+  return isShot(shot) && shot.reject === false && shot.rejectReason === undefined;
+}
+
+function validateScriptTemplate(scriptTemplate) {
+  if (!scriptTemplate || typeof scriptTemplate !== "object" || typeof scriptTemplate.id !== "string" || typeof scriptTemplate.name !== "string" || !Array.isArray(scriptTemplate.slots) || !scriptTemplate.slots.every(isSlot) || !Number.isFinite(scriptTemplate.totalDuration)) {
+    throw new TypeError("ScriptTemplate structure is invalid");
+  }
+}
+
 function validateInputs(batchId, shotPool, scriptTemplate) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
-  if (!shotPool || !Array.isArray(shotPool.shots) || !shotPool.shots.every((shot) => isShot(shot) && shot.reject === false && shot.rejectReason === undefined)) {
-    throw new TypeError("Scheduler 只接受完整的 Quality Gate accept ShotPool");
+  if (!shotPool || !Array.isArray(shotPool.shots) || !shotPool.shots.every(isAcceptShot)) {
+    throw new TypeError("Scheduler only accepts a complete Quality Gate accept ShotPool");
   }
-  if (!scriptTemplate || typeof scriptTemplate !== "object" || typeof scriptTemplate.id !== "string" || typeof scriptTemplate.name !== "string" || !Array.isArray(scriptTemplate.slots) || !scriptTemplate.slots.every(isSlot) || !Number.isFinite(scriptTemplate.totalDuration)) {
-    throw new TypeError("ScriptTemplate 结构无效");
+  validateScriptTemplate(scriptTemplate);
+}
+
+const normalizedPath = (value) => String(value).replaceAll("/", "\\").toLowerCase();
+const sourceBaseName = (value) => normalizedPath(value).split("\\").at(-1);
+
+function groupForProductView(group) {
+  if (!group || typeof group !== "object" || typeof group.id !== "string" || group.id.length === 0 || typeof group.label !== "string" || !Array.isArray(group.files) || !group.files.every((file) => typeof file === "string" && file.length > 0)) {
+    throw new TypeError("Product View requires a confirmed product group");
+  }
+  return { id: group.id, label: group.label, files: [...group.files] };
+}
+
+function matchingGroupFile(shotPath, group) {
+  const source = normalizedPath(shotPath);
+  const exact = group.files.find((file) => source.endsWith(`\\${normalizedPath(file)}`) || source === normalizedPath(file));
+  if (exact) return exact;
+  const base = sourceBaseName(source);
+  const baseMatches = group.files.filter((file) => sourceBaseName(file) === base);
+  return baseMatches.length === 1 ? baseMatches[0] : null;
+}
+
+export function createProductViews({ shotPool, productGroups }) {
+  if (!shotPool || !Array.isArray(shotPool.shots) || !shotPool.shots.every(isAcceptShot)) throw new TypeError("Product View requires a complete Quality Gate accept ShotPool");
+  if (!Array.isArray(productGroups) || !productGroups.length) throw new TypeError("Product View requires confirmed product groups");
+  const views = productGroups.map((group) => ({ product: groupForProductView(group), shots: [], sourceNamesByShotId: {} }));
+  if (new Set(views.map((view) => view.product.id)).size !== views.length) throw new Error("Product View group ids must be unique");
+
+  for (const shot of shotPool.shots) {
+    const matches = views
+      .map((view) => ({ view, sourceName: matchingGroupFile(shot.path, view.product) }))
+      .filter(({ sourceName }) => sourceName);
+    if (matches.length > 1) throw new Error(`Shot ${shot.id} belongs to multiple product groups`);
+    if (!matches.length) continue;
+    const { view, sourceName } = matches[0];
+    view.shots.push(shot);
+    view.sourceNamesByShotId[shot.id] = sourceName;
+  }
+  return views;
+}
+
+function validateProductView(productView) {
+  if (!productView || typeof productView !== "object" || !productView.product || typeof productView.product.id !== "string" || typeof productView.product.label !== "string" || !Array.isArray(productView.shots) || !productView.shots.every(isAcceptShot)) {
+    throw new TypeError("Scheduler requires a complete Product View");
   }
 }
 
@@ -38,18 +90,17 @@ function compareCandidates(left, right) {
   return left.shot.id.localeCompare(right.shot.id);
 }
 
-function planIdFor(batchId, scriptTemplate, slots) {
+function planIdFor(batchId, scriptTemplate, slots, contextKey = "") {
   return createHash("sha256")
-    .update(JSON.stringify({ batchId, templateId: scriptTemplate.id, slots: slots.map(({ slot, shot }) => ({ slotId: slot.id, shotId: shot.id })) }))
+    .update(JSON.stringify({ batchId, templateId: scriptTemplate.id, contextKey, slots: slots.map(({ slot, shot }) => ({ slotId: slot.id, shotId: shot.id })) }))
     .digest("hex").slice(0, 32);
 }
 
-export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString() }) {
-  validateInputs(batchId, shotPool, scriptTemplate);
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey }) {
   const selected = [];
   const usedShotIds = new Set();
   for (const slot of scriptTemplate.slots) {
-    const candidates = shotPool.shots
+    const candidates = shots
       .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot))
       .map((shot) => rankCandidate(shot, slot))
       .sort(compareCandidates);
@@ -59,11 +110,23 @@ export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt 
     selected.push({ slot, shot: best });
   }
   const renderPlan = {
-    id: planIdFor(batchId, scriptTemplate, selected),
+    id: planIdFor(batchId, scriptTemplate, selected, contextKey),
     batchId,
     slots: selected,
     createdAt,
   };
-  if (!isRenderPlan(renderPlan)) throw new Error("Scheduler 生成了无效 RenderPlan");
+  if (!isRenderPlan(renderPlan)) throw new Error("Scheduler produced an invalid RenderPlan");
   return { status: "success", renderPlan };
+}
+
+export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString() }) {
+  validateInputs(batchId, shotPool, scriptTemplate);
+  return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool" });
+}
+
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString() }) {
+  if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
+  validateProductView(productView);
+  validateScriptTemplate(scriptTemplate);
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id });
 }

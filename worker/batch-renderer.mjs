@@ -32,6 +32,39 @@ export function dryRunRenderPlan(renderPlan) {
   };
 }
 
+export function renderPlansToEdl({ master = {}, scheduledProducts }) {
+  if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) throw new TypeError("RenderPlan renderer requires scheduled products");
+  const products = scheduledProducts.map(({ product, sourceNamesByShotId, scheduleResult }) => {
+    if (!product || typeof product.id !== "string" || typeof product.label !== "string" || !Array.isArray(product.files)) throw new TypeError("RenderPlan renderer requires product context");
+    if (!scheduleResult || scheduleResult.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) throw new TypeError(`RenderPlan renderer requires a successful schedule for ${product.id}`);
+    if (!sourceNamesByShotId || typeof sourceNamesByShotId !== "object") throw new TypeError(`RenderPlan renderer requires source context for ${product.id}`);
+    let outputCursor = 0;
+    const segments = scheduleResult.renderPlan.slots.map(({ slot, shot }, index) => {
+      const sourceName = sourceNamesByShotId[shot.id];
+      if (!sourceName || !product.files.includes(sourceName)) throw new Error(`RenderPlan shot ${shot.id} is outside product context ${product.id}`);
+      const duration = Number((shot.end - shot.start).toFixed(6));
+      if (duration <= 0) throw new Error(`RenderPlan shot ${shot.id} has no renderable duration`);
+      const outputIn = outputCursor;
+      outputCursor = Number((outputCursor + duration).toFixed(6));
+      return {
+        segment_id: `${product.id}-S${String(index + 1).padStart(2, "0")}`,
+        slot: slot.id,
+        output_in: outputIn,
+        output_out: outputCursor,
+        duration,
+        source_name: sourceName,
+        source_original: shot.path,
+        source_in: shot.start,
+        source_out: shot.end,
+        speed: 1,
+        transition_out: "hard_cut",
+      };
+    });
+    return { product_id: product.id, display_name: product.label, duration_seconds: outputCursor, visual_consistency_verified: true, segments };
+  });
+  return { master, products, excluded_products: [] };
+}
+
 function run(executable, args, label, onActivity = async () => {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, { windowsHide: true });
@@ -202,7 +235,7 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
       product_id: product.product_id,
       display_name: product.display_name,
       variant: record.variantIndex,
-      duration_seconds: Number(master.duration_seconds) || Number(batch.durationMax) || 12.7,
+      duration_seconds: Number(product.duration_seconds) || Number(master.duration_seconds) || Number(batch.durationMax) || 12.7,
       width: Number(master.width) || 1080,
       height: Number(master.height) || 1920,
       fps: Number(master.fps) || 30,
@@ -246,14 +279,36 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
   return path.relative(root, manifestPath);
 }
 
-export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+  const editDir = path.join(batchDir, "edit");
+  const legacyEdlPath = path.join(editDir, "batch-edl.json");
+  const legacyEdl = JSON.parse(await readFile(legacyEdlPath, "utf8").catch(() => "{}"));
+  const renderPlanEdl = renderPlansToEdl({ master: legacyEdl.master || {}, scheduledProducts });
+  const renderPlanEdlPath = path.join(editDir, "render-plan-edl.json");
+  await mkdir(editDir, { recursive: true });
+  await writeFile(renderPlanEdlPath, JSON.stringify(renderPlanEdl, null, 2), "utf8");
+  return renderBatchFromEdl({
+    root,
+    batch,
+    batchDir,
+    ffmpeg,
+    onProgress,
+    onActivity,
+    isCanceled,
+    limit,
+    edlPath: renderPlanEdlPath,
+    validateLegacyProductConsistency: false,
+  });
+}
+
+export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true }) {
   const assertActive = async () => { if (await isCanceled()) throw new Error("任务已取消"); };
   await assertActive();
   const editDir = path.join(batchDir, "edit");
-  const edlPath = path.join(editDir, "batch-edl.json");
+  const edlPath = suppliedEdlPath || path.join(editDir, "batch-edl.json");
   const edl = JSON.parse(await readFile(edlPath, "utf8"));
   if (!Array.isArray(edl.products) || !edl.products.length) throw new Error("batch-edl.json 没有可渲染的产品");
-  await validateProductConsistency(batchDir, edl);
+  if (validateLegacyProductConsistency) await validateProductConsistency(batchDir, edl);
 
   const master = edl.master || {};
   const width = Number(master.width) || 1080;
@@ -285,6 +340,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     await assertActive();
     const product = products[productIndex];
     if (!Array.isArray(product.segments) || !product.segments.length) continue;
+    const productDuration = Number(product.duration_seconds) || duration;
+    if (productDuration > (Number(batch.durationMax) || duration) + 1e-6) throw new Error(`RenderPlan duration exceeds batch limit for ${product.product_id}`);
     const productClips = path.join(clipsDir, product.product_id);
     await mkdir(productClips, { recursive: true });
     const segmentPaths = [];
@@ -326,10 +383,10 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     const outputPath = path.join(outputDir, outputName);
     const musicPath = musicPool[outputOrdinal];
     await assertActive();
-    const musicOffset = await findBeatAlignedOffset(ffmpeg, musicPath, master.cuts || [3, 6, 8.2, 10.2], duration);
-    const audioEnd = Math.max(0, duration - 0.03).toFixed(3);
-    const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,3)'[v1];[v1][3:v]overlay=0:0:enable='between(t,3,${duration})'[vout];[1:a]atrim=start=0:end=${duration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
-    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, "-loop", "1", "-i", path.join(overlayDir, "hook.png"), "-loop", "1", "-i", path.join(overlayDir, "cvr.png"), "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(duration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
+    const musicOffset = await findBeatAlignedOffset(ffmpeg, musicPath, master.cuts || [3, 6, 8.2, 10.2], productDuration);
+    const audioEnd = Math.max(0, productDuration - 0.03).toFixed(3);
+    const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,3)'[v1];[v1][3:v]overlay=0:0:enable='between(t,3,${productDuration})'[vout];[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
+    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, "-loop", "1", "-i", path.join(overlayDir, "hook.png"), "-loop", "1", "-i", path.join(overlayDir, "cvr.png"), "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
     const record = await buildOutputRecord(root, outputPath, {
       musicName: path.basename(musicPath),

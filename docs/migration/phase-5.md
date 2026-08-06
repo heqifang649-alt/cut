@@ -2,50 +2,71 @@
 
 ## Status
 
-In progress. The Dry Run RenderPlan step is complete; the real Renderer input
-path is not connected yet.
+Implementation complete; formal Phase approval is blocked by three pre-existing
+full-suite failures recorded in `docs/backlog.md` as BL-005 and BL-006.
 
 ## Purpose
 
-Allow the existing Renderer to accept a frozen RenderPlan while retaining the
-legacy EDL path. No new Renderer or adapter module may be created.
+Render a complete, product-isolated RenderPlan through the existing renderer
+while preserving the legacy EDL renderer and all frozen Contracts.
 
-## Changed files so far
+## Implementation
 
-- `worker/batch-renderer.mjs`: pure `dryRunRenderPlan()` diagnostic entry and
-  exact `ENABLE_NEW_RENDERER` helper.
-- `tests/render-plan-dry-run.test.mjs`: Golden Dataset mapping, incomplete-plan
-  refusal, and feature-flag default tests.
+- `Product View` is an internal Scheduler-context projection of the complete
+  ShotPool using confirmed `product-groups.json` source membership.
+- `Shot`, `RenderPlan`, and `ValidationResult` were not changed.
+- Scheduler receives a Product View and fails closed on an ambiguous source,
+  a missing slot, Review input, or Reject input.
+- The existing `worker/batch-renderer.mjs` converts successful Product View
+  schedules into an isolated `render-plan-edl.json`, then reuses the existing
+  ffmpeg pipeline. No Renderer or adapter module was created.
+- The conversion preserves selected source path, source in/out points, order,
+  original speed `1`, per-product source duration, music uniqueness, existing
+  LUT, captions, CVR layout, decode check, and ChatCut manifest generation.
+- The Worker enters this path only when both new flags are enabled. A failed
+  schedule fails before any renderer invocation.
 
-The Dry Run step does not change the Worker entry, call ffmpeg, write output
-files, modify the UI, or replace the legacy EDL render path.
+## Changed files
 
-## Feature flag
+- `worker/shot-scheduler.mjs`
+- `worker/batch-renderer.mjs`
+- `worker/processor.mjs`
+- `tests/product-view.test.mjs`
+- `tests/render-plan-renderer.test.mjs`
+- `tests/render-plan-dry-run.test.mjs`
+- `docs/migration/phase-5.md`
+- `docs/backlog.md`
 
-`ENABLE_NEW_RENDERER=false` by default. It is declared and tested, but it is
-not wired to a rendering path until the real RenderPlan renderer is added.
+## Feature flags
 
-## Test results so far
+- `ENABLE_NEW_SCHEDULER=false` by default.
+- `ENABLE_NEW_RENDERER=false` by default.
+- `ENABLE_NEW_RENDERER=true` requires `ENABLE_NEW_SCHEDULER=true`.
+- With either flag disabled, the legacy EDL renderer remains the active path.
 
-- Dry Run must preserve slot order, source path, in/out points, source
-  duration, and target duration from a complete RenderPlan.
-- The Golden Dataset supplies the stable successful RenderPlan used by the
-  diagnostic test.
-- Real RenderPlan rendering and old/new output comparison remain pending.
+## Test results
+
+- Product View, Scheduler, Golden Dataset, Dry Run, Renderer conversion, and
+  Validator regression tests: 35/35 passed.
+- TypeScript: passed.
+- Production build: passed.
+- Full Node suite: 69/72 passed. The remaining three failures are unrelated
+  to this Phase and are recorded as BL-005 and BL-006; no out-of-scope repair
+  was made.
 
 ## Rollback
 
-Keep `ENABLE_NEW_RENDERER=false`; the legacy EDL renderer remains the only
-active production path. The final Phase 5 commit will be independently
-revertible.
-
-## Backlog
-
-Any non-Phase-5 issue must be recorded in `docs/backlog.md` without a
-side-effecting change.
+Set `ENABLE_NEW_RENDERER=false` and `ENABLE_NEW_SCHEDULER=false`. The legacy
+EDL renderer remains unchanged. This Phase's implementation commit can be
+reverted independently.
 
 ## Definition of Done
 
-This phase remains incomplete until the RenderPlan path is connected, both
-new and legacy render paths pass their tests, the production build passes, the
-migration record is finalized, and the Phase has an atomic commit.
+- [x] Current Phase objectives implemented.
+- [x] Frozen Contracts unchanged.
+- [x] No new system boundary or Renderer module.
+- [x] Feature flags default off.
+- [x] Legacy path remains available.
+- [ ] All full-suite tests pass: blocked by BL-005 and BL-006.
+- [x] Migration documentation updated.
+- [ ] Final Phase commit pending this review.
