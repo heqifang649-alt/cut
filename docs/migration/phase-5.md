@@ -1,33 +1,51 @@
-# Phase 5：Renderer
+# Phase 5: Renderer
 
-## 状态
+## Status
 
-未开始。Phase 4 完成、测试并提交前禁止开始。
+In progress. The Dry Run RenderPlan step is complete; the real Renderer input
+path is not connected yet.
 
-## 修改目的
+## Purpose
 
-让现有 Renderer 接受 RenderPlan，同时完整保留旧 EDL 渲染路径。
+Allow the existing Renderer to accept a frozen RenderPlan while retaining the
+legacy EDL path. No new Renderer or adapter module may be created.
 
-## 修改文件
+## Changed files so far
 
-待 Phase 5 实施时填写。不得创建冻结 Architecture 之外的新 Renderer 模块。
+- `worker/batch-renderer.mjs`: pure `dryRunRenderPlan()` diagnostic entry and
+  exact `ENABLE_NEW_RENDERER` helper.
+- `tests/render-plan-dry-run.test.mjs`: Golden Dataset mapping, incomplete-plan
+  refusal, and feature-flag default tests.
 
-## Feature Flag
+The Dry Run step does not change the Worker entry, call ffmpeg, write output
+files, modify the UI, or replace the legacy EDL render path.
 
-`ENABLE_NEW_RENDERER=false`
+## Feature flag
 
-## 测试结果
+`ENABLE_NEW_RENDERER=false` by default. It is declared and tested, but it is
+not wired to a rendering path until the real RenderPlan renderer is added.
 
-待填写：新旧输入对照渲染、原速、原片回链、音乐唯一、解码、字幕安全区、质量门禁、Flag 开关和生产构建测试。
+## Test results so far
 
-## 回滚方法
+- Dry Run must preserve slot order, source path, in/out points, source
+  duration, and target duration from a complete RenderPlan.
+- The Golden Dataset supplies the stable successful RenderPlan used by the
+  diagnostic test.
+- Real RenderPlan rendering and old/new output comparison remain pending.
 
-关闭 `ENABLE_NEW_RENDERER`，使用已有 EDL 恢复旧渲染；必要时回滚 Phase 5 Atomic Commit。
+## Rollback
 
-## 未解决问题（Backlog）
+Keep `ENABLE_NEW_RENDERER=false`; the legacy EDL renderer remains the only
+active production path. The final Phase 5 commit will be independently
+revertible.
 
-发现的问题只记录到 `docs/backlog.md`。
+## Backlog
+
+Any non-Phase-5 issue must be recorded in `docs/backlog.md` without a
+side-effecting change.
 
 ## Definition of Done
 
-完成时必须逐项复制并勾选 `docs/migration/definition-of-done.md` 中的十项强制条件。任意一项未完成，本 Phase 保持未完成状态。
+This phase remains incomplete until the RenderPlan path is connected, both
+new and legacy render paths pass their tests, the production build passes, the
+migration record is finalized, and the Phase has an atomic commit.

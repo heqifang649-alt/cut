@@ -2,11 +2,35 @@ import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { randomInt } from "node:crypto";
 import path from "node:path";
+import { isRenderPlan } from "../lib/types.ts";
 
 const DEFAULT_LUT = path.resolve(process.cwd(), "..", "render_assets", "slog3.cube");
 const DEFAULT_PYTHON = "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
 const MEDIA_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".mp4", ".mov"]);
 const PROCESS_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_FFMPEG_TIMEOUT_MS) || 20 * 60 * 1000);
+
+export const isNewRendererEnabled = (env = process.env) => env.ENABLE_NEW_RENDERER === "true";
+
+export function dryRunRenderPlan(renderPlan) {
+  if (!isRenderPlan(renderPlan)) throw new TypeError("Dry Run requires a complete RenderPlan");
+  const segments = renderPlan.slots.map(({ slot, shot }, index) => ({
+    order: index + 1,
+    slotId: slot.id,
+    label: slot.label,
+    sourcePath: shot.path,
+    sourceIn: shot.start,
+    sourceOut: shot.end,
+    sourceDuration: Number((shot.end - shot.start).toFixed(6)),
+    targetDuration: slot.targetDuration,
+  }));
+  return {
+    status: "ready",
+    renderPlanId: renderPlan.id,
+    batchId: renderPlan.batchId,
+    totalSourceDuration: Number(segments.reduce((total, segment) => total + segment.sourceDuration, 0).toFixed(6)),
+    segments,
+  };
+}
 
 function run(executable, args, label, onActivity = async () => {}) {
   return new Promise((resolve, reject) => {
