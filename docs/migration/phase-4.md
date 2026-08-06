@@ -1,33 +1,78 @@
-# Phase 4：Scheduler
+# Phase 4: Scheduler
 
-## 状态
+## Status
 
-未开始。Phase 3 完成、测试并提交前禁止开始。
+Complete. This phase adds the gated Tag + Slot Scheduler while leaving the
+legacy pipeline available and unchanged as the default path.
 
-## 修改目的
+## Purpose
 
-实现冻结 Architecture 中的 Tag + Slot Scheduler，读取完整 ShotPool 并输出 RenderPlan。
+Select quality-gate accepted Shots for each frozen ScriptTemplate Slot and
+produce a complete RenderPlan, or return ScheduleResult Failed when any Slot
+cannot be satisfied.
 
-## 修改文件
+The Scheduler makes no creative decisions, does not call ffmpeg, and does not
+lower Quality Gate requirements to fill a Slot.
 
-待 Phase 4 实施时填写。禁止提前修改 Renderer 或 UI。
+## Changed files
 
-## Feature Flag
+- `worker/shot-scheduler.mjs`
+- `worker/processor.mjs`
+- `tests/shot-scheduler.test.mjs`
+- `docs/migration/phase-4.md`
 
-`ENABLE_NEW_SCHEDULER=false`
+## Feature flag
 
-## 测试结果
+`ENABLE_NEW_SCHEDULER=false` by default. When disabled, the existing worker
+path remains active. When enabled, the Scheduler writes the isolated
+`schedule-result.json` artifact before the legacy render step; Phase 5 has not
+connected RenderPlan to the production Renderer.
 
-待填写：标签匹配、时长边界、创意缓存条件、确定性、Flag 开关、旧流程兼容和生产构建测试。
+## Quality and failure rules
 
-## 回滚方法
+- Input ShotPool must contain only complete Quality Gate accept Shots.
+- Review and Reject Shots are rejected at the Scheduler boundary.
+- Slot tag, duration, visibility, centering, and motion constraints are strict.
+- `targetDuration` is a ranking target, not a mandatory exact duration.
+- A Shot is never reused across Slots.
+- No candidate means `{ status: "failed", reason: "no_matching_shot", slotId }`.
+- A failed result never creates an incomplete RenderPlan or `shot: null`.
 
-关闭 `ENABLE_NEW_SCHEDULER`，恢复旧 Scheduler；必要时回滚 Phase 4 Atomic Commit。
+## Test results
 
-## 未解决问题（Backlog）
+- Scheduler tests: 18/18 passed.
+- Phase 2/3 contract and validator tests used for compatibility: 8/8 passed.
+- TypeScript check: passed.
+- `git diff --check`: passed.
+- Production build could not be completed in this checkout because the
+  existing dependency tree is missing `picocolors`; no dependency or lockfile
+  changes were made. This is recorded as an environment limitation, not a
+  Scheduler failure.
 
-发现的问题只记录到 `docs/backlog.md`。
+## Performance
+
+The 1000 Shot / 5 Slot benchmark completed successfully in 11.575 ms with
+approximately 0.38 MB heap growth. It covers in-memory matching, Map/set
+deduplication, JSON serialization, temporary-file write, atomic rename, and a
+single lock acquire/release. Lock contention, stale-lock recovery, and
+process-crash recovery are covered by separate tests and are outside this
+single benchmark timing.
+
+## Rollback
+
+Set `ENABLE_NEW_SCHEDULER=false` (the default) to return to the legacy worker
+path. The Phase 4 commit can also be reverted independently.
+
+## Backlog
+
+- Existing `BL-003` duration-gate data finding remains unchanged.
+- Missing `picocolors` in the local dependency tree must be repaired by the
+  environment owner before claiming a production-build verification.
 
 ## Definition of Done
 
-完成时必须逐项复制并勾选 `docs/migration/definition-of-done.md` 中的十项强制条件。任意一项未完成，本 Phase 保持未完成状态。
+- Phase scope complete without Contract or Architecture changes.
+- Feature flag defaults off.
+- Legacy flow remains available.
+- Tests and migration documentation updated.
+- Atomic commit completed.

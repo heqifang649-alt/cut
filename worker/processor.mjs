@@ -4,8 +4,9 @@ import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promi
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { renderBatchFromEdl } from "./batch-renderer.mjs";
-import { importBatchToShotPool, isNewShotPoolEnabled } from "./ai-ingest.mjs";
+import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
+import { isNewSchedulerEnabled, scheduleShotPool } from "./shot-scheduler.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
 const ROOT = process.cwd();
@@ -344,6 +345,18 @@ async function runBatchEdit(batch) {
       batchDir,
       validate: (videoPath) => validateVideo(videoPath, { ffmpeg: FFMPEG }),
     });
+  }
+  if (isNewSchedulerEnabled()) {
+    const scriptTemplatePath = path.join(batchDir, "script-template.json");
+    const scriptTemplate = await readJson(scriptTemplatePath, null);
+    if (scriptTemplate) {
+      const scheduleResult = scheduleShotPool({
+        batchId: batch.id,
+        shotPool: await loadShotPool(batch.id, batchDir),
+        scriptTemplate,
+      });
+      await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), scheduleResult);
+    }
   }
   const edlPath = path.join(batchDir, "edit", "batch-edl.json");
   const resumeFromEdl = batch.status === "editing" && await stat(edlPath).then((value) => value.isFile()).catch(() => false);
