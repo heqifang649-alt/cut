@@ -1,0 +1,50 @@
+{
+  "file": "GC260723AP (7).mp4",
+  "duration_seconds": 8.533,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [],
+  "detected_shot_count": 1,
+  "average_shot_length_seconds": 8.533,
+  "first_cut_seconds": null,
+  "color": {
+    "mean_lab": [
+      115.246,
+      131.462,
+      137.263
+    ],
+    "sample_delta_median": 0.896,
+    "sample_delta_p90": 2.651
+  },
+  "stability": {
+    "camera_jerk_median": 0.000461,
+    "camera_jerk_p90": 0.039625
+  },
+  "sharpness_median": 2419.023,
+  "audio": {
+    "detected_onsets": [
+      0.36,
+      0.56,
+      0.8,
+      1.08,
+      1.6,
+      2.0,
+      2.44,
+      2.8,
+      3.56,
+      4.4,
+      5.08,
+      5.4,
+      6.0,
+      6.8,
+      7.0,
+      7.56,
+      7.8
+    ],
+    "cut_to_beat_error_median_seconds": null,
+    "cut_to_beat_error_p90_seconds": null
+  },
+  "contact_sheet": "09-GC260723AP (7).jpg"
+}

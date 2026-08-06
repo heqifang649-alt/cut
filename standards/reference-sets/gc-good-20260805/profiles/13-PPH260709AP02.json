@@ -1,0 +1,73 @@
+{
+  "file": "PPH260709AP02.mp4",
+  "duration_seconds": 12.733,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    0.667,
+    1.867,
+    3.067,
+    4.4,
+    5.067,
+    7.333,
+    10.133,
+    11.067
+  ],
+  "detected_shot_count": 9,
+  "average_shot_length_seconds": 1.415,
+  "first_cut_seconds": 0.667,
+  "color": {
+    "mean_lab": [
+      109.85,
+      132.971,
+      128.47
+    ],
+    "sample_delta_median": 1.83,
+    "sample_delta_p90": 5.865
+  },
+  "stability": {
+    "camera_jerk_median": 0.016807,
+    "camera_jerk_p90": 0.140968
+  },
+  "sharpness_median": 1481.272,
+  "audio": {
+    "detected_onsets": [
+      0.04,
+      0.64,
+      1.32,
+      1.84,
+      2.2,
+      2.56,
+      2.76,
+      3.32,
+      3.52,
+      3.96,
+      4.84,
+      5.08,
+      5.32,
+      5.72,
+      6.0,
+      6.36,
+      6.64,
+      7.48,
+      7.96,
+      8.48,
+      8.68,
+      8.88,
+      9.84,
+      10.16,
+      10.48,
+      10.68,
+      11.2,
+      11.68,
+      12.0,
+      12.2,
+      12.52
+    ],
+    "cut_to_beat_error_median_seconds": 0.08,
+    "cut_to_beat_error_p90_seconds": 0.309
+  },
+  "contact_sheet": "13-PPH260709AP02.jpg"
+}

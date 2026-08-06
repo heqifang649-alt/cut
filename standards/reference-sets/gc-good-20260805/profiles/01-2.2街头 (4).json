@@ -1,0 +1,59 @@
+{
+  "file": "2.2街头 (4).mp4",
+  "duration_seconds": 11.033,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    2.8,
+    4.133,
+    6.8
+  ],
+  "detected_shot_count": 4,
+  "average_shot_length_seconds": 2.758,
+  "first_cut_seconds": 2.8,
+  "color": {
+    "mean_lab": [
+      92.272,
+      131.948,
+      133.709
+    ],
+    "sample_delta_median": 0.788,
+    "sample_delta_p90": 3.178
+  },
+  "stability": {
+    "camera_jerk_median": 0.002805,
+    "camera_jerk_p90": 0.093937
+  },
+  "sharpness_median": 2078.161,
+  "audio": {
+    "detected_onsets": [
+      2.72,
+      2.92,
+      3.28,
+      3.6,
+      4.24,
+      4.6,
+      4.96,
+      5.36,
+      5.84,
+      6.16,
+      6.48,
+      6.68,
+      7.16,
+      7.8,
+      8.08,
+      8.56,
+      8.92,
+      9.36,
+      9.64,
+      10.0,
+      10.2,
+      10.72
+    ],
+    "cut_to_beat_error_median_seconds": 0.107,
+    "cut_to_beat_error_p90_seconds": 0.117
+  },
+  "contact_sheet": "01-2.2街头 (4).jpg"
+}

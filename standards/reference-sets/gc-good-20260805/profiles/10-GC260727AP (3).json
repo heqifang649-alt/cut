@@ -1,0 +1,66 @@
+{
+  "file": "GC260727AP (3).mp4",
+  "duration_seconds": 12.3,
+  "width": 1080,
+  "height": 1920,
+  "fps": 30.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [],
+  "detected_shot_count": 1,
+  "average_shot_length_seconds": 12.3,
+  "first_cut_seconds": null,
+  "color": {
+    "mean_lab": [
+      93.386,
+      146.378,
+      140.48
+    ],
+    "sample_delta_median": 2.112,
+    "sample_delta_p90": 5.249
+  },
+  "stability": {
+    "camera_jerk_median": 0.007224,
+    "camera_jerk_p90": 0.023635
+  },
+  "sharpness_median": 2076.845,
+  "audio": {
+    "detected_onsets": [
+      0.36,
+      0.84,
+      1.52,
+      2.24,
+      2.44,
+      2.92,
+      3.44,
+      3.64,
+      3.96,
+      4.16,
+      4.36,
+      4.76,
+      5.08,
+      5.32,
+      5.56,
+      6.04,
+      6.24,
+      6.76,
+      7.48,
+      7.76,
+      8.16,
+      8.6,
+      8.88,
+      9.12,
+      9.44,
+      9.84,
+      10.08,
+      10.36,
+      10.56,
+      10.76,
+      11.28,
+      11.56,
+      11.96
+    ],
+    "cut_to_beat_error_median_seconds": null,
+    "cut_to_beat_error_p90_seconds": null
+  },
+  "contact_sheet": "10-GC260727AP (3).jpg"
+}

@@ -1,0 +1,64 @@
+{
+  "file": "CLO260710CP19.mp4",
+  "duration_seconds": 11.333,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    10.0
+  ],
+  "detected_shot_count": 2,
+  "average_shot_length_seconds": 5.667,
+  "first_cut_seconds": 10.0,
+  "color": {
+    "mean_lab": [
+      61.151,
+      139.482,
+      133.071
+    ],
+    "sample_delta_median": 0.43,
+    "sample_delta_p90": 1.434
+  },
+  "stability": {
+    "camera_jerk_median": 0.001424,
+    "camera_jerk_p90": 0.035518
+  },
+  "sharpness_median": 2788.375,
+  "audio": {
+    "detected_onsets": [
+      0.12,
+      0.52,
+      0.76,
+      1.28,
+      1.84,
+      2.24,
+      2.44,
+      2.68,
+      3.12,
+      3.48,
+      4.04,
+      4.36,
+      4.72,
+      5.16,
+      5.36,
+      5.56,
+      5.92,
+      6.2,
+      6.72,
+      7.12,
+      7.48,
+      7.76,
+      8.24,
+      8.48,
+      8.68,
+      8.88,
+      9.36,
+      9.8,
+      10.92
+    ],
+    "cut_to_beat_error_median_seconds": 0.2,
+    "cut_to_beat_error_p90_seconds": 0.2
+  },
+  "contact_sheet": "06-CLO260710CP19.jpg"
+}

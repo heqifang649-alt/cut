@@ -1,0 +1,69 @@
+{
+  "file": "PPH260611EP01.mp4",
+  "duration_seconds": 11.733,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    1.067,
+    2.133,
+    2.933,
+    3.867,
+    4.667,
+    6.267,
+    6.933,
+    7.733
+  ],
+  "detected_shot_count": 9,
+  "average_shot_length_seconds": 1.304,
+  "first_cut_seconds": 1.067,
+  "color": {
+    "mean_lab": [
+      154.467,
+      123.927,
+      133.062
+    ],
+    "sample_delta_median": 1.353,
+    "sample_delta_p90": 20.332
+  },
+  "stability": {
+    "camera_jerk_median": 0.0153,
+    "camera_jerk_p90": 0.223117
+  },
+  "sharpness_median": 1711.916,
+  "audio": {
+    "detected_onsets": [
+      0.28,
+      0.8,
+      1.32,
+      1.8,
+      2.32,
+      2.84,
+      3.16,
+      3.36,
+      3.84,
+      4.32,
+      4.84,
+      5.52,
+      5.88,
+      6.4,
+      6.92,
+      7.4,
+      7.6,
+      7.92,
+      8.4,
+      8.64,
+      8.92,
+      9.28,
+      9.6,
+      9.92,
+      10.44,
+      10.96,
+      11.44
+    ],
+    "cut_to_beat_error_median_seconds": 0.133,
+    "cut_to_beat_error_p90_seconds": 0.207
+  },
+  "contact_sheet": "12-PPH260611EP01.jpg"
+}

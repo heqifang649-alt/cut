@@ -1,0 +1,49 @@
+{
+  "schema_version": "gc-text-layout/1.0",
+  "name": "GC 9:16 top hook and lower-right CVR",
+  "canvas": { "width": 1080, "height": 1920, "aspect_ratio": "9:16" },
+  "references": [
+    "standards/reference-images/text-layout-9x16-v1/hook-top-center.png",
+    "standards/reference-images/text-layout-9x16-v1/hook-and-cvr-lower-right.png"
+  ],
+  "hook": {
+    "anchor": "top-center",
+    "center_x_percent": 50,
+    "top_y_percent": 12.5,
+    "max_width_percent": 86,
+    "max_lines": 2,
+    "font_size_at_1080": 64,
+    "minimum_font_size_at_1080": 44,
+    "line_gap_at_1920": 10,
+    "fill": "#FFFFFF",
+    "stroke": "#101010",
+    "stroke_width_at_1080": 8,
+    "alignment": "center"
+  },
+  "cvr": {
+    "anchor": "lower-right",
+    "center_x_percent": 64,
+    "top_y_percent": 71.2,
+    "max_width_percent": 46,
+    "max_lines": 2,
+    "primary_font_size_at_1080": 54,
+    "minimum_font_size_at_1080": 36,
+    "primary_fill": "#FFF200",
+    "secondary_fill": "#FFFFFF",
+    "stroke": "#101010",
+    "stroke_width_at_1080": 7,
+    "secondary_text_default": "",
+    "pointer_center_x_percent": 70,
+    "pointer_top_y_percent": 77.4,
+    "pointer_bottom_y_percent": 86.7,
+    "pointer_fill": "#E7E7E7",
+    "pointer_stroke": "#FF7A00"
+  },
+  "safe_zone": {
+    "left_percent": 4,
+    "right_percent": 4,
+    "top_percent": 8,
+    "bottom_percent": 8,
+    "do_not_cover": ["胸前主图案", "背面主图案", "袖口或面料细节", "人物脸部"]
+  }
+}

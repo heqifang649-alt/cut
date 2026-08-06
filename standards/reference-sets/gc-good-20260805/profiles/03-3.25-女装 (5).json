@@ -1,0 +1,64 @@
+{
+  "file": "3.25-女装 (5).mp4",
+  "duration_seconds": 13.1,
+  "width": 1080,
+  "height": 1920,
+  "fps": 30.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    5.867
+  ],
+  "detected_shot_count": 2,
+  "average_shot_length_seconds": 6.55,
+  "first_cut_seconds": 5.867,
+  "color": {
+    "mean_lab": [
+      102.302,
+      133.916,
+      133.108
+    ],
+    "sample_delta_median": 0.845,
+    "sample_delta_p90": 2.542
+  },
+  "stability": {
+    "camera_jerk_median": 0.003333,
+    "camera_jerk_p90": 0.054305
+  },
+  "sharpness_median": 1104.661,
+  "audio": {
+    "detected_onsets": [
+      0.16,
+      0.36,
+      0.56,
+      1.12,
+      1.6,
+      2.6,
+      3.04,
+      3.44,
+      3.8,
+      4.0,
+      4.24,
+      4.68,
+      4.92,
+      5.4,
+      5.92,
+      6.28,
+      6.76,
+      7.16,
+      7.56,
+      8.0,
+      8.2,
+      8.84,
+      9.24,
+      9.44,
+      10.04,
+      10.64,
+      10.84,
+      11.28,
+      12.52
+    ],
+    "cut_to_beat_error_median_seconds": 0.053,
+    "cut_to_beat_error_p90_seconds": 0.053
+  },
+  "contact_sheet": "03-3.25-女装 (5).jpg"
+}

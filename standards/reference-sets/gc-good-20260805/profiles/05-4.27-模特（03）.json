@@ -1,0 +1,63 @@
+{
+  "file": "4.27-模特（03）.mp4",
+  "duration_seconds": 10.533,
+  "width": 1080,
+  "height": 1920,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    4.133
+  ],
+  "detected_shot_count": 2,
+  "average_shot_length_seconds": 5.267,
+  "first_cut_seconds": 4.133,
+  "color": {
+    "mean_lab": [
+      123.301,
+      128.005,
+      129.986
+    ],
+    "sample_delta_median": 1.023,
+    "sample_delta_p90": 4.329
+  },
+  "stability": {
+    "camera_jerk_median": 0.005912,
+    "camera_jerk_p90": 0.130025
+  },
+  "sharpness_median": 2221.917,
+  "audio": {
+    "detected_onsets": [
+      0.04,
+      0.32,
+      0.56,
+      0.8,
+      1.04,
+      1.4,
+      1.76,
+      2.04,
+      2.72,
+      2.92,
+      3.64,
+      3.92,
+      4.4,
+      4.68,
+      5.04,
+      5.24,
+      5.72,
+      6.12,
+      6.4,
+      6.64,
+      6.88,
+      7.32,
+      7.56,
+      7.8,
+      8.08,
+      9.28,
+      9.88,
+      10.2
+    ],
+    "cut_to_beat_error_median_seconds": 0.213,
+    "cut_to_beat_error_p90_seconds": 0.213
+  },
+  "contact_sheet": "05-4.27-模特（03）.jpg"
+}

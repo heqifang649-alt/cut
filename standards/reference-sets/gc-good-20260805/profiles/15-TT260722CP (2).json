@@ -1,0 +1,75 @@
+{
+  "file": "TT260722CP (2).mp4",
+  "duration_seconds": 13.45,
+  "width": 2160,
+  "height": 3840,
+  "fps": 60.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    1.333,
+    2.0,
+    3.067
+  ],
+  "detected_shot_count": 4,
+  "average_shot_length_seconds": 3.362,
+  "first_cut_seconds": 1.333,
+  "color": {
+    "mean_lab": [
+      177.362,
+      128.232,
+      138.776
+    ],
+    "sample_delta_median": 0.578,
+    "sample_delta_p90": 2.941
+  },
+  "stability": {
+    "camera_jerk_median": 0.002368,
+    "camera_jerk_p90": 0.124169
+  },
+  "sharpness_median": 5072.313,
+  "audio": {
+    "detected_onsets": [
+      0.2,
+      0.48,
+      0.72,
+      1.2,
+      1.44,
+      1.76,
+      2.24,
+      2.48,
+      3.0,
+      3.32,
+      3.68,
+      4.0,
+      4.32,
+      4.76,
+      5.12,
+      5.32,
+      5.8,
+      6.2,
+      6.56,
+      6.8,
+      7.28,
+      7.64,
+      8.0,
+      8.24,
+      8.68,
+      9.08,
+      9.44,
+      9.64,
+      10.12,
+      10.48,
+      10.88,
+      11.2,
+      11.56,
+      11.92,
+      12.28,
+      12.52,
+      13.0,
+      13.24
+    ],
+    "cut_to_beat_error_median_seconds": 0.107,
+    "cut_to_beat_error_p90_seconds": 0.213
+  },
+  "contact_sheet": "15-TT260722CP (2).jpg"
+}

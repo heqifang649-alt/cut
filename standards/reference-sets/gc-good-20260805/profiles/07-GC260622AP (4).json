@@ -1,0 +1,62 @@
+{
+  "file": "GC260622AP (4).mp4",
+  "duration_seconds": 12.5,
+  "width": 1080,
+  "height": 1920,
+  "fps": 30.0,
+  "aspect_ratio": 0.5625,
+  "detected_cut_times": [
+    4.933
+  ],
+  "detected_shot_count": 2,
+  "average_shot_length_seconds": 6.25,
+  "first_cut_seconds": 4.933,
+  "color": {
+    "mean_lab": [
+      132.819,
+      134.397,
+      128.734
+    ],
+    "sample_delta_median": 0.346,
+    "sample_delta_p90": 1.082
+  },
+  "stability": {
+    "camera_jerk_median": 0.004897,
+    "camera_jerk_p90": 0.098793
+  },
+  "sharpness_median": 1898.852,
+  "audio": {
+    "detected_onsets": [
+      0.44,
+      0.88,
+      1.36,
+      1.84,
+      2.24,
+      2.76,
+      3.6,
+      5.0,
+      5.44,
+      5.76,
+      6.04,
+      6.36,
+      6.84,
+      7.32,
+      7.76,
+      7.96,
+      8.48,
+      8.72,
+      9.16,
+      10.04,
+      10.4,
+      10.68,
+      11.08,
+      11.44,
+      11.76,
+      12.0,
+      12.36
+    ],
+    "cut_to_beat_error_median_seconds": 0.067,
+    "cut_to_beat_error_p90_seconds": 0.067
+  },
+  "contact_sheet": "07-GC260622AP (4).jpg"
+}

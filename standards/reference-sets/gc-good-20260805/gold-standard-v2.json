@@ -1,0 +1,16 @@
+{
+  "schema_version": "gc-fashion-gold-standard-overlay/1.0",
+  "dataset_id": "gc-good-video-set-20260805",
+  "version": 2,
+  "status": "approved",
+  "approved_at": "2026-08-05",
+  "extends": "gold-standard-v1.json",
+  "change_summary": "增加用户确认的9:16 Hook与CVR位置、字体、描边、换行和服装避让标准。",
+  "text_layout_standard": "../../text-layout-9x16-v1.json",
+  "hard_gates_added": [
+    "Hook顶部居中，顶边约为画面高度12.5%，不得回到左上角布局。",
+    "CVR位于右下区域，文字组顶边约71.2%，下指手势位于77.4%-86.7%。",
+    "文字不得遮挡胸前/背面主图案、袖口细节或人物脸部。",
+    "长文案必须自动缩小或最多换成两行，不得超出左右4%安全边距。"
+  ]
+}
