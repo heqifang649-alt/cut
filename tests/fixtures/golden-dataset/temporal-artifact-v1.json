@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Real-video temporal Artifact Analyzer benchmark. Source files remain read-only and are referenced relative to the workspace. Positive labels are manually reviewed from consecutive original frames, never inferred from Analyzer output.",
+  "status": "production_positive_events_added_detector_not_yet_qualified",
+  "evidenceIndex": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/manual-confirmed-events.json",
+  "coverageGaps": [
+    "A manually labelled normal shot-cut case has not yet been collected.",
+    "A manually labelled normal phone-out-of-frame case has not yet been collected."
+  ],
+  "cases": [
+    {
+      "id": "8-11-unboxing-tt1-floating-phone",
+      "category": "positive",
+      "sampleFps": 6,
+      "sourceSha256": "d2741b35e594d24b8edc68641462526916358773acfdc7979f062f1497f32c49",
+      "source": "storage/batches/726636a1-50f8-45eb-9a33-4c1f641d7efa/products/TT1_M1 (4).mp4",
+      "annotations": [
+        {
+          "type": "hand_object_detachment",
+          "startTime": 1.5,
+          "endTime": 2.25,
+          "object": "cell phone",
+          "trackId": "manual:TT1_M1_4:phone-1",
+          "bbox": { "x": 0.585, "y": 0.245, "width": 0.145, "height": 0.125 },
+          "shouldReject": true,
+          "evidence": {
+            "previousFrame": { "timestamp": 1.33, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt1-prev.jpg" },
+            "anomalyFrame": { "timestamp": 1.75, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt1-anomaly.jpg" },
+            "nextFrame": { "timestamp": 2.17, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt1-next.jpg" },
+            "contextClip": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt1-phone-detachment-context.mp4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8-11-unboxing-tt2-m2-floating-phone",
+      "category": "positive",
+      "sampleFps": 6,
+      "sourceSha256": "dcacaa32ab9d978470e15490ce1f1d13c2bbfb59bd2d655d4638d8de952d14cd",
+      "source": "storage/batches/726636a1-50f8-45eb-9a33-4c1f641d7efa/products/TT2_M2 (3).mp4",
+      "annotations": [
+        {
+          "type": "hand_object_detachment",
+          "startTime": 5.5,
+          "endTime": 6.15,
+          "object": "cell phone",
+          "trackId": "manual:TT2_M2_3:phone-1",
+          "bbox": { "x": 0.079, "y": 0.229, "width": 0.241, "height": 0.294 },
+          "shouldReject": true,
+          "evidence": {
+            "previousFrame": { "timestamp": 5.17, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt2-prev.jpg" },
+            "anomalyFrame": { "timestamp": 5.5, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt2-anomaly.jpg" },
+            "nextFrame": { "timestamp": 5.83, "path": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt2-next.jpg" },
+            "contextClip": "D:/codex/tmp/cutflow-8.11-artifact-audit/manual-evidence/tt2-phone-detachment-context.mp4"
+          }
+        }
+      ]
+    },
+    {
+      "id": "normal-phone-held-mirror",
+      "category": "normal",
+      "sampleFps": 6,
+      "sourceSha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6",
+      "source": "storage/batches/726636a1-50f8-45eb-9a33-4c1f641d7efa/products/TT2_M2 (4).mp4",
+      "annotations": []
+    },
+    {
+      "id": "normal-unboxing-phone-held",
+      "category": "normal",
+      "sampleFps": 6,
+      "sourceSha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a",
+      "source": "storage/batches/726636a1-50f8-45eb-9a33-4c1f641d7efa/products/TT2_M1 (4).mp4",
+      "annotations": []
+    },
+    {
+      "id": "normal-book-handling",
+      "category": "normal",
+      "sampleFps": 6,
+      "sourceSha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6",
+      "source": "storage/batches/618f9d09-7294-450e-869f-9fc7afbc1f28/products/泛读书/FDS1_M1 (4).mp4",
+      "annotations": []
+    },
+    {
+      "id": "hard-negative-fast-body-motion",
+      "category": "easy_to_misclassify",
+      "sampleFps": 6,
+      "sourceSha256": "a18733701ff25eb9b114c5049a94409179dc18c207e938695108294ab50ad491",
+      "source": "storage/batches/143400f6-3049-4d4f-bbb9-684d7e24bf28/products/20260723时光文化公园/C4463.MP4",
+      "annotations": []
+    },
+    {
+      "id": "hard-negative-unboxing-phone-held-during-turn",
+      "category": "hard_negative",
+      "sampleFps": 6,
+      "sourceSha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708",
+      "source": "storage/batches/726636a1-50f8-45eb-9a33-4c1f641d7efa/products/TT2_M2 (2).mp4",
+      "annotations": []
+    }
+  ]
+}

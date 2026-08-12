@@ -72,12 +72,17 @@ export function probeTechnical(videoPath, options = {}) {
   return new Promise((resolve, rejectProbe) => {
     const child = spawn(ffmpeg, ["-hide_banner", "-i", videoPath], { windowsHide: true, signal: options.signal });
     let stderr = "";
-    child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-64_000); });
-    child.on("error", rejectProbe);
-    child.on("close", () => {
+    const command = [ffmpeg, "-hide_banner", "-i", videoPath].map((value) => String(value)).join(" ");
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", (error) => rejectProbe(Object.assign(error, { ...(stderr ? { stderr } : {}), command })));
+    child.on("close", (exitCode) => {
       const technical = parseTechnicalProbe(stderr);
       if (![technical.width, technical.height, technical.duration, technical.frameRate].every(Number.isFinite)) {
-        rejectProbe(new Error(`无法读取视频技术信息：${videoPath}`));
+        rejectProbe(Object.assign(new Error(`无法读取视频技术信息：${videoPath}`), {
+          ...(typeof exitCode === "number" ? { exitCode } : {}),
+          ...(stderr ? { stderr } : {}),
+          command,
+        }));
         return;
       }
       resolve(technical);
@@ -139,12 +144,15 @@ export async function validateVideo(videoPath, options = {}) {
   if (temporalInput === undefined) return review();
   const temporalArtifacts = assertArtifacts(temporalInput, TEMPORAL_ARTIFACTS, "temporal");
   const temporalResult = evaluateConfidence(temporalArtifacts, policy);
-  if (temporalResult) return temporalResult;
+  // A temporal REVIEW is not terminal: model evidence from the same source may
+  // raise it to REJECT. Technical and high-confidence temporal failures remain
+  // terminal, preserving the existing hard-gate behaviour.
+  if (temporalResult?.verdict === "reject") return temporalResult;
 
   const modelInput = options.artifacts
     ?? (options.detectArtifacts ? await options.detectArtifacts(videoPath, { technical, signal: options.signal }) : undefined);
   if (modelInput === undefined) return review(temporalArtifacts);
   const modelArtifacts = assertArtifacts(modelInput, MODEL_ARTIFACTS, "model");
   const allArtifacts = temporalArtifacts.concat(modelArtifacts);
-  return evaluateConfidence(modelArtifacts, policy) || accept(allArtifacts);
+  return evaluateConfidence(allArtifacts, policy) || accept(allArtifacts);
 }

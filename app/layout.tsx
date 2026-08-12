@@ -3,6 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"),
+  icons: { icon: "/favicon.svg" },
   title: "GC Cutflow · 统一剪辑工作台",
   description: "先识别样片，再按统一脚本批量完成服装广告剪辑。",
   openGraph: {

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -7,6 +9,17 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { isMetadataSidecar, isRejectBin, isRenderPlan, isScheduleResult, isShot, isSlot, isValidationResult } from "../lib/types.ts";
 
 const root = new URL("../", import.meta.url);
+
+function runNode(script, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...args], { stdio: "inherit", windowsHide: true });
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Atomic lock worker exited with ${code ?? signal ?? "unknown"}`));
+    });
+  });
+}
 
 const validShot = {
   id: "shot-1",
@@ -69,7 +82,7 @@ test("phase 1 frozen data contracts reject invalid structures", () => {
 
 test("phase 1 feature flags are declared off by default", async () => {
   const example = await readFile(new URL(".env.example", root), "utf8");
-  for (const flag of ["ENABLE_NEW_VALIDATOR", "ENABLE_NEW_SHOTPOOL", "ENABLE_NEW_SCHEDULER", "ENABLE_NEW_RENDERER", "ENABLE_NEW_REVIEW"]) {
+  for (const flag of ["ENABLE_NEW_VALIDATOR", "ENABLE_NEW_SHOTPOOL", "ENABLE_NEW_SCHEDULER", "ENABLE_NEW_RENDERER", "ENABLE_NEW_REVIEW", "ENABLE_TEMPLATE_TRANSITION"]) {
     assert.match(example, new RegExp(`^${flag}=false$`, "m"));
   }
 });
@@ -90,11 +103,54 @@ test("cross-process style mutations remain valid and do not lose updates", async
   }
 });
 
+test("token locks serialize independent Node processes without losing updates", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "cutflow-token-lock-"));
+  const file = path.join(directory, "store.json");
+  const worker = fileURLToPath(new URL("fixtures/atomic-lock-worker.mjs", import.meta.url));
+  try {
+    await writeJsonAtomic(file, { count: 0 });
+    await Promise.all(Array.from({ length: 6 }, () => runNode(worker, [file, "5"])));
+    assert.deepEqual(await readJson(file, null), { count: 30 });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("token locks recover an abandoned dead-owner lock without stealing a live owner", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "cutflow-stale-token-lock-"));
+  const file = path.join(directory, "store.json");
+  const lockFile = `${file}.lock`;
+  try {
+    await writeJsonAtomic(file, { count: 0 });
+    await writeFile(lockFile, JSON.stringify({ token: "abandoned-token", pid: 999999, createdAt: "2000-01-01T00:00:00.000Z" }));
+    await utimes(lockFile, new Date(0), new Date(0));
+    await withFileLock(file, async () => {
+      const value = await readJson(file, { count: 0 });
+      value.count += 1;
+      await writeJsonAtomic(file, value);
+    }, { staleMs: 1, timeoutMs: 5_000 });
+    assert.deepEqual(await readJson(file, null), { count: 1 });
+    assert.ok((await readdir(directory)).some((name) => name.includes("abandoned-token")));
+    await writeFile(lockFile, JSON.stringify({ token: "live-token", pid: process.pid, createdAt: "2000-01-01T00:00:00.000Z" }));
+    await utimes(lockFile, new Date(0), new Date(0));
+    await assert.rejects(
+      withFileLock(file, async () => undefined, { staleMs: 1, timeoutMs: 100 }),
+      /等待数据锁超时/,
+    );
+    assert.equal((await readJson(lockFile, null))?.token, "live-token");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("store locks release by rename and restart recovers abandoned locks without deletion", async () => {
   const atomicStore = await readFile(new URL("lib/atomic-json.mjs", root), "utf8");
   const restartScript = await readFile(new URL("scripts/restart-cutflow.ps1", root), "utf8");
   assert.doesNotMatch(atomicStore, /\bunlink\s*\(/);
-  assert.match(atomicStore, /rename\(lockFile, claimFile\)/);
+  assert.match(atomicStore, /open\(file, "wx"\)/);
+  assert.match(atomicStore, /owner\?\.token !== lock\.token/);
+  assert.match(atomicStore, /recoveryGuardFor\(lockFile\)/);
+  assert.match(atomicStore, /renameWithRetry\(lockFile, recoveredClaim\)/);
   assert.match(restartScript, /Filter '\*\.lock'/);
   assert.match(restartScript, /Move-Item -LiteralPath/);
 });
@@ -117,9 +173,10 @@ test("approval is blocked unless every quality gate passed", async () => {
 
 test("renderer enforces product, speed, music, decode and cancel gates", async () => {
   const source = await readFile(new URL("worker/batch-renderer.mjs", root), "utf8");
-  assert.match(source, /混入其他产品素材/);
-  assert.match(source, /检测到非原速片段/);
-  assert.match(source, /音乐库只有/);
+  assert.match(source, /source_original/);
+  assert.match(source, /speed/);
+  assert.match(source, /music library has/);
+  assert.match(source, /missingRenderResource\("music library"/);
   assert.match(source, /"-f", "null", "-"/);
   assert.match(source, /await assertActive\(\)/);
   assert.match(source, /const outputVariants = Math\.max\(1/);
@@ -127,18 +184,18 @@ test("renderer enforces product, speed, music, decode and cancel gates", async (
   assert.match(source, /musicPool\[outputOrdinal\]/);
   assert.match(source, /allowed\.confidence >= 0\.96/);
   assert.match(source, /path\.join\(batchDir, "bgm"\)/);
-  assert.match(source, /process\.env\.BGM_LIBRARY_PATH/);
+  assert.match(source, /loadRenderRuntimeConfig/);
+  assert.match(source, /runtimeConfig\.bgmLibraryPath/);
 });
 
 test("product reference images assist grouping without becoming product video sources", async () => {
   const processor = await readFile(new URL("worker/processor.mjs", root), "utf8");
   const uploadRoute = await readFile(new URL("app/api/uploads/route.ts", root), "utf8");
   assert.match(processor, /file\.kind === "product_refs"/);
-  assert.match(processor, /参考图只作为辅助锚点/);
-  assert.match(processor, /不得只凭文件名或SKU强行归组/);
+  assert.match(processor, /productReferenceFiles/);
+  assert.match(processor, /referenceImageList/);
   assert.match(uploadRoute, /"product_refs"/);
 });
-
 test("account health follows verified account state instead of expiring by wall clock", async () => {
   const healthRoute = await readFile(new URL("app/api/health/route.ts", root), "utf8");
   assert.match(healthRoute, /codexState\?\.ready === true/);
@@ -147,9 +204,13 @@ test("account health follows verified account state instead of expiring by wall 
 
 test("worker prevents silent stalls with activity heartbeats, timeouts and bounded retries", async () => {
   const processor = await readFile(new URL("worker/processor.mjs", root), "utf8");
+  const recovery = await readFile(new URL("worker/recovery.mjs", root), "utf8");
   assert.match(processor, /TURN_TIMEOUT_MS/);
   assert.match(processor, /lastWorkerActivityAt/);
-  assert.match(processor, /MAX_RECOVERY_ATTEMPTS = 2/);
+  assert.match(processor, /from "\.\/recovery\.mjs"/);
+  assert.match(recovery, /MAX_RECOVERY_ATTEMPTS = 3/);
+  assert.match(processor, /recoverOrEscalate/);
+  assert.match(processor, /recoverCodexConnection/);
   assert.match(processor, /TurnTimeoutError/);
   assert.match(processor, /regroup_queued/);
   assert.match(processor, /detecting_products/);

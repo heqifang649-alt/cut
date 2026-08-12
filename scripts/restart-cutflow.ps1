@@ -2,22 +2,32 @@
 $portalRoot = Split-Path -Parent $PSScriptRoot
 $dataRoot = Join-Path $portalRoot 'data'
 
-$heartbeatFiles = @(
-  'worker-heartbeat.json',
-  'template-worker-heartbeat.json',
-  'delivery-worker-heartbeat.json',
-  'chatcut-worker-heartbeat.json'
-)
-
-foreach ($name in $heartbeatFiles) {
-  $heartbeatPath = Join-Path $dataRoot $name
-  if (-not (Test-Path -LiteralPath $heartbeatPath -PathType Leaf)) { continue }
+# Heartbeats identify the preferred instance but may be stale. Stop every
+# project worker process so a restart cannot leave an older duplicate taking
+# the same task lease or Codex temporary resources.
+$nodeProcesses = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine }
+$projectWorkers = $nodeProcesses | Where-Object {
+  $normalizedCommand = if ($_.CommandLine) { $_.CommandLine.Replace('/', '\') } else { '' }
+  $normalizedCommand -match [regex]::Escape($portalRoot) -and
+  $normalizedCommand -match 'worker\\(processor|service-runner|service-supervisor|template-processor|delivery-watcher|chatcut-sync)\.mjs'
+}
+# A launcher can start Supervisor with a relative script path, which does not
+# include $portalRoot in CommandLine. Include only a Supervisor whose direct
+# child is a project-owned service runner; this avoids touching other apps.
+$relativeProjectSupervisors = foreach ($supervisor in $nodeProcesses) {
+  $normalizedCommand = $supervisor.CommandLine.Replace('/', '\')
+  if ($normalizedCommand -notmatch 'worker\\service-supervisor\.mjs') { continue }
+  $child = $nodeProcesses | Where-Object {
+    $_.ParentProcessId -eq $supervisor.ProcessId -and
+    ($_.CommandLine.Replace('/', '\') -match [regex]::Escape($portalRoot)) -and
+    ($_.CommandLine.Replace('/', '\') -match 'worker\\service-runner\.mjs')
+  } | Select-Object -First 1
+  if ($null -ne $child) { $supervisor }
+}
+$projectWorkers = @($projectWorkers + $relativeProjectSupervisors | Sort-Object ProcessId -Unique)
+foreach ($process in $projectWorkers) {
   try {
-    $record = Get-Content -LiteralPath $heartbeatPath -Raw | ConvertFrom-Json
-    $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($record.pid)" -ErrorAction SilentlyContinue
-    if ($process -and $process.Name -eq 'node.exe' -and $process.CommandLine -match 'worker\\(processor|template-processor|delivery-watcher|chatcut-sync)\.mjs') {
-      Stop-Process -Id $record.pid -Force
-    }
+    & "$env:SystemRoot\System32\taskkill.exe" /PID $process.ProcessId /T /F | Out-Null
   } catch {}
 }
 

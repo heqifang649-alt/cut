@@ -1,0 +1,11 @@
+export const LEGACY_ARCHIVE_OWNER_ID: string;
+export const TENANT_STORAGE_VERSION: number;
+export function isSafeResourceId(value: unknown): value is string;
+export function isPathInside(parent: string, candidate: string): boolean;
+export function batchWorkspacePath(root: string, batch: { id: string; ownerId?: string; storageVersion?: number }): string;
+export function batchWorkspacePathForId(root: string, id: string): Promise<string>;
+export function templateWorkspacePath(root: string, template: { id: string; ownerId?: string; storageVersion?: number }): string;
+export function batchFileRoot(root: string, batch: { id: string; ownerId?: string; storageVersion?: number }, kind: string): string;
+export function resolveRelativeFile(root: string, resourceRoot: string, relativePath: string): string;
+export function resolveStoredWorkspaceFile(root: string, resourceRoot: string, storagePath: string): string;
+export function tenantDeliveryRoot(deliveryRoot: string, ownerId: string): string;

@@ -3,6 +3,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isMetadataSidecar, isShot, isValidationResult } from "../lib/types.ts";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { computeMetadataBudget, normalizeMetadataBudget } from "./metadata-budget.mjs";
 
 const POOL_VERSION = 1;
@@ -89,11 +90,26 @@ export async function mergeShotsIntoPool(batchId, batchDir, shots) {
 
 export const isNewShotPoolEnabled = (env = process.env) => env.ENABLE_NEW_SHOTPOOL === "true";
 
+function isInsideNasRoot(root, candidate) {
+  const relative = path.win32.relative(path.win32.resolve(root), path.win32.resolve(candidate));
+  return relative !== "" && !relative.startsWith("..") && !path.win32.isAbsolute(relative);
+}
+
+function resolveBatchSource(root, batch, batchDir, file) {
+  if (batch.storageVersion !== 2) return file.absolutePath || (path.isAbsolute(file.storagePath) ? file.storagePath : path.resolve(root, file.storagePath));
+  if (file.sourceType === "nas") {
+    const source = file.absolutePath || file.storagePath;
+    if (typeof batch.nasPath !== "string" || !source || !isInsideNasRoot(batch.nasPath, source)) throw new Error("NAS source escapes the Batch claim");
+    return source;
+  }
+  return resolveStoredWorkspaceFile(root, batchDir, file.storagePath);
+}
+
 export async function importBatchToShotPool({ batch, batchDir, validate, budget, origin = "real" }) {
   const records = [];
   const shots = [];
   for (const file of (batch.files || []).filter((item) => item.kind === "products")) {
-    const videoPath = file.absolutePath || (path.isAbsolute(file.storagePath) ? file.storagePath : path.resolve(process.cwd(), file.storagePath));
+    const videoPath = resolveBatchSource(process.cwd(), batch, batchDir, file);
     try {
       const sidecar = await readMetadataSidecar(videoPath);
       const validationResult = await validate(videoPath, { sidecar });

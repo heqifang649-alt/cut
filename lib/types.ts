@@ -22,7 +22,7 @@ export type BatchFile = {
   name: string;
   relativePath: string;
   storagePath: string;
-  sourceType?: "upload" | "nas";
+  sourceType?: "upload" | "nas" | "template";
   absolutePath?: string;
   proxyPath?: string;
   size: number;
@@ -54,6 +54,8 @@ export type ReferenceProfile = {
   hook_style: string;
   caption_safe_zone: string;
   cvr_style: string;
+  hook_text?: string;
+  cvr_text?: string;
   audio_style: string;
   fixed_rules: string[];
   structure: Array<{ timeline: string; purpose: string; shot_type: string; weight: number }>;
@@ -67,13 +69,35 @@ export type ProductGroup = {
   confidence: number;
   files: string[];
   notes: string;
+  // Present only for deterministic product-directory grouping. Existing AI and
+  // filename-derived groups retain their original shape.
+  sourceFolder?: string;
+  productReferenceFiles?: string[];
 };
+
+export type ProductGroupingMethod = "product_directory" | "filename" | "visual";
 
 export type ProductDetection = {
   summary: string;
   groups: ProductGroup[];
   unassigned: string[];
   confidence: number;
+  groupingMethod?: ProductGroupingMethod;
+  autoApproved?: boolean;
+  reasons?: string[];
+};
+
+export type ProductGroupEvidence = {
+  groupId: string;
+  label: string;
+  video: { relativePath: string; thumbnailPath?: string } | null;
+  productImage: { relativePath: string; thumbnailPath?: string } | null;
+};
+
+export type ProductGroupEvidenceSnapshot = {
+  schemaVersion: 1;
+  generatedAt: string;
+  groups: ProductGroupEvidence[];
 };
 
 export type NasScan = {
@@ -88,13 +112,31 @@ export type NasScan = {
 
 export type TemplateStatus = "uploading" | "queued" | "analyzing" | "ready" | "failed";
 
+export const TRANSITION_PROFILES = ["hard_cut", "minimal", "tiktok_fast", "fashion", "template"] as const;
+export type TransitionProfile = (typeof TRANSITION_PROFILES)[number];
+
+// Batch-level product choice. This deliberately does not alter the frozen
+// Shot / Slot / ProductView / RenderPlan / EDL contracts.
+export const TRANSITION_MODES = ["standard", "template_transition"] as const;
+export type TransitionMode = (typeof TRANSITION_MODES)[number];
+
+export const STABLE_TRANSITION_TYPES = ["hard_cut", "fade", "fadeblack", "dissolve", "slideleft", "slideright", "wipeleft", "wiperight", "pixelize"] as const;
+export type StableTransitionType = (typeof STABLE_TRANSITION_TYPES)[number];
+
 export type SampleTemplate = {
   id: string;
+  ownerId: string;
+  // Version 2 templates live in a deterministic owner-specific workspace.
+  // Missing on historical records intentionally keeps their original path.
+  storageVersion?: 2;
   name: string;
   status: TemplateStatus;
   progress: number;
   file?: BatchFile;
+  bgm?: BatchFile;
+  bgmExtractionError?: string;
   profile?: ReferenceProfile;
+  transitionProfile?: TransitionProfile;
   threadId?: string;
   error?: string;
   createdAt: string;
@@ -105,11 +147,21 @@ export type SampleTemplate = {
 
 export type Batch = {
   id: string;
+  ownerId: string;
+  // New records use storage/users/<ownerId>/...; historical records retain
+  // their original on-disk location for non-destructive compatibility.
+  storageVersion?: 2;
+  // Incremented only when a user starts a new workflow. Service tasks carry
+  // this token so stale reference/regroup work cannot overwrite newer states.
+  workflowVersion?: number;
   name: string;
   requirements: string;
   durationMax: number;
   outputCount: number;
-  cvrText: string;
+  cvrText?: string;
+  hookText?: string;
+  colorStrategy?: "none" | "sample" | "lut";
+  musicSource?: "template" | "library" | "upload";
   speed: number;
   autoDetectProducts: boolean;
   sourceMode?: "upload" | "nas";
@@ -117,6 +169,8 @@ export type Batch = {
   nasScan?: NasScan;
   templateId?: string;
   templateName?: string;
+  transitionMode?: TransitionMode;
+  transitionProfile?: TransitionProfile;
   status: BatchStatus;
   progress: number;
   files: BatchFile[];
@@ -141,6 +195,8 @@ export type Batch = {
     renderedProducts: number;
     excludedProducts: Array<{ product_id: string; reason: string }>;
     qualityGates: Record<string, string>;
+    transitionProfile?: TransitionProfile;
+    transitions?: Array<{ type: StableTransitionType; durationSeconds: number; count: number }>;
   };
 };
 
@@ -251,6 +307,7 @@ export type RenderPlan = {
   batchId: string;
   slots: Array<{ slot: Slot; shot: Shot }>;
   createdAt: string;
+  transitionProfile?: TransitionProfile;
 };
 
 export type ScheduleResult =
@@ -268,6 +325,8 @@ const isOptionalBoolean = (value: unknown) => value === undefined || typeof valu
 const isOptionalNonNegativeNumber = (value: unknown) => value === undefined || isNonNegativeNumber(value);
 const isMotionEnergy = (value: unknown): value is MotionEnergy => MOTION_ENERGY_VALUES.includes(value as MotionEnergy);
 const isRejectReason = (value: unknown): value is RejectReason => REJECT_REASONS.includes(value as RejectReason);
+export const isTransitionProfile = (value: unknown): value is TransitionProfile => TRANSITION_PROFILES.includes(value as TransitionProfile);
+export const isTransitionMode = (value: unknown): value is TransitionMode => TRANSITION_MODES.includes(value as TransitionMode);
 
 export function isShot(value: unknown): value is Shot {
   if (!isRecord(value)) return false;
@@ -336,7 +395,8 @@ export function isMetadataSidecar(value: unknown): value is MetadataSidecar {
 }
 
 export function isRenderPlan(value: unknown): value is RenderPlan {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (value.transitionProfile !== undefined && !isTransitionProfile(value.transitionProfile)) return false;
   return value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
 }
 

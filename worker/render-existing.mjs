@@ -1,6 +1,7 @@
 import path from "node:path";
 import { renderBatchFromEdl } from "./batch-renderer.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 
 const ROOT = process.cwd();
 const id = process.argv[2];
@@ -28,7 +29,7 @@ try {
   const { files, summary } = await renderBatchFromEdl({
     root: ROOT,
     batch,
-    batchDir: path.join(ROOT, "storage", "batches", id),
+    batchDir: batchWorkspacePath(ROOT, batch),
     ffmpeg: process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe",
     limit,
     onProgress: async (done, total, label) => {

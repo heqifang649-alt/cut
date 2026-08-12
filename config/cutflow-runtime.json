@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "render": {
+    "ffmpegPath": "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe",
+    "bgmLibraryPath": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\bgm",
+    "lutPath": "E:\\尔尔本地\\3.通用-slog3.cube",
+    "subtitleTemplatePath": "D:\\自动剪辑网站\\standards\\text-layout-9x16-v1.json",
+    "outputPath": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\成片剪完的视频"
+  }
+}

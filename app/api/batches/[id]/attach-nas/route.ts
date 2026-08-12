@@ -1,17 +1,27 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { scanNasVideos } from "@/lib/nas";
-import { mutateBatch } from "@/lib/store";
+import { getBatchForOwners, mutateBatch } from "@/lib/store";
 import type { BatchFile } from "@/lib/types";
+import { accessibleOwnerIds } from "@/lib/access";
+import { canUseNasPath, claimNasPath } from "@/lib/auth-core.mjs";
+import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!requireSameOrigin(request)) return forbidden();
+  const user = await currentUser();
+  if (!user) return unauthenticated();
   const { id } = await context.params;
   try {
+    if (!(await getBatchForOwners(id, accessibleOwnerIds(user)))) return NextResponse.json({ error: "任务不存在" }, { status: 404 });
     const input = await request.json();
-    const scan = await scanNasVideos(String(input.path || ""));
+    const requestedPath = String(input.path || "");
+    if (!(await canUseNasPath(process.cwd(), user.id, requestedPath))) return NextResponse.json({ error: "该 NAS 素材目录已归属其他账号" }, { status: 404 });
+    const scan = await scanNasVideos(requestedPath);
+    await claimNasPath(process.cwd(), user.id, scan.rootPath);
     const createdAt = new Date().toISOString();
     const files: BatchFile[] = scan.files.map((file) => ({
       id: crypto.randomUUID(),

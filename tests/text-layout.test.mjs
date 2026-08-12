@@ -22,7 +22,8 @@ test("renderer and ChatCut manifest use the same layout authority", async () => 
   const renderer = await readFile(new URL("worker/batch-renderer.mjs", root), "utf8");
   assert.match(overlay, /text-layout-9x16-v1\.json/);
   assert.match(overlay, /top_y_percent/);
-  assert.match(renderer, /TEXT_LAYOUT_STANDARD/);
+  assert.match(renderer, /loadRenderRuntimeConfig/);
+  assert.match(renderer, /runtimeConfig\.subtitleTemplatePath/);
   assert.match(renderer, /layout_standard: textLayout/);
 });
 

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 
 const ROOT = process.cwd();
 const batchId = process.argv[2];
@@ -24,7 +25,7 @@ const batchesPath = path.join(ROOT, "data", "batches.json");
 const batches = JSON.parse(await readFile(batchesPath, "utf8"));
 const batch = batches.find((item) => item.id === batchId);
 if (!batch) throw new Error("批次不存在");
-const edlPath = path.join(ROOT, "storage", "batches", batchId, "edit", "batch-edl.json");
+const edlPath = path.join(batchWorkspacePath(ROOT, batch), "edit", "batch-edl.json");
 const edl = JSON.parse(await readFile(edlPath, "utf8"));
 
 edl.products = edl.products.filter((product) => anchors.has(product.product_id)).map((product) => {

@@ -3,7 +3,10 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { getTemplate } from "@/lib/template-store";
+import { getSharedTemplate } from "@/lib/template-store";
+import { accessibleOwnerIds } from "@/lib/access";
+import { currentUser, unauthenticated } from "@/lib/auth";
+import { resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +19,14 @@ const contentTypes: Record<string, string> = {
 };
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const user = await currentUser();
+  if (!user) return unauthenticated();
   const { id } = await context.params;
-  const template = await getTemplate(id);
+  const template = await getSharedTemplate(id, accessibleOwnerIds(user));
   if (!template?.file) return NextResponse.json({ error: "样片不存在" }, { status: 404 });
-  const filePath = path.isAbsolute(template.file.storagePath) ? template.file.storagePath : path.join(/* turbopackIgnore: true */ process.cwd(), template.file.storagePath);
+  let filePath: string;
+  try { filePath = resolveStoredWorkspaceFile(process.cwd(), templateWorkspacePath(process.cwd(), template), template.file.storagePath); }
+  catch { return NextResponse.json({ error: "样片文件路径无效" }, { status: 404 }); }
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) return NextResponse.json({ error: "样片文件不可用" }, { status: 404 });
 
@@ -39,13 +46,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         "Content-Range": `bytes ${start}-${end}/${info.size}`,
         "Content-Length": String(end - start + 1),
         "Content-Type": type,
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-store",
       },
     });
   }
 
   const stream = createReadStream(filePath);
   return new Response(Readable.toWeb(stream) as ReadableStream, {
-    headers: { "Accept-Ranges": "bytes", "Content-Length": String(info.size), "Content-Type": type, "Cache-Control": "private, max-age=3600" },
+    headers: { "Accept-Ranges": "bytes", "Content-Length": String(info.size), "Content-Type": type, "Cache-Control": "private, no-store" },
   });
 }

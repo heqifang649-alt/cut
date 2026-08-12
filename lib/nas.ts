@@ -1,10 +1,11 @@
 import { open, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
-const DEFAULT_NAS_ROOTS = [
-  String.raw`\\192.168.120.60\内容创意部-fb广告成片交付`,
-  String.raw`\\192.168.120.60\新成片交付`,
-].join(";");
+// Browser-originated NAS operations are deliberately confined to this single
+// share. The UI may choose one immediate child as a batch, but never submit an
+// arbitrary UNC path or scan the share root itself.
+export const NAS_BATCH_ROOT = String.raw`\\192.168.120.60\新成片交付\批量剪辑素材`;
+
 const VIDEO_EXTENSIONS = new Set([".mp4", ".mov", ".mxf", ".mts", ".m2ts", ".avi", ".webm"]);
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff"]);
 const MAX_FILES = 5000;
@@ -28,23 +29,49 @@ export type NasScanResult = {
   images: NasVideo[];
 };
 
+export type NasDirectory = {
+  name: string;
+  path: string;
+};
+
+const normalizedBatchRoot = () => path.win32.normalize(NAS_BATCH_ROOT).replace(/[\\/]+$/, "");
+
 export function allowedNasRoots() {
-  const configured = process.env.ALLOWED_NAS_ROOTS || DEFAULT_NAS_ROOTS;
-  return configured.split(";").map((item) => path.win32.normalize(item.trim())).filter(Boolean);
+  // Do not use an environment override here: expanding this list makes the
+  // browser flow capable of accidentally scanning an entire share again.
+  return [normalizedBatchRoot()];
 }
 
 export function validateNasPath(input: string) {
   if (!input?.trim()) throw new Error("请输入 NAS 目录路径");
   const candidate = path.win32.normalize(input.trim().replace(/^['"]|['"]$/g, ""));
   if (!path.win32.isAbsolute(candidate)) throw new Error("NAS 路径必须是完整的 UNC 路径");
-  const lower = candidate.toLocaleLowerCase("zh-CN");
-  const allowed = allowedNasRoots().find((root) => {
-    const normalizedRoot = root.replace(/[\\/]+$/, "");
-    const rootLower = normalizedRoot.toLocaleLowerCase("zh-CN");
-    return lower === rootLower || lower.startsWith(`${rootLower}\\`);
-  });
-  if (!allowed) throw new Error("该目录不在允许读取的 NAS 范围内");
+
+  const root = normalizedBatchRoot();
+  const rootLower = root.toLocaleLowerCase("zh-CN");
+  const candidateLower = candidate.toLocaleLowerCase("zh-CN");
+  if (!candidateLower.startsWith(`${rootLower}\\`)) {
+    throw new Error("只能选择指定 NAS 素材根目录下的批次文件夹");
+  }
+
+  const relative = path.win32.relative(root, candidate);
+  // A scan starts only from one immediate child (a user-selected batch). This
+  // rejects both the root itself and deeper hand-entered paths.
+  if (!relative || relative === "." || relative === ".." || relative.includes("\\") || path.win32.isAbsolute(relative)) {
+    throw new Error("请从指定 NAS 素材根目录中选择一个一级批次文件夹");
+  }
   return candidate;
+}
+
+export async function listNasBatchDirectories(): Promise<NasDirectory[]> {
+  const rootPath = normalizedBatchRoot();
+  const rootInfo = await stat(rootPath).catch(() => null);
+  if (!rootInfo?.isDirectory()) throw new Error("NAS 素材根目录无法访问，请确认共享权限");
+  const entries = await readdir(rootPath, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({ name: entry.name, path: path.win32.join(rootPath, entry.name) }))
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"));
 }
 
 async function measureReadSpeed(filePath: string, fileSize: number) {

@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { scanNasVideos } from "@/lib/nas";
+import { canUseNasPath } from "@/lib/auth-core.mjs";
+import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!requireSameOrigin(request)) return forbidden();
+  const user = await currentUser();
+  if (!user) return unauthenticated();
   try {
     const input = await request.json();
-    const result = await scanNasVideos(String(input.path || ""));
+    const requestedPath = String(input.path || "");
+    if (!(await canUseNasPath(process.cwd(), user.id, requestedPath))) return NextResponse.json({ error: "该 NAS 素材目录已归属其他账号" }, { status: 404 });
+    const result = await scanNasVideos(requestedPath);
     return NextResponse.json({
       scan: {
         rootPath: result.rootPath,

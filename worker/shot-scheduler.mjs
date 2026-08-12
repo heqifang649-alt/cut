@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { isRenderPlan, isShot, isSlot } from "../lib/types.ts";
+import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.ts";
 
 const EPSILON = 1e-9;
 
@@ -90,13 +90,14 @@ function compareCandidates(left, right) {
   return left.shot.id.localeCompare(right.shot.id);
 }
 
-function planIdFor(batchId, scriptTemplate, slots, contextKey = "") {
+function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionProfile) {
   return createHash("sha256")
-    .update(JSON.stringify({ batchId, templateId: scriptTemplate.id, contextKey, slots: slots.map(({ slot, shot }) => ({ slotId: slot.id, shotId: shot.id })) }))
+    .update(JSON.stringify({ batchId, templateId: scriptTemplate.id, contextKey, transitionProfile: transitionProfile || null, slots: slots.map(({ slot, shot }) => ({ slotId: slot.id, shotId: shot.id })) }))
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile }) {
+  if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const selected = [];
   const usedShotIds = new Set();
   for (const slot of scriptTemplate.slots) {
@@ -110,23 +111,24 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey }
     selected.push({ slot, shot: best });
   }
   const renderPlan = {
-    id: planIdFor(batchId, scriptTemplate, selected, contextKey),
+    id: planIdFor(batchId, scriptTemplate, selected, contextKey, transitionProfile),
     batchId,
     slots: selected,
     createdAt,
+    ...(transitionProfile ? { transitionProfile } : {}),
   };
   if (!isRenderPlan(renderPlan)) throw new Error("Scheduler produced an invalid RenderPlan");
   return { status: "success", renderPlan };
 }
 
-export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString() }) {
+export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile }) {
   validateInputs(batchId, shotPool, scriptTemplate);
-  return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool" });
+  return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString() }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile });
 }

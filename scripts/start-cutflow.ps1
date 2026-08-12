@@ -33,12 +33,19 @@ if (-not (Test-Path -LiteralPath $runtimeNode -PathType Leaf)) { throw "Node run
 if (-not (Test-Path -LiteralPath $CodexHome -PathType Container)) { throw "Codex account home not found: $CodexHome" }
 New-Item -ItemType Directory -Force -Path $logRoot, $dataRoot | Out-Null
 New-Item -ItemType Directory -Force -Path 'D:\codex\tmp', 'D:\codex\cache' | Out-Null
+$workerTempRoot = 'D:\codex\tmp\cutflow-workers'
+$workerCacheRoot = 'D:\codex\cache\cutflow-workers'
+New-Item -ItemType Directory -Force -Path $workerTempRoot, $workerCacheRoot | Out-Null
+$bootstrapTemp = Join-Path $workerTempRoot 'bootstrap'
+$bootstrapCache = Join-Path $workerCacheRoot 'bootstrap'
+New-Item -ItemType Directory -Force -Path $bootstrapTemp, $bootstrapCache | Out-Null
 
 $env:CODEX_HOME = $CodexHome
 $env:XDG_CACHE_HOME = 'D:\codex\cache'
-$env:TEMP = 'D:\codex\tmp'
-$env:TMP = 'D:\codex\tmp'
-$env:TMPDIR = 'D:\codex\tmp'
+$env:TEMP = $bootstrapTemp
+$env:TMP = $bootstrapTemp
+$env:TMPDIR = $bootstrapTemp
+$env:XDG_CACHE_HOME = $bootstrapCache
 
 function Convert-CodePoints([int[]]$Codes) {
   return -join ($Codes | ForEach-Object { [char]$_ })
@@ -50,19 +57,30 @@ $newDelivery = Convert-CodePoints @(26032, 25104, 29255, 20132, 20184)
 $finishedVideos = Convert-CodePoints @(25104, 29255)
 
 $env:ALLOWED_NAS_ROOTS = "\\192.168.120.60\$creativeDepartment-fb$adDelivery;\\192.168.120.60\$newDelivery"
-$env:FFMPEG_PATH = 'D:\JianyingPro\11.1.0.14287\ffmpeg.exe'
 $env:GOLD_STANDARD_PATH = Join-Path $portalRoot 'standards\reference-sets\gc-good-20260805\gold-standard-v2.json'
-$env:TEXT_LAYOUT_STANDARD = Join-Path $portalRoot 'standards\text-layout-9x16-v1.json'
-$env:BGM_LIBRARY_PATH = 'E:\尔尔本地\素材\基督\自动剪辑\bgm'
 $env:PYTHONPATH = 'D:\codex\cache\pydeps'
-$env:DELIVERY_OUTPUT_DIR = [Environment]::GetEnvironmentVariable('CUTFLOW_DELIVERY_OUTPUT_DIR', 'User')
-if (-not $env:DELIVERY_OUTPUT_DIR) { throw 'CUTFLOW_DELIVERY_OUTPUT_DIR is not configured.' }
 $env:PYTHON_PATH = $runtimePython
 
 $codexReady = $false
 $codexResponse = ''
+$accountStatePath = Join-Path $dataRoot 'codex-account-state.json'
+$previousAccountState = $null
 if ($SkipAccountCheck) {
-  $codexResponse = '已跳过 Codex 账号检查'
+  # Skipping the probe is only a launcher optimisation.  It must never turn
+  # a previously verified account into an "unavailable" account in the UI.
+  # The normal start/restart path always performs a fresh probe and writes the
+  # state below; this branch deliberately leaves that file untouched.
+  try {
+    if (Test-Path -LiteralPath $accountStatePath -PathType Leaf) {
+      $previousAccountState = Get-Content -LiteralPath $accountStatePath -Raw | ConvertFrom-Json
+    }
+  } catch {}
+  if ($previousAccountState -and $previousAccountState.ready -eq $true) {
+    $codexReady = $true
+    $codexResponse = [string]$previousAccountState.response
+  } else {
+    $codexResponse = '已跳过 Codex 账号检查，未覆盖最近一次账号状态'
+  }
 } else {
   $cutoff = (Get-Date).AddSeconds(20)
   $capture = $null
@@ -81,13 +99,15 @@ if ($SkipAccountCheck) {
   }
 }
 
-$accountState = @{
-  checkedAt = (Get-Date).ToUniversalTime().ToString('o')
-  codexHome = $CodexHome
-  ready = $codexReady
-  response = $codexResponse
-} | ConvertTo-Json
-[System.IO.File]::WriteAllText((Join-Path $dataRoot 'codex-account-state.json'), $accountState, [System.Text.UTF8Encoding]::new($false))
+if (-not $SkipAccountCheck) {
+  $accountState = @{
+    checkedAt = (Get-Date).ToUniversalTime().ToString('o')
+    codexHome = $CodexHome
+    ready = $codexReady
+    response = $codexResponse
+  } | ConvertTo-Json
+  [System.IO.File]::WriteAllText($accountStatePath, $accountState, [System.Text.UTF8Encoding]::new($false))
+}
 
 if ($codexReady) {
   Write-Host 'Codex 账号连接正常。' -ForegroundColor Green
@@ -97,6 +117,13 @@ if ($codexReady) {
 }
 
 function Test-TrackedProcess([string]$Heartbeat, [string]$CommandFragment) {
+  # A heartbeat can be stale after an interrupted restart. Check the real
+  # process list first so a second launcher never starts a duplicate worker.
+  $existing = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+    $normalizedCommand = if ($_.CommandLine) { $_.CommandLine.Replace('/', '\') } else { '' }
+    $_.Name -eq 'node.exe' -and $normalizedCommand -like "*$CommandFragment*"
+  } | Select-Object -First 1
+  if ($existing) { return $true }
   if (-not (Test-Path -LiteralPath $Heartbeat -PathType Leaf)) { return $false }
   try {
     $record = Get-Content -LiteralPath $Heartbeat -Raw | ConvertFrom-Json
@@ -105,12 +132,13 @@ function Test-TrackedProcess([string]$Heartbeat, [string]$CommandFragment) {
   } catch { return $false }
 }
 
-function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [string]$CommandFragment) {
+function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [string]$CommandFragment, [string]$ServiceInstance = '') {
   if (Test-TrackedProcess $Heartbeat $CommandFragment) { return }
   # 修复 cwd：把所有相对路径转绝对路径，避免 worker 启动时 process.cwd() 错。
   $argList = @()
   foreach ($a in $Arguments) {
-    if ($a -match '^[a-zA-Z]:[\\/]') { $argList += $a }
+    if ($a -match '^--') { $argList += $a }
+    elseif ($a -match '^[a-zA-Z]:[\\/]') { $argList += $a }
     elseif ($a -match '^[\\/]') { $argList += $a }
     else {
       $joined = Join-Path $portalRoot $a
@@ -119,18 +147,45 @@ function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [
   }
   $stdout = Join-Path $logRoot "$Name.stdout.log"
   $stderr = Join-Path $logRoot "$Name.stderr.log"
+  $workerTemp = Join-Path $workerTempRoot $Name
+  $workerCache = Join-Path $workerCacheRoot $Name
+  New-Item -ItemType Directory -Force -Path $workerTemp, $workerCache | Out-Null
   # 不用 -UseNewEnvironment：worker 需要继承 NODE_OPTIONS (--openssl-legacy-provider)
   # 以及 CODEX_HOME、FFMPEG_PATH、ALLOWED_NAS_ROOTS 等自定义环境变量。
   # Path 重复键问题已在脚本顶部修复（重建单一 Path 键）。
-  Start-Process -FilePath $runtimeNode -ArgumentList $argList -WorkingDirectory $portalRoot `
-    -RedirectStandardOutput $stdout `
-    -RedirectStandardError $stderr `
-    -WindowStyle Hidden | Out-Null
+  # Each Codex-capable service receives an isolated temporary and cache
+  # directory. This prevents one service from cleaning up another service's
+  # in-process app-server files.
+  $originalTemp = $env:TEMP
+  $originalTmp = $env:TMP
+  $originalTmpDir = $env:TMPDIR
+  $originalCache = $env:XDG_CACHE_HOME
+  $originalServiceInstance = $env:CUTFLOW_SERVICE_INSTANCE
+  try {
+    $env:TEMP = $workerTemp
+    $env:TMP = $workerTemp
+    $env:TMPDIR = $workerTemp
+    $env:XDG_CACHE_HOME = $workerCache
+    if ($ServiceInstance) { $env:CUTFLOW_SERVICE_INSTANCE = $ServiceInstance }
+    else { Remove-Item Env:CUTFLOW_SERVICE_INSTANCE -ErrorAction SilentlyContinue }
+    Start-Process -FilePath $runtimeNode -ArgumentList $argList -WorkingDirectory $portalRoot `
+      -RedirectStandardOutput $stdout `
+      -RedirectStandardError $stderr `
+      -WindowStyle Hidden | Out-Null
+  } finally {
+    $env:TEMP = $originalTemp
+    $env:TMP = $originalTmp
+    $env:TMPDIR = $originalTmpDir
+    $env:XDG_CACHE_HOME = $originalCache
+    if ($null -eq $originalServiceInstance) { Remove-Item Env:CUTFLOW_SERVICE_INSTANCE -ErrorAction SilentlyContinue }
+    else { $env:CUTFLOW_SERVICE_INSTANCE = $originalServiceInstance }
+  }
 }
 
 $listener = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $listener) {
-  Start-Process -FilePath $runtimeNode -ArgumentList @('node_modules\next\dist\bin\next', 'start', '-p', '3001') `
+  $nextCli = Join-Path $portalRoot 'node_modules\next\dist\bin\next'
+  Start-Process -FilePath $runtimeNode -ArgumentList @($nextCli, 'start', '-p', '3001', '-H', '0.0.0.0') `
     -WorkingDirectory $portalRoot -RedirectStandardOutput (Join-Path $logRoot 'web.stdout.log') `
     -RedirectStandardError (Join-Path $logRoot 'web.stderr.log') -WindowStyle Hidden | Out-Null
 } else {
@@ -138,25 +193,53 @@ if (-not $listener) {
   if ($webProcess.CommandLine -notlike '*next*start*-p*3001*') { throw "Port 3001 is occupied by PID $($listener.OwningProcess)" }
 }
 
-Start-Worker 'worker' @('worker\processor.mjs') (Join-Path $dataRoot 'worker-heartbeat.json') 'worker\processor.mjs'
-# 错开 2s 启后续 worker，避免 Node 22/24 的 ncrypto::CSPRNG assert bug（entropy pool 瞬时耗尽）
-Start-Sleep -Seconds 2
+# Each stage has three independently supervised workers. Queue leases keep
+# a Batch Stage exclusive while allowing different Batches to run in parallel.
+foreach ($service in @('analyze', 'clip', 'render')) {
+  foreach ($index in 1..3) {
+    $instance = "$service-$index"
+    Start-Worker "$instance-supervisor" @('worker\service-supervisor.mjs', "--service=$service", "--instance=$instance") `
+      (Join-Path $dataRoot "service-heartbeats\$service-$instance.json") `
+      "worker\service-supervisor.mjs*--service=$service*--instance=$instance" `
+      $instance
+    # Stagger process creation to avoid the Windows Node entropy-startup issue.
+    Start-Sleep -Seconds 2
+  }
+}
 Start-Worker 'template' @('worker\template-processor.mjs') (Join-Path $dataRoot 'template-worker-heartbeat.json') 'worker\template-processor.mjs'
 Start-Sleep -Seconds 2
 Start-Worker 'delivery' @('worker\delivery-watcher.mjs') (Join-Path $dataRoot 'delivery-worker-heartbeat.json') 'worker\delivery-watcher.mjs'
 Start-Sleep -Seconds 2
 Start-Worker 'chatcut' @('worker\chatcut-sync.mjs') (Join-Path $dataRoot 'chatcut-worker-heartbeat.json') 'worker\chatcut-sync.mjs'
 
-$health = $null
-$deadline = (Get-Date).AddSeconds(30)
+$webReady = $false
+$servicesReady = $false
+$deadline = (Get-Date).AddSeconds(180)
 do {
   try {
-    $health = Invoke-RestMethod -Uri 'http://localhost:3001/api/health' -TimeoutSec 2
-    if ($health.workerOnline) { break }
-  } catch {}
+    # /api/health and /api/dashboard are intentionally authenticated after
+    # multi-account isolation.  A 401 proves the web server is available
+    # without leaking account or queue data to this local launcher.
+    $response = Invoke-WebRequest -Uri 'http://localhost:3001/api/health' -TimeoutSec 5 -UseBasicParsing
+    $webReady = $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+  } catch {
+    $statusCode = $null
+    try { $statusCode = [int]$_.Exception.Response.StatusCode } catch {}
+    if ($statusCode -eq 401) { $webReady = $true }
+  }
+  $servicesReady = $true
+  foreach ($service in @('analyze', 'clip', 'render')) {
+    foreach ($index in 1..3) {
+      $instance = "$service-$index"
+      if (-not (Test-TrackedProcess (Join-Path $dataRoot "service-heartbeats\$service-$instance.json") "worker\service-supervisor.mjs*--service=$service*--instance=$instance")) {
+        $servicesReady = $false
+      }
+    }
+  }
+  if ($webReady -and $servicesReady) { break }
   Start-Sleep -Milliseconds 500
 } while ((Get-Date) -lt $deadline)
 
-if ($null -eq $health -or -not $health.workerOnline) { throw 'Cutflow failed its startup health check. See logs\*.stderr.log.' }
+if (-not $webReady -or -not $servicesReady) { throw 'Cutflow failed its startup health check. See logs\*.stderr.log.' }
 Write-Host 'GC Cutflow is ready: http://localhost:3001/' -ForegroundColor Green
 if (-not $NoBrowser) { Start-Process 'http://localhost:3001/' | Out-Null }

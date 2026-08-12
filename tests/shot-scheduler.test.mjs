@@ -44,6 +44,13 @@ test("creates a valid RenderPlan from complete accept Shots", () => {
   assert.equal(isRenderPlan(result.renderPlan), true);
 });
 
+test("Scheduler carries a Transition Profile without deciding transitions", () => {
+  const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("a")]), scriptTemplate: template(), transitionProfile: "fashion", createdAt: "2026-08-06T00:00:00.000Z" });
+  assert.equal(result.status, "success");
+  assert.equal(result.renderPlan.transitionProfile, "fashion");
+  assert.equal(Object.hasOwn(result.renderPlan.slots[0], "transition_out"), false);
+});
+
 test("requires all tags", () => {
   const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("a", { tags: ["detail"] })]), scriptTemplate: template() });
   assert.deepEqual(result, { status: "failed", reason: "no_matching_shot", slotId: "hook" });

@@ -22,8 +22,13 @@
 
 # next.js
 /.next/
+/.next-runtime/
 /.vinext/
 /out/
+
+# Local media/tool caches produced while processing batches.
+/.chatcut-media-import-cache/
+/.chatcut-media-import-work/
 
 # misc
 .DS_Store

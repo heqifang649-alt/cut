@@ -3,7 +3,7 @@ import test from "node:test";
 import { isRenderPlan, isScheduleResult, isShot, isSlot, isValidationResult } from "../../lib/types.ts";
 import { isNewShotPoolEnabled } from "../../worker/ai-ingest.mjs";
 import { isNewValidatorEnabled } from "../../worker/ai-video-validator.mjs";
-import { isNewRendererEnabled } from "../../worker/batch-renderer.mjs";
+import { isNewRendererEnabled, isTemplateTransitionEnabled } from "../../worker/batch-renderer.mjs";
 import { isNewSchedulerEnabled } from "../../worker/shot-scheduler.mjs";
 
 const shot = {
@@ -34,7 +34,7 @@ test("frozen migration contracts retain complete Shot, Slot, ValidationResult, a
 });
 
 test("all migration feature flags default off and only exact true enables them", () => {
-  for (const enabled of [isNewValidatorEnabled, isNewShotPoolEnabled, isNewSchedulerEnabled, isNewRendererEnabled]) {
+  for (const enabled of [isNewValidatorEnabled, isNewShotPoolEnabled, isNewSchedulerEnabled, isNewRendererEnabled, isTemplateTransitionEnabled]) {
     assert.equal(enabled({}), false);
     assert.equal(enabled({ ENABLE_NEW_VALIDATOR: "1", ENABLE_NEW_SHOTPOOL: "1", ENABLE_NEW_SCHEDULER: "1", ENABLE_NEW_RENDERER: "1" }), false);
   }
@@ -42,4 +42,5 @@ test("all migration feature flags default off and only exact true enables them",
   assert.equal(isNewShotPoolEnabled({ ENABLE_NEW_SHOTPOOL: "true" }), true);
   assert.equal(isNewSchedulerEnabled({ ENABLE_NEW_SCHEDULER: "true" }), true);
   assert.equal(isNewRendererEnabled({ ENABLE_NEW_RENDERER: "true" }), true);
+  assert.equal(isTemplateTransitionEnabled({ ENABLE_TEMPLATE_TRANSITION: "true" }), true);
 });

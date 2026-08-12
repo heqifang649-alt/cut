@@ -18,8 +18,20 @@ export async function listBatches() {
   return (await readAll()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+export async function listBatchesForOwners(ownerIds: string[]) {
+  const allowed = new Set(ownerIds);
+  return (await readAll())
+    .filter((batch) => allowed.has(batch.ownerId))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 export async function getBatch(id: string) {
   return (await readAll()).find((batch) => batch.id === id) ?? null;
+}
+
+export async function getBatchForOwners(id: string, ownerIds: string[]) {
+  const batch = await getBatch(id);
+  return batch && ownerIds.includes(batch.ownerId) ? batch : null;
 }
 
 export function mutateBatch(id: string, mutate: (batch: Batch) => Batch | void) {
@@ -37,9 +49,9 @@ export function mutateBatch(id: string, mutate: (batch: Batch) => Batch | void) 
   return task;
 }
 
-export async function createBatch(input: Pick<Batch, "name" | "requirements" | "durationMax" | "outputCount" | "cvrText" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "templateId" | "templateName" | "referenceProfile">>) {
+export async function createBatch(input: Pick<Batch, "ownerId" | "name" | "requirements" | "durationMax" | "outputCount" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "cvrText" | "hookText" | "colorStrategy" | "musicSource" | "templateId" | "templateName" | "referenceProfile" | "transitionMode" | "transitionProfile">>) {
   const now = new Date().toISOString();
-  const batch: Batch = { ...input, id: crypto.randomUUID(), status: "uploading", progress: 2, files: [], commands: [], groupCommands: [], createdAt: now, updatedAt: now };
+  const batch: Batch = { ...input, id: crypto.randomUUID(), storageVersion: 2, workflowVersion: 1, status: "uploading", progress: 2, files: [], commands: [], groupCommands: [], createdAt: now, updatedAt: now };
   mutationQueue = mutationQueue.then(() => withFileLock(STORE_FILE, async () => {
     const batches = await readAll();
     batches.push(batch);
