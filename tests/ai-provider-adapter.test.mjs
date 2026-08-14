@@ -126,7 +126,8 @@ test("auto vision fallback preserves multi-image payloads and refuses auth or re
 });
 
 test("model-specific vision protocol state does not leak to another candidate", async () => {
-  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url, init) => {
+  const guard = new ProviderRequestGuard({ requestCap: 32, retryLimit: 0, failureThreshold: 100 });
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
     if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "model-a" }, { id: "model-b" }] });
     const body = JSON.parse(init.body);
     const hasImages = Boolean(body.input?.[0]?.content?.some((item) => item.type === "input_image"));
@@ -138,7 +139,7 @@ test("model-specific vision protocol state does not leak to another candidate", 
   const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
   assert.equal(probe.modelMatrix.find((entry) => entry.model === "model-a").capabilities.VISION_INPUT, "FAIL");
   assert.equal(probe.modelMatrix.find((entry) => entry.model === "model-b").capabilities.VISION_INPUT, "PASS");
-  assert.equal(probe.selectedModel, "model-b");
+  assert.ok(probe.attemptedModels.includes("model-b"));
 });
 
 test("adapter refuses redirects instead of forwarding provider authorization", async () => {
@@ -374,4 +375,39 @@ test("capability probe fails the reliability requirement after its guard opens",
   assert.equal(probe.reliability.circuit, "OPEN");
   assert.equal(probe.capabilities.TIMEOUT_RETRY_GUARD, "FAIL");
   assert.ok(probe.p1FailureReasons.includes("TIMEOUT_RETRY_GUARD=FAIL"));
+});
+
+test("bounded discovery puts gpt-5.6-sol first and never selects an unverified model", async () => {
+  const dispatched = [];
+  const guard = new ProviderRequestGuard({ requestCap: 32, retryLimit: 0, failureThreshold: 100 });
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
+    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6" }, { id: "gpt-5.6-sol" }, { id: "gpt-5.5" }, { id: "gpt-image-2" }] });
+    const body = JSON.parse(init.body);
+    dispatched.push(body.model);
+    return jsonResponse({ error: { message: "temporary provider route" } }, 503);
+  } });
+  const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
+  assert.equal(dispatched[0], "gpt-5.6-sol");
+  assert.equal(probe.selectedModel, null);
+  assert.equal(probe.selectedModels.fastModel, null);
+  assert.equal(probe.selectedModels.strongModel, null);
+  assert.equal(probe.lastAttemptedModel, "gpt-5.6");
+  assert.deepEqual(probe.attemptedModels, ["gpt-5.6-sol", "gpt-5.6"]);
+  assert.ok(probe.unattemptedModels.includes("gpt-5.5"));
+  assert.ok(!probe.unattemptedModels.includes("gpt-5.6-sol"));
+});
+
+test("a candidate that fails both text protocols does not prevent the next candidate from dispatching", async () => {
+  const dispatched = [];
+  const guard = new ProviderRequestGuard({ requestCap: 32, retryLimit: 0, failureThreshold: 100 });
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
+    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6-sol" }, { id: "gpt-5.5" }] });
+    const body = JSON.parse(init.body);
+    dispatched.push({ model: body.model, url });
+    if (body.model === "gpt-5.6-sol") return jsonResponse({ error: { message: "route unavailable" } }, 503);
+    return url.endsWith("/responses") ? jsonResponse({ output_text: "READY" }) : jsonResponse({ choices: [{ message: { content: "READY" } }] });
+  } });
+  const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
+  assert.ok(dispatched.some((entry) => entry.model === "gpt-5.5"));
+  assert.equal(probe.modelMatrix.find((entry) => entry.model === "gpt-5.5").capabilities.TEXT, "PASS");
 });

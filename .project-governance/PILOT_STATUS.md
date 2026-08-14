@@ -44,3 +44,10 @@ P1E reuses the shared Adapter's Chat Completions, image-url, JSON fallback, time
 - `AiProviderAdapter` now scopes auto protocol selection by `model + capability` (`text`, `vision`, `structured`) and records controlled Responses-to-Chat fallback evidence. Auth, redirect, circuit, and request-cap errors do not fall through to Chat.
 - Real bounded discovery used two existing Cutflow fashion frames. `/models` returned `200`; `gpt-5.6` text attempts reached both `/responses` and `/chat/completions`, each returned `503`. The guard then opened within its request budget. No VLM, vision, multi-image, or semantic JSON capability is claimed.
 - P1E remains optional P2 model-evaluation support, not a prerequisite for P1 capability discovery. Its runner no longer implicitly selects `gpt-5.6-terra`.
+
+# 2026-08-14 P1 Vision Gate Result
+
+- The corrected bounded run tested `gpt-5.6-sol` first and stopped immediately after it passed the P1 exit invariant.
+- Real evidence: TEXT PASS; SINGLE_IMAGE PASS using an existing Cutflow fashion frame; MULTI_IMAGE PASS using two existing frames; `semantic-shot.v1` PASS through validated JSON fallback; timeout/retry guard PASS; circuit CLOSED.
+- `PILOT_PRIMARY_VLM = gpt-5.6-sol`; `MODEL_FAST = gpt-5.6-sol`; `MODEL_STRONG = gpt-5.6-sol`. No additional model was requested after this pass. Native structured output remains unsupported but is non-blocking.
+- P1 Vision Capability is PASS. Control A remains preserved and Production Cutover remains false. The next critical path is semantic evidence into the deterministic Treatment B scheduler.
