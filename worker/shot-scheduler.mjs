@@ -4,6 +4,7 @@ import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.
 const EPSILON = 1e-9;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
+export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
 
 function isAcceptShot(shot) {
   return isShot(shot) && shot.reject === false && shot.rejectReason === undefined;
@@ -83,8 +84,28 @@ function rankCandidate(shot, slot) {
   return { shot, preferredTags, targetDistance };
 }
 
+function semanticRecordMap(semanticEvidence) {
+  if (semanticEvidence === undefined) return null;
+  if (!semanticEvidence || typeof semanticEvidence !== "object" || !Array.isArray(semanticEvidence.records)) throw new TypeError("semanticEvidence.records is required");
+  return new Map(semanticEvidence.records
+    .filter((record) => record && typeof record.shotId === "string" && record.result && typeof record.result === "object")
+    .map((record) => [record.shotId, record.result]));
+}
+
+function semanticEligible(shot, semantic) {
+  if (!semantic) return true;
+  if (semantic.usable === false) return false;
+  return Number(semantic.product_match) >= 0.5;
+}
+
+function semanticScore(semantic) {
+  if (!semantic) return 0;
+  return (Number(semantic.product_match) + Number(semantic.clothing_visibility) + Number(semantic.visual_quality) + Number(semantic.hook_value) + Number(semantic.confidence)) / 5;
+}
+
 function compareCandidates(left, right) {
   if (left.preferredTags !== right.preferredTags) return right.preferredTags - left.preferredTags;
+  if (Math.abs(left.semanticScore - right.semanticScore) > EPSILON) return right.semanticScore - left.semanticScore;
   if (Math.abs(left.targetDistance - right.targetDistance) > EPSILON) return left.targetDistance - right.targetDistance;
   if (left.shot.source !== right.shot.source) return left.shot.source.localeCompare(right.shot.source);
   return left.shot.id.localeCompare(right.shot.id);
@@ -96,14 +117,15 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
+  const semanticByShotId = semanticRecordMap(semanticEvidence);
   const selected = [];
   const usedShotIds = new Set();
   for (const slot of scriptTemplate.slots) {
     const candidates = shots
-      .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot))
-      .map((shot) => rankCandidate(shot, slot))
+      .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id)))
+      .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
       .sort(compareCandidates);
     const best = candidates[0]?.shot;
     if (!best) return { status: "failed", reason: "no_matching_shot", slotId: slot.id };
@@ -121,14 +143,14 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
   return { status: "success", renderPlan };
 }
 
-export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile }) {
+export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
   validateInputs(batchId, shotPool, scriptTemplate);
-  return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile });
+  return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile, semanticEvidence });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence });
 }

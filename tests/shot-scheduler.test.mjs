@@ -117,6 +117,22 @@ test("does not mutate ShotPool or ScriptTemplate", () => {
   assert.equal(JSON.stringify({ shots, scriptTemplate }), before);
 });
 
+test("optional semantic evidence hard-rejects unusable shots and ranks conservative evidence", () => {
+  const shotPool = pool([
+    shot("semantic-low", { source: "low.mp4" }),
+    shot("semantic-high", { source: "high.mp4" }),
+    shot("semantic-reject", { source: "reject.mp4" }),
+  ]);
+  const scriptTemplate = template([slot("slot-1")]);
+  const result = scheduleShotPool({ batchId: "semantic-batch", shotPool, scriptTemplate, semanticEvidence: { records: [
+    { shotId: "semantic-low", result: { product_match: 0.55, clothing_visibility: 0.5, visual_quality: 0.5, hook_value: 0.5, confidence: 0.5, usable: true } },
+    { shotId: "semantic-high", result: { product_match: 0.95, clothing_visibility: 0.95, visual_quality: 0.9, hook_value: 0.8, confidence: 0.95, usable: true } },
+    { shotId: "semantic-reject", result: { product_match: 1, clothing_visibility: 1, visual_quality: 1, hook_value: 1, confidence: 1, usable: false } },
+  ] } });
+  assert.equal(result.status, "success");
+  assert.equal(result.renderPlan.slots[0].shot.id, "semantic-high");
+});
+
 test("accepts optional Slot constraints without adding creative fields", () => {
   const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("a")]), scriptTemplate: template([slot("detail", { requireTags: ["detail"], preferTags: [] })]) });
   assert.equal(result.status, "success");

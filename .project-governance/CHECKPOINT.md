@@ -16,5 +16,5 @@ REAL_RESULT = gpt-5.6-sol first actual candidate; TEXT PASS; SINGLE_IMAGE PASS; 
 BLOCKERS = None for P1 Vision Gate
 GUARDED_RISKS = Native structured output unsupported; validated JSON fallback is the accepted P1 path. No broad model comparison performed.
 USER_ACTION_REQUIRED = NONE
-NEXT_CRITICAL_TASK = Integrate semantic-evidence.v1 into deterministic Treatment B scheduler using minimal conservative Pilot-only rules, then run P2 real semantic evaluation.
+NEXT_CRITICAL_TASK = P2 real semantic evaluation using independently labelled data; then P3 same-input Control A vs Treatment B evidence.
 ```

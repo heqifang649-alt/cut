@@ -51,3 +51,5 @@ P1E reuses the shared Adapter's Chat Completions, image-url, JSON fallback, time
 - Real evidence: TEXT PASS; SINGLE_IMAGE PASS using an existing Cutflow fashion frame; MULTI_IMAGE PASS using two existing frames; `semantic-shot.v1` PASS through validated JSON fallback; timeout/retry guard PASS; circuit CLOSED.
 - `PILOT_PRIMARY_VLM = gpt-5.6-sol`; `MODEL_FAST = gpt-5.6-sol`; `MODEL_STRONG = gpt-5.6-sol`. No additional model was requested after this pass. Native structured output remains unsupported but is non-blocking.
 - P1 Vision Capability is PASS. Control A remains preserved and Production Cutover remains false. The next critical path is semantic evidence into the deterministic Treatment B scheduler.
+- Minimal scheduler integration is now locally verified: optional semantic evidence hard-rejects `usable=false`, guards `product_match < 0.5`, and ranks remaining candidates with conservative semantic signals. Legacy calls and Control A remain unchanged.
+- P1 is closed. Next Task Card is P2 real semantic evaluation with independent labels; no further Provider/model discovery is authorized for this gate.
