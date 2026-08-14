@@ -17,6 +17,8 @@ test("service runner isolates task and failure-handler exceptions", async () => 
   assert.match(source, /codexInactivityManualMessage\(\)/);
   assert.match(source, /taskMayOperate\(task, batch, marker\)/);
   assert.match(source, /taskStillCurrent\(task\)/);
+  assert.match(source, /Codex authentication requires reconnect/);
+  assert.doesNotMatch(source, /account\?\.apiReady === true && account\?\.executorReady === false/);
   assert.ok(source.indexOf("setLeaseGuard(async () => (await assertLease({ root: ROOT, task }))") < source.indexOf("await markServiceRecoveryReady(task)"));
 });
 

@@ -2,11 +2,20 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { currentUser, unauthenticated } from "@/lib/auth";
+import { readCodexExecutionState } from "../../../worker/recovery.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function readState(file: string): Promise<{ ready?: boolean; response?: string; checkedAt?: string; connectedAt?: string } | null> {
+async function readState(file: string): Promise<{
+  ready?: boolean;
+  response?: string;
+  checkedAt?: string;
+  connectedAt?: string;
+  apiReady?: boolean;
+  executorReady?: boolean;
+  authenticationValid?: boolean | null;
+} | null> {
   try {
     const content = await readFile(path.join(process.cwd(), "data", file), "utf8");
     return JSON.parse(content.replace(/^\uFEFF/, ""));
@@ -39,13 +48,40 @@ export async function GET() {
   const legacyOnline = Boolean(legacyHeartbeat?.at && Date.now() - new Date(legacyHeartbeat.at).getTime() < 15000 && processIsAlive(legacyHeartbeat.pid));
   const services = await liveServiceHeartbeats();
   const codexState = await readState("codex-account-state.json");
+  const codexRuntime = await readCodexExecutionState(process.cwd());
   const chatcutState = await readState("chatcut-account-state.json");
   return NextResponse.json({
     workerOnline: legacyOnline || services.length > 0,
     workerBusy: false,
     heartbeat: legacyHeartbeat || services[0] || null,
     services: { online: services.length > 0, instances: services.length },
-    codex: { ready: codexState?.ready === true, response: codexState?.response, checkedAt: codexState?.checkedAt },
+    codex: {
+      ready: codexState?.ready === true,
+      apiReady: codexRuntime.modelServiceReachable === true,
+      executorReady: codexRuntime.codexExecutorAlive === true,
+      modelServiceReachable: codexRuntime.modelServiceReachable,
+      codexExecutorAlive: codexRuntime.codexExecutorAlive,
+      sdkTurnActive: codexRuntime.sdkTurnActive === true,
+      sdkTurnCompleted: codexRuntime.sdkTurnCompleted === true,
+      authenticationValid: codexRuntime.authenticationValid,
+      failureClass: codexRuntime.failureClass,
+      status: codexRuntime.status,
+      response: codexRuntime.probe?.fresh ? codexRuntime.probe.response : undefined,
+      checkedAt: codexState?.checkedAt,
+      concurrencyLimit: codexRuntime.concurrencyLimit,
+      activeSlotCount: codexRuntime.activeSlotCount,
+      currentTurn: codexRuntime.currentTurn,
+      slots: codexRuntime.slots,
+      lastSdkEventAt: codexRuntime.lastSdkEventAt,
+      lastCompletedAt: codexRuntime.lastCompletedAt,
+      failedRequests: codexRuntime.failedRequests,
+      rateLimitErrors: codexRuntime.rateLimitErrors,
+      concurrencyErrors: codexRuntime.concurrencyErrors,
+      circuit: codexRuntime.circuit,
+      queue: codexRuntime.queue,
+      probe: codexRuntime.probe,
+      recentFailures: codexRuntime.recentFailures,
+    },
     chatcut: { ready: chatcutState?.ready === true, connectedAt: chatcutState?.connectedAt },
   });
 }

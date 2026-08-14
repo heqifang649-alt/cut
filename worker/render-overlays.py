@@ -1,7 +1,7 @@
 import argparse
 import json
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
 def font(path, size):
@@ -16,6 +16,19 @@ def centered(draw, xy, text, face, fill, stroke_width=0, stroke_fill=None):
 
 def scaled(value, actual, reference):
     return max(1, int(round(value * actual / reference)))
+
+
+def rgba(value, alpha=255):
+    if isinstance(value, (tuple, list)):
+        return tuple(value)
+    text = str(value or "#FFFFFF").lstrip("#")
+    if len(text) == 3:
+        text = "".join(ch * 2 for ch in text)
+    if len(text) == 6:
+        return tuple(int(text[index:index + 2], 16) for index in (0, 2, 4)) + (alpha,)
+    if len(text) == 8:
+        return tuple(int(text[index:index + 2], 16) for index in (0, 2, 4, 6))
+    return (255, 255, 255, alpha)
 
 
 def fit_face(draw, text, font_path, preferred, minimum, max_width, stroke_width):
@@ -76,21 +89,28 @@ def draw_pointer(draw, width, height, spec):
     top = height * spec["pointer_top_y_percent"] / 100
     bottom = height * spec["pointer_bottom_y_percent"] / 100
     pointer_height = bottom - top
-    pointer_width = pointer_height * 0.40
+    pointer_width = pointer_height * float(spec.get("pointer_width_ratio", 0.46))
     left = cx - pointer_width / 2
     points = [
-        (left + pointer_width * 0.25, top),
-        (left + pointer_width * 0.63, top),
-        (left + pointer_width * 0.63, top + pointer_height * 0.52),
-        (left + pointer_width * 0.82, top + pointer_height * 0.42),
-        (left + pointer_width, top + pointer_height * 0.58),
-        (left + pointer_width * 0.48, bottom),
-        (left, top + pointer_height * 0.60),
-        (left + pointer_width * 0.25, top + pointer_height * 0.50),
+        (left + pointer_width * 0.28, top),
+        (left + pointer_width * 0.72, top),
+        (left + pointer_width * 0.72, top + pointer_height * 0.48),
+        (left + pointer_width * 0.93, top + pointer_height * 0.48),
+        (left + pointer_width * 0.50, bottom),
+        (left + pointer_width * 0.07, top + pointer_height * 0.48),
+        (left + pointer_width * 0.28, top + pointer_height * 0.48),
     ]
-    stroke = scaled(8, width, 1080)
-    draw.polygon(points, fill=spec["pointer_fill"])
-    draw.line(points + [points[0]], fill=spec["pointer_stroke"], width=stroke, joint="curve")
+    outline = points + [points[0]]
+    stroke = scaled(spec.get("pointer_stroke_width_at_1080", 14), width, 1080)
+    inner_stroke = scaled(spec.get("pointer_inner_stroke_width_at_1080", 5), width, 1080)
+    glow_stroke = scaled(spec.get("pointer_glow_width_at_1080", 34), width, 1080)
+    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow)
+    glow_draw.line(outline, fill=rgba(spec.get("pointer_glow", "#FF3B30")), width=glow_stroke, joint="curve")
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=scaled(spec.get("pointer_glow_blur_at_1080", 18), width, 1080)))
+    draw._image.alpha_composite(glow)
+    draw.line(outline, fill=spec.get("pointer_stroke", "#FF3B30"), width=stroke, joint="curve")
+    draw.line(outline, fill=spec.get("pointer_inner_stroke", "#FFFFFF"), width=inner_stroke, joint="curve")
 
 
 def make_cvr(width, height, text, secondary_text, output, bold_font, italic_font, layout):

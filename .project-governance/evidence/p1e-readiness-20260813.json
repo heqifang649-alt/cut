@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1E_REAL_BENCHMARK_READINESS",
+  "executedAt": "2026-08-13T12:39:05.105Z",
+  "productionCutover": false,
+  "controlA": "preserved",
+  "treatmentB": "isolated benchmark and shadow only",
+  "providerProfiles": [
+    {
+      "id": "gemini",
+      "protocolMode": "chat_completions",
+      "status": "NOT_CONFIGURED"
+    },
+    {
+      "id": "qwen25vl",
+      "protocolMode": "chat_completions",
+      "status": "NOT_CONFIGURED"
+    }
+  ],
+  "realDatasetInventory": {
+    "batchDirectoryCount": 0,
+    "mediaFileCount": 0,
+    "independentlyLabelledGroundTruthCount": 0,
+    "requiredCohorts": {
+      "normal": 10,
+      "confusing_product": 5,
+      "ai_artifact": 5,
+      "multi_image": 5
+    },
+    "observedCohorts": {
+      "normal": 0,
+      "confusing_product": 0,
+      "ai_artifact": 0,
+      "multi_image": 0
+    }
+  },
+  "realProviderRequestsDispatched": 0,
+  "status": "PARTIAL_SAMPLE_AND_CREDENTIALS_INSUFFICIENT",
+  "conclusion": "No Gemini, Qwen2.5-VL, or current-provider P1E benchmark result is asserted. The runner exits before any Provider request when the real independently-labelled dataset is incomplete."
+}

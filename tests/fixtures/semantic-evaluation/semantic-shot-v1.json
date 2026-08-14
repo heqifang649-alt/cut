@@ -1,0 +1,37 @@
+{
+  "schema_version": "semantic-evaluation.v1",
+  "label_source": "synthetic_contract_fixture",
+  "purpose": "Synthetic contract fixture only; not a semantic-quality benchmark.",
+  "coverage": [
+    "overall",
+    "front",
+    "back",
+    "detail",
+    "close_up",
+    "product_mismatch",
+    "similar_shots",
+    "blur",
+    "motion",
+    "stable",
+    "easy",
+    "boundary"
+  ],
+  "cases": [
+    { "id": "overall-stable", "expected": { "shot_type": "overall", "usable": true, "product_authentic": true } },
+    { "id": "front-easy", "expected": { "shot_type": "front_full_body", "usable": true, "product_authentic": true } },
+    { "id": "back-motion", "expected": { "shot_type": "back_full_body", "usable": true, "product_authentic": true } },
+    { "id": "detail-close-up", "expected": { "shot_type": "detail", "usable": true, "product_authentic": true } },
+    { "id": "product-mismatch", "expected": { "shot_type": "overall", "usable": false, "product_authentic": false } },
+    { "id": "similar-shot-boundary", "expected": { "shot_type": "other", "usable": false, "product_authentic": false } }
+  ],
+  "observations": [
+    { "case_id": "overall-stable", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "overall-stable", "shot_type": "overall", "product_match": 0.93, "clothing_visibility": 0.90, "visual_quality": 0.88, "hook_value": 0.62, "usable": true, "confidence": 0.91 }, "telemetry": { "latency_ms": 110, "cost_usd": 0.001, "usage": { "input_tokens": 10, "output_tokens": 5, "total_tokens": 15 } } },
+    { "case_id": "front-easy", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "front-easy", "shot_type": "front_full_body", "product_match": 0.91, "clothing_visibility": 0.90, "visual_quality": 0.85, "hook_value": 0.70, "usable": true, "confidence": 0.90 }, "telemetry": { "latency_ms": 120, "cost_usd": 0.001, "usage": { "input_tokens": 11, "output_tokens": 6, "total_tokens": 17 } } },
+    { "case_id": "back-motion", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "back-motion", "shot_type": "back_full_body", "product_match": 0.90, "clothing_visibility": 0.89, "visual_quality": 0.82, "hook_value": 0.64, "usable": true, "confidence": 0.88 }, "telemetry": { "latency_ms": 100, "cost_usd": 0.001, "usage": { "input_tokens": 9, "output_tokens": 5, "total_tokens": 14 } } },
+    { "case_id": "detail-close-up", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "detail-close-up", "shot_type": "detail", "product_match": 0.89, "clothing_visibility": 0.87, "visual_quality": 0.80, "hook_value": 0.66, "usable": true, "confidence": 0.87 }, "telemetry": { "latency_ms": 130, "cost_usd": 0.001, "usage": { "input_tokens": 12, "output_tokens": 6, "total_tokens": 18 } } },
+    { "case_id": "product-mismatch", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "product-mismatch", "shot_type": "overall", "product_match": 0.85, "clothing_visibility": 0.80, "visual_quality": 0.75, "hook_value": 0.50, "usable": true, "confidence": 0.84 }, "telemetry": { "latency_ms": 140, "cost_usd": 0.001, "usage": { "input_tokens": 10, "output_tokens": 5, "total_tokens": 15 } } },
+    { "case_id": "similar-shot-boundary", "run_id": "r1", "result": { "schema_version": "semantic-shot.v1", "shot_id": "similar-shot-boundary", "shot_type": "detail", "product_match": 0.30, "clothing_visibility": 0.50, "visual_quality": 0.40, "hook_value": 0.30, "usable": false, "confidence": 0.70 }, "telemetry": { "latency_ms": 150, "cost_usd": 0.001, "usage": { "input_tokens": 9, "output_tokens": 4, "total_tokens": 13 } } },
+    { "case_id": "front-easy", "run_id": "r2", "result": { "schema_version": "semantic-shot.v1", "shot_id": "front-easy", "shot_type": "front_full_body", "product_match": 0.91, "clothing_visibility": 0.90, "visual_quality": 0.85, "hook_value": 0.70, "usable": true, "confidence": 0.90 }, "telemetry": { "latency_ms": 125, "cost_usd": 0.001, "usage": { "input_tokens": 11, "output_tokens": 6, "total_tokens": 17 } } },
+    { "case_id": "back-motion", "run_id": "r2", "result": { "schema_version": "semantic-shot.v1", "shot_id": "back-motion", "shot_type": "back_full_body", "product_match": 0.90, "clothing_visibility": 0.89, "visual_quality": 0.82, "hook_value": 0.64, "usable": false, "confidence": 0.55 }, "telemetry": { "latency_ms": 105, "cost_usd": 0.001, "usage": { "input_tokens": 9, "output_tokens": 5, "total_tokens": 14 } } }
+  ]
+}

@@ -9,6 +9,7 @@ import {
   claimNasPath,
   createSession,
   createUser,
+  deleteUser,
   deleteSession,
   getSessionUser,
   listLegacyArchive,
@@ -52,6 +53,25 @@ test("accounts have verified passwords, server sessions, and logout invalidation
   await deleteSession(root, sessionAfterReset.token);
   assert.equal(await getSessionUser(root, sessionAfterReset.token), null);
   assert.equal(admin.role, "admin");
+});
+
+test("deleting an account revokes its sessions without removing other account data", async (t) => {
+  const root = await fixtureRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const admin = await createUser(root, { username: "admin.delete", displayName: "Admin", role: "admin" });
+  const member = await createUser(root, { username: "member.delete", displayName: "Member", role: "member" });
+  const other = await createUser(root, { username: "other.member", displayName: "Other", role: "member" });
+  const session = await createSession(root, member.id);
+  await writeFile(path.join(root, "data", "batches.json"), JSON.stringify([{ id: "batch-member", ownerId: member.id }, { id: "batch-other", ownerId: other.id }]), "utf8");
+
+  await assert.rejects(() => deleteUser(root, admin.id, { actorId: admin.id }), /currently administering/);
+  const removed = await deleteUser(root, member.id, { actorId: admin.id });
+  assert.equal(removed.id, member.id);
+  assert.equal(await authenticateUser(root, "member.delete", "member.delete123456"), null);
+  assert.equal(await getSessionUser(root, session.token), null);
+  const batches = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"));
+  assert.deepEqual(batches.map((batch) => batch.id), ["batch-member", "batch-other"]);
+  await assert.rejects(() => deleteUser(root, admin.id, { actorId: other.id }), /last administrator/);
 });
 
 test("legacy resources are archived without moving files and can be explicitly transferred", async (t) => {
@@ -118,4 +138,21 @@ test("Codex workers use only the owning workspace as their writable root", async
   assert.match(processor, /workingDirectory:\s*batchDir/);
   assert.match(templates, /workingDirectory:\s*templateDir/);
   assert.match(chatcut, /workingDirectory:\s*batchDir/);
+});
+
+test("workspace availability guards keep authentication off the global Batch lock", async () => {
+  const auth = await readFile(path.join(process.cwd(), "lib", "auth.ts"), "utf8");
+  const page = await readFile(path.join(process.cwd(), "app", "page.tsx"), "utf8");
+  const launcher = await readFile(path.join(process.cwd(), "scripts", "start-cutflow.ps1"), "utf8");
+  const supervisor = await readFile(path.join(process.cwd(), "worker", "auxiliary-supervisor.mjs"), "utf8");
+
+  assert.doesNotMatch(auth, /if \(user\) await archiveLegacyResources\(root\)/);
+  assert.match(auth, /void scheduleLegacyArchive\(root\)/);
+  assert.match(page, /fetchWithTimeout\("\/api\/auth\/me"/);
+  assert.match(page, /登录状态检查超时，请重试/);
+  assert.match(page, /fetchWithTimeout\("\/api\/batches"/);
+  assert.match(launcher, /auxiliary-supervisor\.mjs.*--worker=chatcut/);
+  assert.match(launcher, /auxiliary-runtime/);
+  assert.match(supervisor, /worker heartbeat stopped/);
+  assert.match(supervisor, /held \$\{config\.guardedLock\} for over/);
 });

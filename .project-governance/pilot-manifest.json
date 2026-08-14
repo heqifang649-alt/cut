@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "project": "CUTFLOW_HYBRID_PILOT",
+  "repository": "heqifang649-alt/cut",
+  "historicalBaselineCommit": "56e64689000d99272301257c1a1eaf7e8c837f7d",
+  "executionBaselineCommit": "56e64689000d99272301257c1a1eaf7e8c837f7d",
+  "branch": "architecture-v2",
+  "capturedAt": "2026-08-13T03:04:00.000Z",
+  "featureFlags": {
+    "ENABLE_NEW_VALIDATOR": false,
+    "ENABLE_NEW_SHOTPOOL": false,
+    "ENABLE_ARTIFACT_GATE": false,
+    "ENABLE_NEW_SCHEDULER": false,
+    "ENABLE_NEW_RENDERER": false,
+    "ENABLE_NEW_REVIEW": false,
+    "ENABLE_API_SEMANTIC_SCORER": false,
+    "ENABLE_HYBRID_PILOT": false
+  },
+  "controlA": {
+    "path": "Codex + current edit/render pipeline + QA",
+    "status": "preserved",
+    "stabilization": "Bounded check-codex Abort timeout and launcher process-tree termination retained; regression tests passed."
+  },
+  "treatmentB": {
+    "path": "Deterministic analysis + ShotPool + API semantic scoring + deterministic scheduler + render plan + FFmpeg + QA",
+    "status": "disabled by default; isolated semantic-evidence and cache artifacts only"
+  }
+}

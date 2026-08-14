@@ -41,6 +41,7 @@ $bootstrapCache = Join-Path $workerCacheRoot 'bootstrap'
 New-Item -ItemType Directory -Force -Path $bootstrapTemp, $bootstrapCache | Out-Null
 
 $env:CODEX_HOME = $CodexHome
+$env:CODEX_CLI_PATH = 'C:\Users\尔尔\AppData\Local\OpenAI\Codex\bin\8e8bf206e63ac436\codex.exe'
 $env:XDG_CACHE_HOME = 'D:\codex\cache'
 $env:TEMP = $bootstrapTemp
 $env:TMP = $bootstrapTemp
@@ -63,6 +64,11 @@ $env:PYTHON_PATH = $runtimePython
 
 $codexReady = $false
 $codexResponse = ''
+$codexApiReady = $false
+$codexExecutorReady = $false
+$codexAuthenticationValid = $null
+$codexStatus = 'unresponsive'
+$codexFailureClass = 'service_unavailable'
 $accountStatePath = Join-Path $dataRoot 'codex-account-state.json'
 $previousAccountState = $null
 if ($SkipAccountCheck) {
@@ -82,20 +88,56 @@ if ($SkipAccountCheck) {
     $codexResponse = '已跳过 Codex 账号检查，未覆盖最近一次账号状态'
   }
 } else {
-  $cutoff = (Get-Date).AddSeconds(20)
+  # The probe performs a bounded model check followed by a bounded executor
+  # check. Its own default budget is 30s + 45s, so a 20s launcher cutoff
+  # always kills a healthy-but-slow executor and persists a false outage.
+  $configuredProbeBudget = 0
+  try { $configuredProbeBudget = [int]$env:CUTFLOW_ACCOUNT_PROBE_TIMEOUT_SECONDS } catch { $configuredProbeBudget = 0 }
+  if ($configuredProbeBudget -lt 90) { $configuredProbeBudget = 90 }
+  $probeBudgetSeconds = $configuredProbeBudget
+  $cutoff = (Get-Date).AddSeconds($probeBudgetSeconds)
   $capture = $null
+  $probeExitCode = $null
   do {
-    try { $capture = & $runtimeNode (Join-Path $portalRoot 'scripts\check-codex.mjs') 2>&1 } catch {}
-    if ($LASTEXITCODE -eq 0 -and $capture) { break }
+    $probeOutput = Join-Path $logRoot "codex-probe-$([guid]::NewGuid().ToString('N')).stdout.log"
+    $probeError = Join-Path $logRoot "codex-probe-$([guid]::NewGuid().ToString('N')).stderr.log"
+    $probeProcess = $null
+    try {
+      $probeProcess = Start-Process -FilePath $runtimeNode -ArgumentList @((Join-Path $portalRoot 'scripts\check-codex.mjs')) -WorkingDirectory $portalRoot -RedirectStandardOutput $probeOutput -RedirectStandardError $probeError -WindowStyle Hidden -PassThru
+      while (-not $probeProcess.HasExited -and (Get-Date) -lt $cutoff) { Start-Sleep -Milliseconds 250; $probeProcess.Refresh() }
+      if (-not $probeProcess.HasExited) {
+        # The probe's own Abort signal protects normal SDK work. This outer
+        # process-tree termination is the final guard when a Node process is
+        # wedged before it can observe that signal.
+        & taskkill.exe /PID $probeProcess.Id /T /F | Out-Null
+        $probeExitCode = -1
+      } else {
+        $probeExitCode = $probeProcess.ExitCode
+      }
+      $capture = ((Get-Content -LiteralPath $probeOutput -Raw -ErrorAction SilentlyContinue), (Get-Content -LiteralPath $probeError -Raw -ErrorAction SilentlyContinue) | Where-Object { $_ }) -join "`n"
+    } catch {
+      $capture = $_.Exception.Message
+      $probeExitCode = -1
+    } finally {
+      Remove-Item -LiteralPath $probeOutput, $probeError -Force -ErrorAction SilentlyContinue
+    }
+    if ($probeExitCode -eq 0 -and $capture) { break }
+    if ((Get-Date) -ge $cutoff) { break }
     Start-Sleep -Milliseconds 500
   } while ((Get-Date) -lt $cutoff)
-  if ($LASTEXITCODE -eq 0 -and $capture) {
+  if ($probeExitCode -eq 0 -and $capture) {
     try {
       $check = $capture | ConvertFrom-Json
-      if ($check.ready) { $codexReady = $true } else { $codexResponse = [string]$check.response }
+      $codexReady = [bool]$check.ready
+      $codexApiReady = [bool]$check.apiReady
+      $codexExecutorReady = [bool]$check.executorReady
+      $codexAuthenticationValid = if ($null -eq $check.authenticationValid) { $null } else { [bool]$check.authenticationValid }
+      $codexStatus = if ($check.status) { [string]$check.status } elseif ($codexReady) { 'normal' } elseif ($codexApiReady) { 'unresponsive' } else { 'unresponsive' }
+      $codexFailureClass = if ($check.failureClass) { [string]$check.failureClass } elseif ($codexReady) { 'healthy' } elseif ($codexAuthenticationValid -eq $false) { 'auth_failed' } elseif ($codexApiReady) { 'executor_stalled' } else { 'service_unavailable' }
+      $codexResponse = [string]$check.response
     } catch { $codexResponse = "解析失败: $capture" }
   } else {
-    $codexResponse = if ($capture) { "exit=$LASTEXITCODE out=$capture" } else { 'check-codex 超时' }
+    $codexResponse = if ($capture) { "exit=$probeExitCode out=$capture" } else { 'check-codex 超时' }
   }
 }
 
@@ -104,6 +146,11 @@ if (-not $SkipAccountCheck) {
     checkedAt = (Get-Date).ToUniversalTime().ToString('o')
     codexHome = $CodexHome
     ready = $codexReady
+    apiReady = $codexApiReady
+    executorReady = $codexExecutorReady
+    authenticationValid = $codexAuthenticationValid
+    status = $codexStatus
+    failureClass = $codexFailureClass
     response = $codexResponse
   } | ConvertTo-Json
   [System.IO.File]::WriteAllText($accountStatePath, $accountState, [System.Text.UTF8Encoding]::new($false))
@@ -111,9 +158,12 @@ if (-not $SkipAccountCheck) {
 
 if ($codexReady) {
   Write-Host 'Codex 账号连接正常。' -ForegroundColor Green
+} elseif ($codexAuthenticationValid -eq $false) {
+  Write-Host "Codex 账号认证失效，Codex 任务将等待重新连接。原因：$codexResponse" -ForegroundColor Yellow
+} elseif ($codexApiReady) {
+  Write-Host "Codex 模型服务可达，但执行器暂时无响应；Codex 任务会自动恢复，非 Codex 任务继续运行。原因：$codexResponse" -ForegroundColor Yellow
 } else {
-  Write-Host "Codex 账号不可用，自动剪辑已暂停（界面和审核仍可用）。原因：$codexResponse" -ForegroundColor Yellow
-  Write-Host '登录后执行 scripts\restart-cutflow.cmd 即可恢复接单。' -ForegroundColor Yellow
+  Write-Host "Codex 连接暂时不可用，Codex 任务将退避重试。原因：$codexResponse" -ForegroundColor Yellow
 }
 
 function Test-TrackedProcess([string]$Heartbeat, [string]$CommandFragment) {
@@ -206,11 +256,11 @@ foreach ($service in @('analyze', 'clip', 'render')) {
     Start-Sleep -Seconds 2
   }
 }
-Start-Worker 'template' @('worker\template-processor.mjs') (Join-Path $dataRoot 'template-worker-heartbeat.json') 'worker\template-processor.mjs'
+Start-Worker 'template-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=template') (Join-Path $dataRoot 'auxiliary-runtime\template.json') 'worker\auxiliary-supervisor.mjs*--worker=template'
 Start-Sleep -Seconds 2
-Start-Worker 'delivery' @('worker\delivery-watcher.mjs') (Join-Path $dataRoot 'delivery-worker-heartbeat.json') 'worker\delivery-watcher.mjs'
+Start-Worker 'delivery-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=delivery') (Join-Path $dataRoot 'auxiliary-runtime\delivery.json') 'worker\auxiliary-supervisor.mjs*--worker=delivery'
 Start-Sleep -Seconds 2
-Start-Worker 'chatcut' @('worker\chatcut-sync.mjs') (Join-Path $dataRoot 'chatcut-worker-heartbeat.json') 'worker\chatcut-sync.mjs'
+Start-Worker 'chatcut-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=chatcut') (Join-Path $dataRoot 'auxiliary-runtime\chatcut.json') 'worker\auxiliary-supervisor.mjs*--worker=chatcut'
 
 $webReady = $false
 $servicesReady = $false
@@ -234,6 +284,11 @@ do {
       if (-not (Test-TrackedProcess (Join-Path $dataRoot "service-heartbeats\$service-$instance.json") "worker\service-supervisor.mjs*--service=$service*--instance=$instance")) {
         $servicesReady = $false
       }
+    }
+  }
+  foreach ($auxiliary in @('template', 'delivery', 'chatcut')) {
+    if (-not (Test-TrackedProcess (Join-Path $dataRoot "auxiliary-runtime\$auxiliary.json") "worker\auxiliary-supervisor.mjs*--worker=$auxiliary")) {
+      $servicesReady = $false
     }
   }
   if ($webReady -and $servicesReady) { break }

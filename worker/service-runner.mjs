@@ -29,6 +29,7 @@ import {
   MAX_RECOVERY_ATTEMPTS,
   acquireCodexExecution,
   classifyRecoveryError,
+  codexFailureClassFor,
   codexInactivityManualMessage,
   heartbeatCodexExecution,
   isCodexServiceTask,
@@ -47,6 +48,7 @@ import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { taskMatchesBatchVersion, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
+import { taskNumberForBatch } from "../lib/task-number.mjs";
 
 const ROOT = process.cwd();
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "analyze";
@@ -131,26 +133,26 @@ async function syncDerivedTasks() {
     }
     if (STAGE === "analyze") {
       if (["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products"].includes(batch.status)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "regroup_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "batch_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "quality", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "quality", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
     if (STAGE === "clip") {
       if (batch.status === "revision_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
       const marker = await readJson(stageFile(batch), null);
       if (batch.status === "editing" && marker?.next === "clip" && marker.operation === "edit" && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
     if (STAGE === "render") {
       const marker = await readJson(stageFile(batch), null);
       if (["editing", "revising"].includes(batch.status) && marker?.next === "render" && ["render", "revision"].includes(marker.operation) && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: batch.priority, workflowVersion: version });
+        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
   }
@@ -169,9 +171,19 @@ async function runTask(task) {
   // Queue records carry a Batch workflow version. A stale task is completed
   // without calling Codex or writing Batch state.
   if (!taskMayOperate(task, batch, marker)) return { completed: true, skipped: true };
-  if (task.stage === "analyze" && ["reference", "regroup"].includes(task.operation)) {
+  if (isCodexServiceTask(task.stage, task.operation)) {
     const account = await readJson(path.join(ROOT, "data", "codex-account-state.json"), null);
-    if (account?.ready !== true) throw new Error("Codex disconnect");
+    if (account?.authenticationValid === false) {
+      return {
+        deferred: true,
+        retryAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+        reason: "Codex authentication requires reconnect",
+      };
+    }
+    // A model-service probe and an SDK executor probe are different checks.
+    // Never manufacture a generic “Codex disconnect” from an unresponsive
+    // executor: running the real Turn preserves its error/HTTP/stream evidence
+    // and lets the bounded transient-recovery policy decide the outcome.
   }
   let codexSucceeded = false;
   if (isCodexServiceTask(task.stage, task.operation)) {
@@ -210,7 +222,7 @@ async function runTask(task) {
     if (outcome?.artifactReviewRequired) return { completed: true, artifactReviewRequired: true };
     if (task.stage === "analyze" && task.operation === "quality") {
       await markStage(ROOT, batch, "clip", "edit");
-      await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: task.priority, workflowVersion: workflowVersionOf(batch) });
+      await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: task.priority, workflowVersion: workflowVersionOf(batch), taskNumber: taskNumberForBatch(batch) });
     } else if (task.stage === "clip" && ["edit", "revision"].includes(task.operation)) {
       if (outcome?.renderReady !== true) {
         const error = new Error("Edit Plan Not Ready: clip stage completed without a render-ready edit plan.");
@@ -218,7 +230,7 @@ async function runTask(task) {
         throw error;
       }
       await markStage(ROOT, batch, "render", "render");
-      await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: task.priority, workflowVersion: workflowVersionOf(batch) });
+      await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: task.priority, workflowVersion: workflowVersionOf(batch), taskNumber: taskNumberForBatch(batch) });
     } else if (task.stage === "render") {
       await markStage(ROOT, batch, null, "render");
     }
@@ -247,6 +259,7 @@ async function handleFailure(task, error) {
       attempt: Number(task.attempt || 0) + 1,
       leaseId: task.lease?.leaseId,
       recoverable: classification.recoverable,
+      codexFailureClass: classification.failureClass || codexFailureClassFor(classification),
       ...(error?.codexTurn ? { codexTurn: error.codexTurn } : {}),
       ...(error?.readiness ? { editPlanReadiness: error.readiness } : {}),
     },
@@ -258,8 +271,8 @@ async function handleFailure(task, error) {
     console.warn(`[${SERVICE}/${WORKER_ID}] Lease lost while handling ${task.key}; waiting for the next task.`);
     return { state: "lost", lost: true };
   }
-  if (classification.kind === "codex_concurrency") {
-    codexCircuit = await tripCodexConcurrencyCircuit({ root: ROOT, message, task, service: SERVICE, workerId: WORKER_ID }).catch(() => null);
+  if (["codex_concurrency", "codex_rate_limit"].includes(classification.kind)) {
+    codexCircuit = await tripCodexConcurrencyCircuit({ root: ROOT, message, task, service: SERVICE, workerId: WORKER_ID, kind: classification.kind }).catch(() => null);
   }
 
   const writeBatchState = async (change) => {
@@ -285,14 +298,38 @@ async function handleFailure(task, error) {
     });
   };
 
+  if (classification.kind === "codex_authentication") {
+    await writeJsonAtomic(path.join(ROOT, "data", "codex-account-state.json"), {
+      ...(await readJson(path.join(ROOT, "data", "codex-account-state.json"), {})),
+      checkedAt: new Date().toISOString(),
+      ready: false,
+      authenticationValid: false,
+      status: "auth_invalid",
+      failureClass: "auth_failed",
+      response: message,
+    }).catch(() => undefined);
+    if (!(await writeBatchState((item) => {
+      item.error = "Codex账号需要重新连接";
+      item.renderingLabel = "Codex 认证失效，等待重新连接";
+      item.lastWorkerActivityAt = new Date().toISOString();
+    }))) return { state: "lost", lost: true };
+    return deferStage({
+      root: ROOT,
+      task,
+      reason: message,
+      notBefore: new Date(Date.now() + 5 * 60_000).toISOString(),
+    });
+  }
+
   if (classification.category === "business") return releaseAsManual("manual", classification.kind === "edit_plan_not_ready" ? "Clip 未生成可渲染 EDL" : "等待人工处理", markManualRequired);
   if (classification.category === "fatal") return releaseAsManual("failed", "任务失败", markFatalFailure);
   if (classification.recoverable) {
     const attempt = Number(task.attempt || 0) + 1;
     const attemptLimit = recoveryAttemptLimit(classification);
+    const accountBackoff = ["codex_concurrency", "codex_rate_limit"].includes(classification.kind);
     const inactivityTimeout = classification.kind === "codex_inactivity";
     const circuitManual = codexCircuit?.state === "manual";
-    if (attempt >= attemptLimit || circuitManual) {
+    if ((accountBackoff ? attempt > attemptLimit : attempt >= attemptLimit) || circuitManual) {
       if (!(await writeBatchState((item) => {
         item.status = "failed";
         item.error = `自动恢复连续失败 ${MAX_RECOVERY_ATTEMPTS} 次：${message}`;
@@ -315,7 +352,7 @@ async function handleFailure(task, error) {
         if (inactivityTimeout) item.codexTurn = { ...item.codexTurn, state: "retrying", turnId: undefined };
       }))) return { state: "lost", lost: true };
     }
-    return retryStage({ root: ROOT, task, reason: message, maxAttempts: circuitManual ? 0 : attemptLimit, delayMs: retryDelayFor(attempt, classification) }).catch((queueError) => {
+    return retryStage({ root: ROOT, task, reason: message, maxAttempts: circuitManual ? 0 : accountBackoff ? attemptLimit + 1 : attemptLimit, delayMs: retryDelayFor(attempt, classification) }).catch((queueError) => {
       console.error(`[${SERVICE}/${WORKER_ID}] Could not retry ${task.key}:`, queueError);
       return { state: attempt >= attemptLimit || circuitManual ? "manual" : "retry", attempt };
     });

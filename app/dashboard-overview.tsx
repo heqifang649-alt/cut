@@ -27,6 +27,23 @@ export type DashboardSnapshot = {
     retry: number;
     etaSeconds: number | null;
   }>;
+  codex?: {
+    status: string;
+    modelServiceReachable: boolean | null;
+    codexExecutorAlive: boolean | null;
+    sdkTurnActive: boolean;
+    sdkTurnCompleted: boolean;
+    authenticationValid: boolean | null;
+    concurrencyLimit: number;
+    activeSlotCount: number;
+    currentTurn?: { taskKey?: string; service?: string; lastEventAt?: string; startedAt?: string } | null;
+    lastSdkEventAt?: string | null;
+    lastCompletedAt?: string | null;
+    failedRequests?: number;
+    rateLimitErrors?: number;
+    concurrencyErrors?: number;
+    queue?: { waiting?: number; running?: number; failed?: number; retry?: number };
+  };
   recentBatches: Array<{ id: string; name: string; status: string; createdAt: string; updatedAt: string; stage: string; productCount: number; error?: string }>;
 };
 
@@ -99,8 +116,10 @@ export default function DashboardOverview({ data, loading, onOpenBatch, onCreate
   const rejectItems = sortHistogram(data.quality.histogram);
   const schedulerFailures = sortHistogram(data.scheduler.failedReasons);
   const serviceOnline = Object.values(data.services || {}).some((service) => service.online);
+  const codex = data.codex;
 
   return <section className="home-dashboard">
+    {codex && <section className="home-section codex-health-section" aria-label="Codex status"><div className="home-section-head"><div><span className="eyebrow">Codex</span><h3>执行器状态</h3></div><strong>{codex.status === "running" ? "正在执行" : codex.status === "unresponsive" ? "暂时无响应" : codex.status === "backoff" ? "退避中" : codex.status === "auth_invalid" ? "认证失效" : "正常"}</strong></div><div className="system-status-grid"><div><span>Model Service</span><strong>{codex.modelServiceReachable === true ? "可达" : codex.modelServiceReachable === false ? "不可达" : "未知"}</strong></div><div><span>Executor</span><strong>{codex.codexExecutorAlive === true ? "存活" : codex.codexExecutorAlive === false ? "无响应" : "未确认"}</strong></div><div><span>SDK Turn</span><strong>{codex.sdkTurnActive ? "活动中" : codex.sdkTurnCompleted ? "已完成" : "无活动"}</strong></div><div><span>认证</span><strong>{codex.authenticationValid === false ? "失效" : codex.authenticationValid === true ? "有效" : "未知"}</strong></div><div><span>并发槽位</span><strong>{codex.activeSlotCount}/{codex.concurrencyLimit}</strong></div><div><span>Codex 队列</span><strong>等 {codex.queue?.waiting || 0} / 跑 {codex.queue?.running || 0}</strong></div><div><span>失败 / 限流 / 并发</span><strong>{codex.failedRequests || 0} / {codex.rateLimitErrors || 0} / {codex.concurrencyErrors || 0}</strong></div><div><span>最后 SDK 事件</span><strong>{codex.lastSdkEventAt ? formatDate(codex.lastSdkEventAt) : "暂无"}</strong></div><div><span>最近完成</span><strong>{codex.lastCompletedAt ? formatDate(codex.lastCompletedAt) : "暂无"}</strong></div><div><span>当前 Turn</span><strong>{codex.currentTurn?.service || "无"}{codex.currentTurn?.taskKey ? ` · ${codex.currentTurn.taskKey}` : ""}</strong></div></div></section>}
     <section className="today-focus" aria-label="今日待处理">
       <div className="today-focus-copy"><span className="eyebrow">今日工作</span><h2>先处理最重要的任务</h2><p>待审核和失败任务优先，其余任务可在最近任务中继续处理。</p><button className="primary-button dashboard-create" onClick={onCreateBatch}>＋ 新建批次</button></div>
       <button className="next-action" onClick={() => nextBatch && onOpenBatch(nextBatch.id)} disabled={!nextBatch}>

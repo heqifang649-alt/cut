@@ -869,7 +869,9 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     for (let variantIndex = 0; variantIndex < outputVariants; variantIndex += 1) {
     const outputOrdinal = productIndex * outputVariants + variantIndex;
     const suffix = outputVariants > 1 ? `-${String(variantIndex + 1).padStart(2, "0")}` : "";
-    const outputName = `${product.product_id}${suffix}.mp4`;
+    const revisionVersion = Math.max(0, Number(batch.revisionVersion) || 0);
+    const revisionSuffix = revisionVersion ? `-r${String(revisionVersion).padStart(2, "0")}` : "";
+    const outputName = `${product.product_id}${revisionSuffix}${suffix}.mp4`;
     const outputPath = path.join(outputDir, outputName);
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
     const canReuseOutput = savedOutput.colorStrategy === colorStrategy && await isUsableVideo(ffmpeg, outputPath);

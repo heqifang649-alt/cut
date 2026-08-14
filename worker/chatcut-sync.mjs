@@ -1,15 +1,18 @@
-import { Codex } from "@openai/codex-sdk";
 import { spawn } from "node:child_process";
 import { access, constants, mkdir, open, readFile, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath, resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
+import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import {
   acquireCodexExecution,
   classifyRecoveryError,
   heartbeatCodexExecution,
+  recordCodexTurnCompleted,
+  recordCodexTurnFailure,
+  recordCodexTurnStart,
   releaseCodexExecution,
   retryDelayFor,
   tripCodexConcurrencyCircuit,
@@ -174,7 +177,11 @@ async function prepareChatCutMediaTools(sourcePaths) {
 }
 
 class SyncTimeoutError extends Error {
-  constructor() { super(`ChatCut 同步超过 ${Math.round(SYNC_TIMEOUT_MS / 60000)} 分钟无结果`); this.name = "SyncTimeoutError"; }
+  constructor() {
+    super(`ChatCut 同步超过 ${Math.round(SYNC_TIMEOUT_MS / 60000)} 分钟无结果`);
+    this.name = "SyncTimeoutError";
+    this.code = "CODEX_TURN_INACTIVITY_TIMEOUT";
+  }
 }
 
 async function writeHeartbeat() {
@@ -287,11 +294,12 @@ async function claimNextPending() {
 
 async function accountReady() {
   const state = await readJson(ACCOUNT_STATE, null);
-  return state?.ready === true;
+  return Boolean(state && state.authenticationValid !== false && (state.ready === true || state.apiReady === true));
 }
 
 function isAuthError(error) {
-  return /auth|oauth|login|unauthori[sz]ed|forbidden|mcp.*connect/i.test(String(error));
+  const classification = classifyRecoveryError(error);
+  return classification.kind === "codex_authentication";
 }
 
 async function backfillExistingManifests() {
@@ -373,6 +381,7 @@ async function syncOutput(batch, file, runId) {
   let spawnDiagnostics;
   let execution = null;
   let codexSucceeded = false;
+  let codexTurnId = null;
   const deadlineAt = Date.now() + SYNC_TIMEOUT_MS;
 
   const prompt = [
@@ -414,7 +423,7 @@ async function syncOutput(batch, file, runId) {
       error.code = "CODEX_CIRCUIT_MANUAL";
       throw error;
     }
-    const codex = new Codex();
+    const codex = createCodexClient();
     const thread = codex.startThread({
       // A ChatCut turn is writable only within the owning Batch workspace.
       workingDirectory: batchDir,
@@ -423,6 +432,15 @@ async function syncOutput(batch, file, runId) {
       approvalPolicy: "never",
       modelReasoningEffort: "high",
     });
+    codexTurnId = crypto.randomUUID();
+    await recordCodexTurnStart({
+      root: ROOT,
+      turnId: codexTurnId,
+      threadId: thread.id || undefined,
+      taskKey: task.key,
+      service: "chatcut",
+      slotId: execution.slot.id,
+    }).catch(() => undefined);
     const controller = new AbortController();
     let timedOut = false;
     let activityWriteInFlight = false;
@@ -440,12 +458,16 @@ async function syncOutput(batch, file, runId) {
     const timeoutTimer = setTimeout(() => { timedOut = true; controller.abort(); }, Math.max(1, deadlineAt - Date.now()));
     let result;
     try {
-      result = await thread.run(prompt, { outputSchema: resultSchema, signal: controller.signal });
+      result = await runCompletedCodexTurn(thread, prompt, { outputSchema: resultSchema, signal: controller.signal });
       codexSucceeded = true;
+      await recordCodexTurnCompleted({ root: ROOT, turnId: codexTurnId }).catch(() => undefined);
     } catch (error) {
-      if (timedOut) throw new SyncTimeoutError();
-      if (classifyRecoveryError(error).kind === "codex_concurrency") {
-        const circuit = await tripCodexConcurrencyCircuit({ root: ROOT, message: error instanceof Error ? error.message : String(error), task, service: "chatcut", workerId: WORKER_INSTANCE });
+      const effectiveError = timedOut ? new SyncTimeoutError() : error;
+      const classification = classifyRecoveryError(effectiveError);
+      await recordCodexTurnFailure({ root: ROOT, turnId: codexTurnId, kind: classification.kind, message: effectiveError instanceof Error ? effectiveError.message : String(effectiveError) }).catch(() => undefined);
+      if (timedOut) throw effectiveError;
+      if (["codex_concurrency", "codex_rate_limit"].includes(classification.kind)) {
+        const circuit = await tripCodexConcurrencyCircuit({ root: ROOT, message: error instanceof Error ? error.message : String(error), task, service: "chatcut", workerId: WORKER_INSTANCE, kind: classification.kind });
         if (circuit.state === "manual") {
           const manual = new Error("Codex account concurrency circuit requires manual attention.");
           manual.code = "CODEX_CIRCUIT_MANUAL";

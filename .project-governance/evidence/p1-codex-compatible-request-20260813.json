@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1_CODEX_COMPATIBLE_REQUEST",
+  "executedAt": "2026-08-13T10:59:08.430Z",
+  "constraints": {
+    "requestCap": 1,
+    "timeoutMs": 30000,
+    "retryLimit": 0
+  },
+  "provider": {
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "apiKeyFingerprint": "7fcf664c53e5f354"
+  },
+  "request": {
+    "method": "POST",
+    "effectiveUrl": "https://sub2.de5.net/v1/responses",
+    "model": "gpt-5.6-terra",
+    "requestTopLevelKeys": [
+      "model",
+      "input",
+      "max_output_tokens",
+      "reasoning",
+      "text"
+    ],
+    "stream": false,
+    "httpStatus": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "a49fca3b-8027-4ca6-9785-2be83bc46823, 94f87fc1-ac96-4ac5-8297-3c1209f03ce6, 419ee992-c2e8-4983-833f-eb0c1e12d6e4, 8e3f91f8-a5da-4154-aa4e-e3b6b9c8647b"
+    },
+    "latencyMs": 2399,
+    "textReady": true
+  },
+  "failure": null,
+  "status": "PASS"
+}

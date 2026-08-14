@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1C_CHAT_ENDPOINT_DIAGNOSTIC",
+  "executedAt": "2026-08-13T09:42:35.767Z",
+  "status": "BLOCKED_PROVIDER",
+  "constraints": {
+    "candidateModels": 1,
+    "requestTimeoutMs": 15000,
+    "retryLimit": 0,
+    "requestCap": 1,
+    "maxConcurrency": 1,
+    "protocolMode": "chat_completions"
+  },
+  "provider": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "baseUrlFingerprint": "492b6311cff5fcfc"
+  },
+  "candidateModel": "gpt-5.6",
+  "result": null,
+  "error": "Service temporarily unavailable",
+  "errorCode": "PROVIDER_HTTP_ERROR",
+  "endpoint": {
+    "url": "https://sub2.de5.net/v1/chat/completions",
+    "httpStatus": 503,
+    "contentType": "application/json; charset=utf-8",
+    "error": "Service temporarily unavailable"
+  },
+  "reliability": {
+    "requestGuard": {
+      "started": 1,
+      "running": 0,
+      "waiting": 0,
+      "requestCap": 1,
+      "maxConcurrency": 1,
+      "circuit": "CLOSED",
+      "circuitOpenUntil": null
+    },
+    "observedRequestCount": 1,
+    "boundedPolicyApplied": true
+  }
+}

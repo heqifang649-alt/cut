@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1D_PROGRESSIVE_CAPABILITY_PROBE",
+  "executedAt": "2026-08-13T11:01:55.052Z",
+  "taskCard": {
+    "id": "P1D",
+    "objective": "Verify progressive P1_REQUIRED capability boundaries for the Codex-verified model.",
+    "scope": "One model; text, single image, multi-image, validated JSON fallback, and optional native schema only.",
+    "exitCondition": "Record a redacted capability matrix or first capability boundary within the fixed request budget.",
+    "maxRework": 2
+  },
+  "constraints": {
+    "candidateModels": 1,
+    "requestTimeoutMs": 15000,
+    "retryLimit": 0,
+    "requestCap": 8,
+    "maxConcurrency": 1
+  },
+  "provider": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "baseUrlFingerprint": "492b6311cff5fcfc"
+  },
+  "model": "gpt-5.6-terra",
+  "reliability": {
+    "requestGuard": {
+      "started": 6,
+      "running": 0,
+      "waiting": 0,
+      "requestCap": 8,
+      "maxConcurrency": 1,
+      "circuit": "OPEN",
+      "circuitOpenUntil": 1786618954830
+    },
+    "observedRequestCount": 6,
+    "boundedPolicyApplied": true
+  },
+  "result": {
+    "providerReadyForP1": false,
+    "selectedModels": {
+      "fastModel": null,
+      "strongModel": null
+    },
+    "capabilities": {
+      "AUTH": "UNKNOWN",
+      "MODEL": "UNKNOWN",
+      "TEXT": "UNKNOWN",
+      "RESPONSES_API": "UNKNOWN",
+      "CHAT_COMPLETIONS_API": "UNKNOWN",
+      "MODELS_API": "PASS",
+      "VISION_INPUT": "UNKNOWN",
+      "MULTI_IMAGE": "UNKNOWN",
+      "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+      "JSON_FALLBACK": "UNKNOWN",
+      "USAGE_METADATA": "UNKNOWN",
+      "STREAMING": "UNKNOWN",
+      "TIMEOUT_RETRY_GUARD": "FAIL"
+    },
+    "p1FailureReasons": [
+      "AUTH=UNKNOWN",
+      "MODEL=UNKNOWN",
+      "TEXT=UNKNOWN",
+      "VISION_INPUT=UNKNOWN",
+      "MULTI_IMAGE=UNKNOWN",
+      "TIMEOUT_RETRY_GUARD=FAIL",
+      "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+      "JSON_FALLBACK=UNKNOWN"
+    ],
+    "endpointTelemetry": [
+      {
+        "url": "https://sub2.de5.net/v1/models",
+        "httpStatus": 200,
+        "contentType": "application/json; charset=utf-8",
+        "model": null,
+        "capability": "MODELS_API"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 200,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6-terra",
+        "capability": "TEXT"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 502,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6-terra",
+        "capability": "STRUCTURED_OUTPUT_NATIVE",
+        "error": "Upstream request failed"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 200,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6-terra",
+        "capability": "JSON_FALLBACK"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 502,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6-terra",
+        "capability": "VISION_INPUT",
+        "error": "Upstream request failed"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 503,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6",
+        "capability": "TEXT",
+        "error": "Service temporarily unavailable"
+      }
+    ],
+    "modelMatrix": [
+      {
+        "model": "gpt-5.6-terra",
+        "capabilities": {
+          "AUTH": "PASS",
+          "MODEL": "PASS",
+          "TEXT": "PASS",
+          "RESPONSES_API": "PASS",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "FAIL",
+          "MULTI_IMAGE": "FAIL",
+          "STRUCTURED_OUTPUT_NATIVE": "FAIL",
+          "JSON_FALLBACK": "PASS",
+          "USAGE_METADATA": "PASS",
+          "STREAMING": "UNSUPPORTED",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 2145,
+        "p1FailureReasons": [
+          "VISION_INPUT=FAIL",
+          "MULTI_IMAGE=FAIL",
+          "TIMEOUT_RETRY_GUARD=FAIL"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 200,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6-terra",
+            "capability": "TEXT"
+          },
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 502,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6-terra",
+            "capability": "STRUCTURED_OUTPUT_NATIVE",
+            "error": "Upstream request failed"
+          },
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 200,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6-terra",
+            "capability": "JSON_FALLBACK"
+          },
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 502,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6-terra",
+            "capability": "VISION_INPUT",
+            "error": "Upstream request failed"
+          }
+        ]
+      },
+      {
+        "model": "gpt-5.6",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 503,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6",
+            "capability": "TEXT",
+            "error": "Service temporarily unavailable"
+          }
+        ],
+        "error": "Service temporarily unavailable"
+      },
+      {
+        "model": "gpt-5.5",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open."
+      },
+      {
+        "model": "gpt-5.4",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open."
+      }
+    ],
+    "error": "Provider circuit breaker is open."
+  },
+  "failure": null,
+  "status": "BLOCKED_CAPABILITY"
+}

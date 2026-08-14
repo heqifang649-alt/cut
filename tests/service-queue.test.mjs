@@ -24,6 +24,18 @@ test("stage queue honors priority and versioned leases", async () => {
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("queue records keep the user-visible task number through a retried lease", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-task-number-"));
+  try {
+    await enqueueStage({ root, batchId: "batch-visible", stage: "render", operation: "render", taskNumber: "GC-20260812-ABC12345" });
+    const task = await claimStage({ root, stage: "render", workerId: "render-visible" });
+    assert.equal(task.taskNumber, "GC-20260812-ABC12345");
+    await retryStage({ root, task, reason: "temporary renderer failure" });
+    const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+    assert.equal(queue.tasks.find((entry) => entry.key === task.key)?.taskNumber, "GC-20260812-ABC12345");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("one worker id cannot hold multiple live leases", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-queue-single-lease-"));
   try {
@@ -74,6 +86,14 @@ test("an explicit retry clears terminal manual work before a new stage is enqueu
     const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
     assert.equal(queue.tasks.some((item) => item.batchId === "batch-manual" && item.status === "manual"), false);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("the manual retry route resumes the recorded stage instead of always restarting reference analysis", async () => {
+  const route = await (await import("node:fs/promises")).readFile(new URL("../app/api/batches/[id]/queue-reference/route.ts", import.meta.url), "utf8");
+  assert.match(route, /readRecoveryState/);
+  assert.match(route, /manualStageForBatch/);
+  assert.match(route, /restartPlan\(existing, manualTask, marker, recovery\)/);
+  assert.match(route, /enqueueStage\(/);
 });
 
 test("a newer Batch workflow version fences and replaces an old queued task", async () => {

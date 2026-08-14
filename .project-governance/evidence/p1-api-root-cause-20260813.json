@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1_API_ROOT_CAUSE_DIAGNOSIS",
+  "executedAt": "2026-08-13T10:43:53.998Z",
+  "taskCard": {
+    "id": "TC-P1-API-ROOT-CAUSE",
+    "objective": "Compare the working Codex route with one same-path Cutflow text request.",
+    "scope": "Configuration differential and one minimal Responses API text request only.",
+    "exitCondition": "Persist a redacted differential matrix and one real minimal-request result.",
+    "maxRework": 2
+  },
+  "codex": {
+    "baseUrl": "https://sub2.de5.net",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "modelProvider": "custom",
+    "model": "gpt-5.6-terra",
+    "wireApi": "responses",
+    "authMode": "OPENAI_API_KEY",
+    "apiKeyFingerprint": "7fcf664c53e5f354"
+  },
+  "cutflow": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "baseUrl": "https://sub2.de5.net/v1",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "configuredModelFast": null,
+    "configuredModelStrong": null,
+    "probeModel": "gpt-5.6-terra",
+    "protocol": "responses",
+    "endpoint": "https://sub2.de5.net/v1/responses",
+    "authScheme": "Bearer",
+    "apiKeyFingerprint": "7fcf664c53e5f354",
+    "contentType": "application/json",
+    "stream": false,
+    "requestTopLevelKeys": [
+      "model",
+      "input",
+      "stream"
+    ],
+    "userAgent": "cutflow-root-cause-diagnostic/1.0"
+  },
+  "differential": {
+    "sameBaseUrl": true,
+    "sameApiKeyIdentity": true,
+    "sameModel": true,
+    "sameProtocol": true,
+    "sameAuthMode": true
+  },
+  "request": null,
+  "failure": {
+    "method": "POST",
+    "effectiveUrl": "https://sub2.de5.net/v1/responses",
+    "model": "gpt-5.6-terra",
+    "requestTopLevelKeys": [
+      "model",
+      "input",
+      "stream"
+    ],
+    "stream": false,
+    "contentType": "application/json",
+    "userAgent": "cutflow-root-cause-diagnostic/1.0",
+    "latencyMs": 15020,
+    "error": "This operation was aborted",
+    "errorCode": "PROVIDER_TIMEOUT"
+  },
+  "rootCauseClass": "PENDING_EVIDENCE_CLASSIFICATION"
+}

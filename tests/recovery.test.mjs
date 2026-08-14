@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { MAX_CODEX_CONCURRENCY_ATTEMPTS, MAX_CODEX_INACTIVITY_ATTEMPTS, MAX_RECOVERY_ATTEMPTS, acquireCodexExecution, appendRecoveryEvent, classifyRecoveryError, codexInactivityManualMessage, isRetryDue, markRecoveryRetryReady, markRecoverySucceeded, readRecoveryState, recoveryAttemptLimit, releaseCodexExecution, retryDelayFor, scheduleRecovery, tripCodexConcurrencyCircuit } from "../worker/recovery.mjs";
+import { MAX_CODEX_CONCURRENCY_ATTEMPTS, MAX_CODEX_INACTIVITY_ATTEMPTS, MAX_RECOVERY_ATTEMPTS, acquireCodexExecution, appendRecoveryEvent, classifyRecoveryError, codexFailureClassFor, codexInactivityManualMessage, isRetryDue, markRecoveryRetryReady, markRecoverySucceeded, readCodexExecutionState, readRecoveryState, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, releaseCodexExecution, retryDelayFor, scheduleRecovery, tripCodexConcurrencyCircuit } from "../worker/recovery.mjs";
 
 test("recovery classifies temporary connectivity and ffmpeg errors for retry", () => {
   assert.deepEqual(classifyRecoveryError(new Error("connect ECONNREFUSED 192.168.1.1")).recoverable, true);
@@ -21,8 +21,48 @@ test("recovery classifies temporary connectivity and ffmpeg errors for retry", (
   assert.equal(classifyRecoveryError(new Error("Runtime configuration is invalid: config/cutflow-runtime.json")).category, "business");
   assert.equal(classifyRecoveryError(new Error("Concurrency limit exceeded for account")).recoverable, true);
   assert.equal(classifyRecoveryError(new Error("Concurrency limit exceeded for account")).kind, "codex_concurrency");
+  assert.equal(classifyRecoveryError(new Error("stream disconnected before completion")).kind, "codex_stream_disconnected");
+  assert.equal(classifyRecoveryError(new Error("Upstream request failed")).kind, "codex_service_unavailable");
+  assert.equal(classifyRecoveryError(new Error("HTTP 403 Forbidden: Country, region, or territory not supported")).kind, "codex_service_unavailable");
+  assert.equal(classifyRecoveryError(new Error("429 Too Many Requests")).kind, "codex_rate_limit");
+  assert.equal(classifyRecoveryError(new Error("Codex API credential is missing.")).kind, "codex_authentication");
   assert.equal(classifyRecoveryError(new Error("Invalid data found when processing input")).category, "fatal");
   assert.equal(MAX_RECOVERY_ATTEMPTS, 3);
+});
+
+test("Codex failure taxonomy keeps authentication separate from transient executor failures", () => {
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("executor ended without turn.completed"), { code: "CODEX_EXECUTOR_INCOMPLETE" }))), "executor_stalled");
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("Codex Exec exited with code 1"), { code: "CODEX_EXECUTOR_CRASHED" }))), "executor_crashed");
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("stream disconnected"), { code: "CODEX_STREAM_DISCONNECTED" }))), "stream_disconnected");
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("HTTP 429"), { code: "CODEX_RATE_LIMIT" }))), "rate_limited");
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("HTTP 401 unauthorized"), { code: "CODEX_AUTHENTICATION" }))), "auth_failed");
+  assert.equal(codexFailureClassFor(classifyRecoveryError(Object.assign(new Error("HTTP 503 service unavailable"), { code: "CODEX_SERVICE_UNAVAILABLE" }))), "service_unavailable");
+});
+
+test("Codex runtime distinguishes disconnect, backoff, and authentication without a global stop", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-codex-runtime-"));
+  try {
+    await recordCodexTurnStart({ root, turnId: "disconnect", taskKey: "batch-1:clip:edit", service: "clip" });
+    await recordCodexTurnFailure({ root, turnId: "disconnect", kind: "reconnect", message: "stream disconnected before completion" });
+    let runtime = await readCodexExecutionState(root);
+    assert.equal(runtime.status, "unresponsive");
+    assert.equal(runtime.authenticationValid, null);
+    assert.equal(runtime.recentFailures[0].kind, "reconnect");
+
+    await recordCodexTurnStart({ root, turnId: "limited", taskKey: "batch-2:clip:edit", service: "clip" });
+    await recordCodexTurnFailure({ root, turnId: "limited", kind: "codex_rate_limit", message: "429 Too Many Requests" });
+    runtime = await readCodexExecutionState(root);
+    assert.equal(runtime.status, "backoff");
+    assert.equal(runtime.rateLimitErrors, 1);
+
+    await recordCodexTurnStart({ root, turnId: "auth", taskKey: "batch-3:clip:edit", service: "clip" });
+    await recordCodexTurnFailure({ root, turnId: "auth", kind: "codex_authentication", message: "401 unauthorized" });
+    runtime = await readCodexExecutionState(root);
+    assert.equal(runtime.status, "auth_invalid");
+    assert.equal(runtime.sdkTurnActive, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("Codex concurrency has a global single-slot circuit breaker and five bounded probes", async () => {
@@ -44,9 +84,9 @@ test("Codex concurrency has a global single-slot circuit breaker and five bounde
         message: "Concurrency limit exceeded for account",
       });
       assert.equal(state.attempt, attempt);
-      assert.equal(state.state, attempt === MAX_CODEX_CONCURRENCY_ATTEMPTS ? "manual" : "open");
+      assert.equal(state.state, "open");
     }
-    const manual = await acquireCodexExecution({ root, task: { key: "batch-3:clip:edit" }, service: "clip", workerId: "clip-3" });
+    const manual = await tripCodexConcurrencyCircuit({ root, task: firstTask, service: "clip", workerId: "clip-1", message: "Concurrency limit exceeded for account" });
     assert.equal(manual.state, "manual");
     assert.equal(recoveryAttemptLimit({ kind: "codex_concurrency" }), 5);
     assert.equal(retryDelayFor(1, { kind: "codex_concurrency" }), 60_000);

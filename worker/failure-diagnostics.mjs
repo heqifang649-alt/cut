@@ -2,6 +2,7 @@ import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId } from "../lib/tenant-paths.mjs";
+import { taskNumberForBatch } from "../lib/task-number.mjs";
 
 const DIAGNOSTICS_FILE = "failure-diagnostics.json";
 const MAX_EVENTS = 50;
@@ -151,6 +152,8 @@ export async function readBatchFailureDiagnostics(root, batchId) {
 }
 
 export async function recordBatchFailure({ root, batchId, service, stage, workerInstance, error, context }) {
+  const batches = await readJson(path.join(root, "data", "batches.json"), []);
+  const batch = batches.find((item) => item.id === batchId);
   const file = await diagnosticsFileFor(root, batchId);
   await mkdir(path.dirname(file), { recursive: true });
   const details = errorDetails(error, context);
@@ -163,6 +166,7 @@ export async function recordBatchFailure({ root, batchId, service, stage, worker
     service: String(service || "Unknown Service"),
     stage: String(stage || "Unknown Stage"),
     workerInstance: String(workerInstance || "Unknown Worker"),
+    taskNumber: taskNumberForBatch(batch || { id: batchId }),
     ...details,
     businessContext,
     context: context && typeof context === "object" ? context : undefined,

@@ -1,14 +1,17 @@
-import { Codex } from "@openai/codex-sdk";
 import { spawn } from "node:child_process";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
+import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
 import {
   acquireCodexExecution,
   classifyRecoveryError,
   heartbeatCodexExecution,
+  recordCodexTurnCompleted,
+  recordCodexTurnFailure,
+  recordCodexTurnStart,
   releaseCodexExecution,
   retryDelayFor,
   tripCodexConcurrencyCircuit,
@@ -25,7 +28,11 @@ const once = process.argv.includes("--once");
 const TEMPLATE_WORKER_ID = `template-${process.pid}`;
 
 class TurnTimeoutError extends Error {
-  constructor() { super(`样片拆解超过 ${Math.round(TURN_TIMEOUT_MS / 60000)} 分钟无结果`); this.name = "TurnTimeoutError"; }
+  constructor() {
+    super(`样片拆解超过 ${Math.round(TURN_TIMEOUT_MS / 60000)} 分钟无结果`);
+    this.name = "TurnTimeoutError";
+    this.code = "CODEX_TURN_INACTIVITY_TIMEOUT";
+  }
 }
 
 const profileSchema = {
@@ -61,7 +68,7 @@ async function extractTemplateBgm(template, samplePath, templateDir) {
 }
 
 async function readAll() { return readJson(STORE, []); }
-async function accountReady() { const state = await readJson(ACCOUNT_STATE, null); return state?.ready === true; }
+async function accountReady() { const state = await readJson(ACCOUNT_STATE, null); return Boolean(state && state.authenticationValid !== false && (state.ready === true || state.apiReady === true)); }
 async function writeAll(items) { await writeJsonAtomic(STORE, items); }
 async function writeHeartbeat() {
   await mkdir(path.dirname(HEARTBEAT), { recursive: true });
@@ -92,7 +99,7 @@ async function runTurn(thread, templateId, prompt, options = {}) {
   }, 10000);
   const timeoutTimer = setTimeout(() => { timedOut = true; controller.abort(); }, TURN_TIMEOUT_MS);
   try {
-    return await thread.run(prompt, { ...options, signal: controller.signal });
+    return await runCompletedCodexTurn(thread, prompt, { ...options, signal: controller.signal });
   } catch (error) {
     if (timedOut) throw new TurnTimeoutError();
     throw error;
@@ -124,12 +131,21 @@ async function analyze(template) {
   }
   const slotHeartbeat = setInterval(() => heartbeatCodexExecution({ root: ROOT, slot: execution.slot }).catch(() => undefined), 30_000);
   let codexSucceeded = false;
+  const turnId = crypto.randomUUID();
   try {
-  const codex = new Codex();
+  const codex = createCodexClient();
   const options = { workingDirectory: templateDir, skipGitRepoCheck: true, sandboxMode: "workspace-write", approvalPolicy: "never", modelReasoningEffort: "high" };
   // The sample file and saved profile are authoritative; do not depend on a
   // thread owned by a previous Codex account.
   const thread = codex.startThread(options);
+  await recordCodexTurnStart({
+    root: ROOT,
+    turnId,
+    threadId: thread.id || undefined,
+    taskKey: task.key,
+    service: "template",
+    slotId: execution.slot.id,
+  }).catch(() => undefined);
   const prompt = `使用已安装的 video-use 技能，只分析参考样片并建立可重复使用的服装广告剪辑母版，不开始剪任何产品素材。
 
 样片：${samplePath}
@@ -144,10 +160,13 @@ async function analyze(template) {
   const bgm = await extractTemplateBgm(template, samplePath, templateDir).catch(() => null);
   await writeFile(path.join(templateDir, "reference-profile.json"), JSON.stringify(profile, null, 2), "utf8");
   codexSucceeded = true;
+  await recordCodexTurnCompleted({ root: ROOT, turnId }).catch(() => undefined);
   await update(template.id, (item) => { item.status = "ready"; item.progress = 100; item.profile = profile; if (bgm) item.bgm = bgm; item.threadId = thread.id || item.threadId; item.recoveryAttempts = 0; item.codexRetryAt = undefined; item.lastWorkerActivityAt = new Date().toISOString(); });
   } catch (error) {
-    if (classifyRecoveryError(error).kind !== "codex_concurrency") throw error;
-    const circuit = await tripCodexConcurrencyCircuit({ root: ROOT, message: error instanceof Error ? error.message : String(error), task, service: "template", workerId: TEMPLATE_WORKER_ID });
+    const classification = classifyRecoveryError(error);
+    await recordCodexTurnFailure({ root: ROOT, turnId, kind: classification.kind, message: error instanceof Error ? error.message : String(error) }).catch(() => undefined);
+    if (!["codex_concurrency", "codex_rate_limit"].includes(classification.kind)) throw error;
+    const circuit = await tripCodexConcurrencyCircuit({ root: ROOT, message: error instanceof Error ? error.message : String(error), task, service: "template", workerId: TEMPLATE_WORKER_ID, kind: classification.kind });
     if (circuit.state === "manual") {
       const manual = new Error("Codex account concurrency circuit requires manual attention.");
       manual.code = "CODEX_CIRCUIT_MANUAL";
@@ -185,11 +204,12 @@ async function tick() {
   if (!template) return false;
   try { await analyze(template); }
   catch (error) {
-    if (error instanceof TurnTimeoutError) {
+    const classification = classifyRecoveryError(error);
+    if (classification.recoverable) {
       const current = (await readAll()).find((item) => item.id === template.id);
       const attempts = (current?.recoveryAttempts || 0) + 1;
       if (attempts < MAX_RECOVERY_ATTEMPTS) {
-        const codexRetryAt = new Date(Date.now() + retryDelayFor(attempts, { kind: "codex_inactivity" })).toISOString();
+        const codexRetryAt = new Date(Date.now() + retryDelayFor(attempts, classification)).toISOString();
         await update(template.id, (item) => { item.status = "queued"; item.progress = 10; item.recoveryAttempts = attempts; item.codexRetryAt = codexRetryAt; item.error = `${error.message}，正在自动重试（${attempts}/${MAX_RECOVERY_ATTEMPTS}）`; item.lastWorkerActivityAt = new Date().toISOString(); });
         return true;
       }

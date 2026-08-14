@@ -1,12 +1,11 @@
-import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getSharedTemplate } from "@/lib/template-store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
+import { fileReadStream, parseByteRange } from "@/lib/media-stream";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,28 +30,22 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!info?.isFile()) return NextResponse.json({ error: "样片文件不可用" }, { status: 404 });
 
   const type = contentTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream";
-  const range = request.headers.get("range");
+  const range = parseByteRange(request.headers.get("range"), info.size);
+  if (range === "invalid") return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${info.size}`, "Accept-Ranges": "bytes" } });
   if (range) {
-    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-    if (!match) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${info.size}` } });
-    const start = match[1] ? Number(match[1]) : 0;
-    const end = match[2] ? Math.min(Number(match[2]), info.size - 1) : info.size - 1;
-    if (start > end || start >= info.size) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${info.size}` } });
-    const stream = createReadStream(filePath, { start, end });
-    return new Response(Readable.toWeb(stream) as ReadableStream, {
+    return new Response(fileReadStream(filePath, range), {
       status: 206,
       headers: {
         "Accept-Ranges": "bytes",
-        "Content-Range": `bytes ${start}-${end}/${info.size}`,
-        "Content-Length": String(end - start + 1),
+        "Content-Range": `bytes ${range.start}-${range.end}/${info.size}`,
+        "Content-Length": String(range.end - range.start + 1),
         "Content-Type": type,
         "Cache-Control": "private, no-store",
       },
     });
   }
 
-  const stream = createReadStream(filePath);
-  return new Response(Readable.toWeb(stream) as ReadableStream, {
+  return new Response(fileReadStream(filePath), {
     headers: { "Accept-Ranges": "bytes", "Content-Length": String(info.size), "Content-Type": type, "Cache-Control": "private, no-store" },
   });
 }

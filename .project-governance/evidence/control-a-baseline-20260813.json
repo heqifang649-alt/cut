@@ -1,0 +1,1177 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-13T02:58:08.120Z",
+  "source": "existing render manifests and runtime batch store",
+  "summary": {
+    "batches": 14,
+    "outputs": 24,
+    "inputFiles": 125,
+    "inputHashes": 125,
+    "outputHashes": 24,
+    "qualityGatesAllPassed": true,
+    "latency": { "status": "MISSING_FROM_HISTORICAL_CAPTURE" },
+    "timeoutFailure": { "status": "MISSING_FROM_HISTORICAL_CAPTURE" }
+  },
+  "records": [
+    {
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "taskNumber": "GC-20260805-027C67D9",
+      "renderedAt": "2026-08-05T08:28:58.910Z",
+      "templateId": "7e3ed86b-5a92-450f-aa69-d9c9d89baaa0",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "IMG_4565.MOV",
+          "size": 37058610,
+          "sha256": "12cfe26711c5601034b7c50c55efcd11e0039f733937d8e6f98bc634880623f0"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4568.MOV",
+          "size": 42431240,
+          "sha256": "74e74f4bf1031dbbf160b334c4b0c197420c9ca42cb5b8761e05da2e6b29699d"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4569.MOV",
+          "size": 24572732,
+          "sha256": "b93cdd5a1517e04e5355d545efe989fb0ab41fb1b57cf24f6a047492f2689147"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4570.MOV",
+          "size": 30139990,
+          "sha256": "6571c02a905d050fefb75aa46731a8a89ed454ec025ba67076d7f3e9eab41fee"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4571.MOV",
+          "size": 25698933,
+          "sha256": "f2d0f227bbbbd9c7e9d3928c07f4f0e87508ee35b152e06ed0ded6b2512cce8c"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4572.MOV",
+          "size": 33741686,
+          "sha256": "1f43ad9129594878d436ea347605b5888bf4772151abf96471df2ffb4c28af2e"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4573.MOV",
+          "size": 74854661,
+          "sha256": "c161ae2503a46f6d4084439c82f3b10ecabc90bf3816441625bd7eef9bc60109"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4574.MOV",
+          "size": 465567520,
+          "sha256": "4702ca208a40a0b47a80e38f8632afb74c1a81f2b4b3ffa13115a0c964fe0b37"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4575.MOV",
+          "size": 27984000,
+          "sha256": "cab523ec089dfb4733dfa3ab521c025cdd95a4ff648db61bc352c3c35c2fba67"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4576.MOV",
+          "size": 223421632,
+          "sha256": "1376f9b51db54efcf6c72fa4d9e018a8940a374576222db323de28e8b24fd263"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4577.MOV",
+          "size": 110619084,
+          "sha256": "b63a0057dee42c39e1ea8346afa38586640d27666ced65f5d8b9ada21c6f968b"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4578.MOV",
+          "size": 36534790,
+          "sha256": "c5aa21d463e565c720dda1f803e4c06c421b2423fb61b2d65769927fce3a6233"
+        },
+        {
+          "kind": "products",
+          "name": "IMG_4579.MOV",
+          "size": 150310813,
+          "sha256": "cbb70d1e1a6c7d54d0dc57c52bfb304b681a2acb77b6dabc6d14b40b8d70f302"
+        }
+      ],
+      "output": [
+        {
+          "name": "gc-prod-vangogh-floral-mesh-vneck-cream.mp4",
+          "size": 14738966,
+          "sha256": "a22df6067837b7cc2cad72a01b255f326a54c1eb4850ac5c16332bdf9eb7a8e2",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "d737c0af-b50d-4e99-bdd6-e231cf2bab66",
+      "taskNumber": "GC-20260805-D737C0AF",
+      "renderedAt": "2026-08-06T10:25:57.644Z",
+      "templateId": "bbe0234c-3efd-4fb9-8106-6e1d9da62432",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "product_refs",
+          "name": "imageye___-_imgi_253_First-Of-All-Jesus-Thinks-I-m-A-Delight-Christian-Washed-T-Shirt-1_200x.jpg",
+          "size": 8139,
+          "sha256": "aea91ca7dda0e4d99db6b1f4c8b1e863b38f278d29a625947a93ccf2c83b8e16"
+        },
+        {
+          "kind": "products",
+          "name": "C4173.MP4",
+          "size": 470068616,
+          "sha256": "be49c37fc44a1c7c6f066614f7b39b530e6e6ac0b8d16d456c35e1eefeac1e5e"
+        },
+        {
+          "kind": "products",
+          "name": "C4174.MP4",
+          "size": 201613880,
+          "sha256": "bf4e89b4fd567fb06186fde45a9b51761ddba81f2a216efd5d01140fed971e8e"
+        },
+        {
+          "kind": "products",
+          "name": "C4175.MP4",
+          "size": 201613404,
+          "sha256": "f88571936c6eaa6e4fd58d55bd893ab148d433157a67eba3a2dfe0ef6aac5a0e"
+        },
+        {
+          "kind": "products",
+          "name": "C4176.MP4",
+          "size": 268725840,
+          "sha256": "94892c8613d717770cecebc68f1119f115ec3be88e1019c79d47a38180b9f913"
+        },
+        {
+          "kind": "products",
+          "name": "C4177.MP4",
+          "size": 134501248,
+          "sha256": "fc72609828b0dbaf6419fe72e501d373e87d332893c7e8e3fc78892935cd0005"
+        }
+      ],
+      "output": [
+        {
+          "name": "gc-frog-jesus-delight-cream-tee-v1.mp4",
+          "size": 14810265,
+          "sha256": "6e039d06b86c27cc9b5be9f06744f226d9eaa924354a8b1ed3a51c69fd810c69",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "taskNumber": "GC-20260807-96B02983",
+      "renderedAt": "2026-08-07T03:23:44.308Z",
+      "templateId": "2318ccb7-a729-495c-8d0c-ea3b30de2236",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "TT1_M1.mp4",
+          "size": 2548116,
+          "sha256": "ad15180b2aad6f10638381272626513e3e2a59b1b410145e50d9a6138b85e9c1"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1_ (2).mp4",
+          "size": 2478842,
+          "sha256": "855bfdfe704d986d87128ac81c8a4b0e86835d373dfb115cc8a3d7c53dda61aa"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1_ (3).mp4",
+          "size": 2638660,
+          "sha256": "6eb75e075d9d7398453748a4efe7fd3c310dd4cc3554cfcda5ded278686086a5"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1_ (4).mp4",
+          "size": 2497273,
+          "sha256": "2e01156a49c3a0f104f7ee248a823387004288bc8dad0fc3de58aa2551172ba1"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M2 (1).mp4",
+          "size": 2641622,
+          "sha256": "1ecf5d6e64d460b9732339084ca6dd82bac53143d36fbb57b3a2d4f1f54f5766"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M2 (2).mp4",
+          "size": 2595375,
+          "sha256": "c783fc7c96cca00bab892990e57f31085af7ebdceba85d666ceb87550ffd9364"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M2 (3).mp4",
+          "size": 2559955,
+          "sha256": "dd612c3d59cb283bf48d1c609062fdbb14e2e977e3f5ac9bde25fca6cff332ae"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (1).mp4",
+          "size": 43791728,
+          "sha256": "92e6b43a3e801c42777d4c0c7df2a3119c41cfc7701a9e4a6da4aa4e936bc09e"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (2).mp4",
+          "size": 43388460,
+          "sha256": "64f41707bfa0628feb27b7e5d6695dc6bf1244dd5a00aa0f7218eee5fe3b63a3"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (3).mp4",
+          "size": 43750975,
+          "sha256": "6a0bfde04fdec4186f775fa1a729fd53f44a612dffc044357934e46b416e1312"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (4).mp4",
+          "size": 42195182,
+          "sha256": "c3bb31ad5b287f13e775dd1ae7e4513a55dd2966178eb8b08f7a5b8490eb0571"
+        },
+        {
+          "kind": "products",
+          "name": "TT3_M1 (1).mp4",
+          "size": 2553395,
+          "sha256": "a19a7d50872633b16952d5532f6c1aef89d15356dd22d9874f2dfc6ff92dbaaf"
+        },
+        {
+          "kind": "products",
+          "name": "TT3_M1 (2).mp4",
+          "size": 2674289,
+          "sha256": "f11aff0321a9bd45b329d9e01d47d0fc9761535dbadd33393409ea4f9d476c45"
+        },
+        {
+          "kind": "products",
+          "name": "TT3_M1 (3).mp4",
+          "size": 2595669,
+          "sha256": "5972dd0016f797344e648597ff923af21909d0549025924c11629a819d3f80de"
+        },
+        {
+          "kind": "products",
+          "name": "TT4_M1 (1).mp4",
+          "size": 41167039,
+          "sha256": "0a7c3b3d5c87b124c64d11a63221cc6088fa7bfa2e63a439653d94545f1f4729"
+        },
+        {
+          "kind": "products",
+          "name": "TT4_M1 (2).mp4",
+          "size": 39887852,
+          "sha256": "e7324d4a5e43610790e27b1e240d105d448ece967c049759f972a5328d362ea8"
+        },
+        {
+          "kind": "products",
+          "name": "TT4_M1 (3).mp4",
+          "size": 47845751,
+          "sha256": "53fff24c32791884ad5dc7ff8c7d4da9f9560b9e233ea7ec431b7d3469687a86"
+        },
+        {
+          "kind": "products",
+          "name": "TT5_M1  (1).mp4",
+          "size": 28293785,
+          "sha256": "dc529da4217780e40d80a7ce98baa82af77ade39cc63a60418edd0315d7857f7"
+        },
+        {
+          "kind": "products",
+          "name": "TT5_M1  (2).mp4",
+          "size": 46496704,
+          "sha256": "a1930ad09e7412e65d421a08edad91c16ef1eed3cbfa4f7a96c0c98fef9170a6"
+        },
+        {
+          "kind": "products",
+          "name": "TT5_M1  (3).mp4",
+          "size": 44211318,
+          "sha256": "9d1a4c7626e6b24f44e77c4acfea6a4d1e4545afcd62534e7ce2534690645330"
+        },
+        {
+          "kind": "products",
+          "name": "TT6_M1  (1).mp4",
+          "size": 39915147,
+          "sha256": "f94194c463ae79480125611b89a107339810973da6d2192f521196b9b0291072"
+        },
+        {
+          "kind": "products",
+          "name": "TT6_M1  (2).mp4",
+          "size": 21287788,
+          "sha256": "be3ce8b9e0a72f5bf9dc5c75f73fd740df7ef5a55cc9579858981ae2e86a4667"
+        },
+        {
+          "kind": "products",
+          "name": "TT6_M1  (3).mp4",
+          "size": 42244296,
+          "sha256": "7001d9012616cf78611b31074d694ed3052add6178b3fa2af5d7b188772ef68c"
+        }
+      ],
+      "output": [
+        {
+          "name": "P01.mp4",
+          "size": 12028809,
+          "sha256": "5c207285d1391144e5dfddf4019cb4a68801abaa14b7980f37a75f6f1239c448",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "P02.mp4",
+          "size": 12237673,
+          "sha256": "5c78546aa0b659d522827fec7613b30c1009c763d03093be2630f833851774c0",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "P03.mp4",
+          "size": 12200680,
+          "sha256": "dcf0da3ce99225ada45fdb7748ab576eef0ed8b43641d4d39b3c69036f3ad6cd",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "P04.mp4",
+          "size": 12180420,
+          "sha256": "ced7628854e74531493b56b33f5a48c2e7e4b6f4f38af3006dc4f5410e3690fa",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "P05.mp4",
+          "size": 12090381,
+          "sha256": "2ee279e5260cf34ceb2576ddaebaebb9761568f83f0be12a46250a81b7b613eb",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "f2ba3e1a-018f-4b54-9b47-32846980f8d7",
+      "taskNumber": "GC-20260807-F2BA3E1A",
+      "renderedAt": "2026-08-07T09:36:10.171Z",
+      "templateId": "d43bdcb3-ce10-4a72-b9b1-c956e7abb1c5",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (1).mp4",
+          "size": 19605354,
+          "sha256": "1686351624da25cfb03d405397d924f5e6c0e4c87f50f7e3f15f871a48f47186"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (2).mp4",
+          "size": 21550492,
+          "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (3).mp4",
+          "size": 23935458,
+          "sha256": "be87f42a185fe2638ced32b472adebf7efab79ce2f6c31f672275a8c7b2b0af2"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (4).mp4",
+          "size": 20868312,
+          "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (5).mp4",
+          "size": 17765056,
+          "sha256": "7257d8f4f68d56a1bbe6e265907d96c9283a6cb9d943ab92f000ff1cd8d2f7cf"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (6).mp4",
+          "size": 22286557,
+          "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce"
+        }
+      ],
+      "output": [
+        {
+          "name": "FDS1.mp4",
+          "size": 12230811,
+          "sha256": "85c5f40d5bba72ec887e593e983466ce0e3246ccee98896834d7f8853d15d8af",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "21121f9e-a578-4222-9218-307653432103",
+      "taskNumber": "GC-20260807-21121F9E",
+      "renderedAt": "2026-08-07T09:36:27.556Z",
+      "templateId": "798ecfce-3b48-4009-932e-58327bc9e529",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "ah1_M1 (1).mp4",
+          "size": 15094041,
+          "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (2).mp4",
+          "size": 18269720,
+          "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (3).mp4",
+          "size": 17358559,
+          "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (4).mp4",
+          "size": 16007312,
+          "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (5).mp4",
+          "size": 18693081,
+          "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (6).mp4",
+          "size": 16525497,
+          "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e"
+        }
+      ],
+      "output": [
+        {
+          "name": "ah1.mp4",
+          "size": 12286622,
+          "sha256": "575c4f812b18236c3fc58c88345d5d33a1b9f3d6a5f30cd34e755e759cff06aa",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "b3225c54-c577-46d5-bc02-61cb924193b4",
+      "taskNumber": "GC-20260807-B3225C54",
+      "renderedAt": "2026-08-07T09:37:14.777Z",
+      "templateId": "2318ccb7-a729-495c-8d0c-ea3b30de2236",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "TT1_M1 (1).mp4",
+          "size": 11583548,
+          "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (2).mp4",
+          "size": 20714797,
+          "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (3).mp4",
+          "size": 21149313,
+          "sha256": "d885158a99862a6313e8a43ca01636677612304ddc56a338438d656da04f53a2"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (4).mp4",
+          "size": 13181522,
+          "sha256": "d2741b35e594d24b8edc68641462526916358773acfdc7979f062f1497f32c49"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (1).mp4",
+          "size": 9160449,
+          "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (2).mp4",
+          "size": 20685193,
+          "sha256": "88249af3ebe9191bc8cff8ba0770d84944d26b346ba20ccd7f7de4fc647ea808"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (3).mp4",
+          "size": 19435652,
+          "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (4).mp4",
+          "size": 19313887,
+          "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (1).mp4",
+          "size": 1567039,
+          "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (2).mp4",
+          "size": 2610158,
+          "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (3).mp4",
+          "size": 2704469,
+          "sha256": "dcacaa32ab9d978470e15490ce1f1d13c2bbfb59bd2d655d4638d8de952d14cd"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (4).mp4",
+          "size": 2516332,
+          "sha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6"
+        }
+      ],
+      "output": [
+        {
+          "name": "TT1.mp4",
+          "size": 12121036,
+          "sha256": "16d94bd2cc5842fb23fd711764494b4dfd8ac520850966104b3c457dae5355cf",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M1.mp4",
+          "size": 11793628,
+          "sha256": "530b777a34e2957db08b8c2fde9f2876956495763082e8e85489830c9ac6e3c4",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M2.mp4",
+          "size": 11972952,
+          "sha256": "c21832170d2009f216c08e95771b563031b6e73a09f3b637edffd59f73003093",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+      "taskNumber": "GC-20260807-0149296D",
+      "renderedAt": "2026-08-07T11:42:48.194Z",
+      "templateId": "d43bdcb3-ce10-4a72-b9b1-c956e7abb1c5",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "ah1_M1 (1).mp4",
+          "size": 15094041,
+          "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (2).mp4",
+          "size": 18269720,
+          "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (3).mp4",
+          "size": 17358559,
+          "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (4).mp4",
+          "size": 16007312,
+          "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (5).mp4",
+          "size": 18693081,
+          "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (6).mp4",
+          "size": 16525497,
+          "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e"
+        }
+      ],
+      "output": [
+        {
+          "name": "ah1.mp4",
+          "size": 13022064,
+          "sha256": "e1341a2f1a958061e67a18965deec1ab44b80ba2d1c05cb97cb7a1508bcbae30",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "6945d810-80df-4cd5-888f-92c886433644",
+      "taskNumber": "GC-20260809-6945D810",
+      "renderedAt": "2026-08-09T02:35:56.227Z",
+      "templateId": "d43bdcb3-ce10-4a72-b9b1-c956e7abb1c5",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (1).mp4",
+          "size": 19605354,
+          "sha256": "1686351624da25cfb03d405397d924f5e6c0e4c87f50f7e3f15f871a48f47186"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (2).mp4",
+          "size": 21550492,
+          "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (3).mp4",
+          "size": 23935458,
+          "sha256": "be87f42a185fe2638ced32b472adebf7efab79ce2f6c31f672275a8c7b2b0af2"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (4).mp4",
+          "size": 20868312,
+          "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (5).mp4",
+          "size": 17765056,
+          "sha256": "7257d8f4f68d56a1bbe6e265907d96c9283a6cb9d943ab92f000ff1cd8d2f7cf"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (6).mp4",
+          "size": 22286557,
+          "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce"
+        }
+      ],
+      "output": [
+        {
+          "name": "FDS1.mp4",
+          "size": 11802731,
+          "sha256": "0aaa004c7a7d24d30a86085e63bf0e6f30075d60e7f5f9fabc798c786e513a2a",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "618f9d09-7294-450e-869f-9fc7afbc1f28",
+      "taskNumber": "GC-20260809-618F9D09",
+      "renderedAt": "2026-08-10T02:19:53.835Z",
+      "templateId": "d43bdcb3-ce10-4a72-b9b1-c956e7abb1c5",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (1).mp4",
+          "size": 19605354,
+          "sha256": "1686351624da25cfb03d405397d924f5e6c0e4c87f50f7e3f15f871a48f47186"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (2).mp4",
+          "size": 21550492,
+          "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (3).mp4",
+          "size": 23935458,
+          "sha256": "be87f42a185fe2638ced32b472adebf7efab79ce2f6c31f672275a8c7b2b0af2"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (4).mp4",
+          "size": 20868312,
+          "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (5).mp4",
+          "size": 17765056,
+          "sha256": "7257d8f4f68d56a1bbe6e265907d96c9283a6cb9d943ab92f000ff1cd8d2f7cf"
+        },
+        {
+          "kind": "products",
+          "name": "FDS1_M1 (6).mp4",
+          "size": 22286557,
+          "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce"
+        }
+      ],
+      "output": [
+        {
+          "name": "FDS1.mp4",
+          "size": 12142208,
+          "sha256": "8fa8d423cd2f4657f0c77cc3293595f255d6a187637c14bd0884337dda486b6a",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "2674ccd8-cdd2-435d-844e-59a5b241e92f",
+      "taskNumber": "GC-20260810-2674CCD8",
+      "renderedAt": "2026-08-10T02:45:19.205Z",
+      "templateId": "798ecfce-3b48-4009-932e-58327bc9e529",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "ah1_M1 (1).mp4",
+          "size": 15094041,
+          "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (2).mp4",
+          "size": 18269720,
+          "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (3).mp4",
+          "size": 17358559,
+          "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (4).mp4",
+          "size": 16007312,
+          "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (5).mp4",
+          "size": 18693081,
+          "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (6).mp4",
+          "size": 16525497,
+          "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e"
+        }
+      ],
+      "output": [
+        {
+          "name": "ah1.mp4",
+          "size": 9592557,
+          "sha256": "4b044308e29b1b5d4b89bbd5733f8a24c2f3e82cbcdbfb45d5326c75b9014534",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "taskNumber": "GC-20260810-92B750D2",
+      "renderedAt": "2026-08-10T03:06:48.842Z",
+      "templateId": "2318ccb7-a729-495c-8d0c-ea3b30de2236",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "TT1_M1 (1).mp4",
+          "size": 11583548,
+          "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (2).mp4",
+          "size": 20714797,
+          "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (3).mp4",
+          "size": 21149313,
+          "sha256": "d885158a99862a6313e8a43ca01636677612304ddc56a338438d656da04f53a2"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (4).mp4",
+          "size": 13181522,
+          "sha256": "d2741b35e594d24b8edc68641462526916358773acfdc7979f062f1497f32c49"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (1).mp4",
+          "size": 9160449,
+          "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (2).mp4",
+          "size": 20685193,
+          "sha256": "88249af3ebe9191bc8cff8ba0770d84944d26b346ba20ccd7f7de4fc647ea808"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (3).mp4",
+          "size": 19435652,
+          "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (4).mp4",
+          "size": 19313887,
+          "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (1).mp4",
+          "size": 1567039,
+          "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (2).mp4",
+          "size": 2610158,
+          "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (3).mp4",
+          "size": 2704469,
+          "sha256": "dcacaa32ab9d978470e15490ce1f1d13c2bbfb59bd2d655d4638d8de952d14cd"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (4).mp4",
+          "size": 2516332,
+          "sha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6"
+        }
+      ],
+      "output": [
+        {
+          "name": "TT1.mp4",
+          "size": 15022173,
+          "sha256": "b40d03ebe13c78bc4747c0cabaaf40d0841583d29e06b974a087b30bb0cd6251",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M1.mp4",
+          "size": 14500790,
+          "sha256": "4e160d842ca6e054dbd49ab771f293fc8541f70b8114bcbe22e144a18a7ff056",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M2.mp4",
+          "size": 15024671,
+          "sha256": "6bcd2a07622ce12ac5a0a48e3ba82f9f5dc08b7b55e89d2ef04430201dd7cfa2",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "5d61b0ad-0574-47d9-9d68-60398a9d5819",
+      "taskNumber": "GC-20260810-5D61B0AD",
+      "renderedAt": "2026-08-10T09:31:50.735Z",
+      "templateId": "798ecfce-3b48-4009-932e-58327bc9e529",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "kling_20260810_作品_图1为首帧_iPho_3108_0.mp4",
+          "size": 19662878,
+          "sha256": "9667cc12a006c574b25b8bb8a75db835235ddb42640f0a8fed37b0f4cbaa556a"
+        },
+        {
+          "kind": "products",
+          "name": "kling_20260810_作品_图1为首帧_iPho_3113_0.mp4",
+          "size": 17615808,
+          "sha256": "b9c56b2a34a6ef7365fbddb34ee6473061deff220bf20f497a594ba0b99353c0"
+        },
+        {
+          "kind": "products",
+          "name": "kling_20260810_作品_图1为首帧_iPho_3123_0.mp4",
+          "size": 16943513,
+          "sha256": "7f4a98efcc939e08a1b2ce1b3c2c25610146ea5b69469f8522fc97f07c728e02"
+        },
+        {
+          "kind": "products",
+          "name": "kling_20260810_作品_图1为首帧_iPho_3127_0.mp4",
+          "size": 19869758,
+          "sha256": "84ea53d0d951b24860be3eda1a3b3b54b0fdb3188a23274a4b28d9dfe2c1603f"
+        },
+        {
+          "kind": "products",
+          "name": "kling_20260810_作品_图1为首帧_iPho_3133_0.mp4",
+          "size": 18923888,
+          "sha256": "afe0d2c62c8ba13f7fabe69ea8b530e9cf6c49f5058479d3208d0bf964b4f805"
+        }
+      ],
+      "output": [
+        {
+          "name": "GC-20260810-01.mp4",
+          "size": 12935068,
+          "sha256": "8bae1129b48a0f76868224b969c93d5766e19aa22cb14fd51a324a797be0724d",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "6267267b-f1d6-441e-bd6e-12fb6da1d622",
+      "taskNumber": "GC-20260810-6267267B",
+      "renderedAt": "2026-08-11T01:52:54.908Z",
+      "templateId": "798ecfce-3b48-4009-932e-58327bc9e529",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "ah1_M1 (1).mp4",
+          "size": 15094041,
+          "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (2).mp4",
+          "size": 18269720,
+          "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (3).mp4",
+          "size": 17358559,
+          "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (4).mp4",
+          "size": 16007312,
+          "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (5).mp4",
+          "size": 18693081,
+          "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f"
+        },
+        {
+          "kind": "products",
+          "name": "ah1_M1 (6).mp4",
+          "size": 16525497,
+          "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e"
+        }
+      ],
+      "output": [
+        {
+          "name": "ah1.mp4",
+          "size": 11698416,
+          "sha256": "73f8547e84dcf204de3bc32ee1380a19733b8cfabdc7ee15603f0b996f759c3e",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    },
+    {
+      "batchId": "726636a1-50f8-45eb-9a33-4c1f641d7efa",
+      "taskNumber": "GC-20260811-726636A1",
+      "renderedAt": "2026-08-11T03:02:34.044Z",
+      "templateId": "2318ccb7-a729-495c-8d0c-ea3b30de2236",
+      "referenceProfileVersion": null,
+      "input": [
+        {
+          "kind": "products",
+          "name": "TT1_M1 (1).mp4",
+          "size": 11583548,
+          "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (2).mp4",
+          "size": 20714797,
+          "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (3).mp4",
+          "size": 21149313,
+          "sha256": "d885158a99862a6313e8a43ca01636677612304ddc56a338438d656da04f53a2"
+        },
+        {
+          "kind": "products",
+          "name": "TT1_M1 (4).mp4",
+          "size": 13181522,
+          "sha256": "d2741b35e594d24b8edc68641462526916358773acfdc7979f062f1497f32c49"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (1).mp4",
+          "size": 9160449,
+          "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (2).mp4",
+          "size": 20685193,
+          "sha256": "88249af3ebe9191bc8cff8ba0770d84944d26b346ba20ccd7f7de4fc647ea808"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (3).mp4",
+          "size": 19435652,
+          "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M1 (4).mp4",
+          "size": 19313887,
+          "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (1).mp4",
+          "size": 1567039,
+          "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (2).mp4",
+          "size": 2610158,
+          "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (3).mp4",
+          "size": 2704469,
+          "sha256": "dcacaa32ab9d978470e15490ce1f1d13c2bbfb59bd2d655d4638d8de952d14cd"
+        },
+        {
+          "kind": "products",
+          "name": "TT2_M2 (4).mp4",
+          "size": 2516332,
+          "sha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6"
+        }
+      ],
+      "output": [
+        {
+          "name": "TT1.mp4",
+          "size": 14812181,
+          "sha256": "6fc061f222931cbbdde4833626a7d8a0629dfda43edb2e8df92086c93d149856",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M1.mp4",
+          "size": 14749929,
+          "sha256": "625373807a67cfba11560600476eece43bbe1706f74604af6632804ea5926841",
+          "qualityStatus": "passed"
+        },
+        {
+          "name": "TT2_M2.mp4",
+          "size": 14748296,
+          "sha256": "d148ffbdc99e92d08137bd0465f9ca9374f302278493b87a4400e9830e80e172",
+          "qualityStatus": "passed"
+        }
+      ],
+      "qualityGates": {
+        "productConsistency": "passed",
+        "originalSpeed": "passed",
+        "decodeCheck": "passed",
+        "uniqueMusic": "passed"
+      },
+      "recoveryAttempts": 0,
+      "error": null
+    }
+  ]
+}

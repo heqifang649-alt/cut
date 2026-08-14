@@ -23,6 +23,8 @@ test("ChatCut sync uses a claimed output lease, global Codex slot, and bounded m
   assert.match(source, /heartbeatCodexExecution/);
   assert.match(source, /releaseCodexExecution/);
   assert.match(source, /tripCodexConcurrencyCircuit/);
+  assert.match(source, /runCompletedCodexTurn/);
+  assert.match(source, /classification\.kind === "codex_authentication"/);
   assert.match(source, /PREFLIGHT_TIMEOUT_MS/);
   assert.match(source, /child\.kill\(\)/);
 });

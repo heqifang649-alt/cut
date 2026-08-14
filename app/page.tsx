@@ -13,6 +13,7 @@ type FailureDiagnostic = {
   service: string;
   stage: string;
   workerInstance: string;
+  taskNumber?: string;
   exceptionMessage: string;
   errorCode?: string;
   exitCode?: number;
@@ -26,10 +27,44 @@ type ArtifactEvidenceSource = { sourceKey: string; source?: { fileId?: string; n
 type ArtifactEvidenceSnapshot = { generatedAt?: string; sources?: ArtifactEvidenceSource[] };
 type ProductGroupEvidence = { groupId: string; label: string; videoThumbnailUrl: string | null; productImageThumbnailUrl: string | null };
 type ProductGroupEvidenceSnapshot = { groups?: ProductGroupEvidence[] };
-type AppView = "dashboard" | "batches" | "new-batch" | "batch-detail" | "templates" | "reviews" | "users";
+type AppView = "dashboard" | "batches" | "new-batch" | "batch-detail" | "templates" | "reviews" | "users" | "ai-provider";
 type AuthUser = { id: string; username: string; displayName: string; role: "admin" | "member" };
 type ManagedUser = AuthUser & { status: "active" | "disabled"; createdAt: string; updatedAt: string };
 type NewUserDraft = { username: string; role: "admin" | "member" };
+type ProviderConfig = {
+  configStatus: "NOT_CONFIGURED" | "CONFIGURED";
+  source: "ENV" | "LOCAL_ADMIN_CONFIG" | "DEFAULT";
+  environmentControlled: boolean;
+  environmentControlledFields: string[];
+  environmentMessage?: string | null;
+  providerName: string;
+  baseUrl: string;
+  apiKeyConfigured: boolean;
+  apiKeyHint?: string | null;
+  protocolMode: "auto" | "responses" | "chat_completions";
+  candidateModels: string[];
+  fastModel: string;
+  strongModel: string;
+  requestTimeoutMs: number;
+  maxConcurrency: number;
+  pilotRequestCap: number;
+  retryLimit: number;
+  connectionStatus: "UNKNOWN" | "PASS" | "FAIL";
+  lastTestedAt?: string | null;
+  lastProbe?: {
+    capabilities?: Record<string, string>;
+    selectedModel?: string | null;
+    selectedModels?: { fastModel?: string | null; strongModel?: string | null };
+    latencyMs?: number | null;
+    providerReadyForP1?: boolean;
+    endpointTelemetry?: Array<{ url?: string; httpStatus?: number | null; contentType?: string | null; model?: string; capability?: string; error?: string }>;
+    modelMatrix?: Array<{ model?: string; capabilities?: Record<string, string>; latencyMs?: number | null; p1FailureReasons?: string[]; error?: string }>;
+  };
+  activeFastModel?: string | null;
+  activeStrongModel?: string | null;
+  providerReadyForP1?: boolean;
+};
+type ProviderDraft = Omit<ProviderConfig, "apiKeyConfigured" | "apiKeyHint" | "source" | "environmentControlled" | "environmentControlledFields" | "environmentMessage" | "lastTestedAt" | "lastProbe" | "activeFastModel" | "activeStrongModel" | "providerReadyForP1" | "configStatus" | "connectionStatus"> & { apiKey: string };
 type NewBatchDraft = {
   expiresAt: number;
   batchName: string;
@@ -57,6 +92,21 @@ type RenderReadinessDiagnostic = {
   edl: { exists: boolean; status: string; productsWritten: number; blockedReason?: string; sourceReadFailed: boolean };
   products: RenderReadinessProduct[];
 };
+
+const requestTimeoutMs = 12_000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = requestTimeoutMs) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("请求超时，请检查网络连接后重试");
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 const statusMeta: Record<BatchStatus, { label: string; tone: string }> = {
   uploading: { label: "等待素材上传", tone: "muted" },
@@ -174,6 +224,7 @@ function FailureDiagnosticsPanel({ diagnostics }: { diagnostics?: FailureDiagnos
     <div className="failure-diagnostics-grid">
       <div><span>Service</span><strong>{latest.service}</strong></div>
       <div><span>Stage</span><strong>{latest.stage}</strong></div>
+      <div><span>Task Number</span><strong>{latest.taskNumber || "—"}</strong></div>
       <div><span>Worker 实例</span><strong>{latest.workerInstance}</strong></div>
       <div><span>Exit Code</span><strong>{latest.exitCode ?? "未提供"}</strong></div>
       <div className="failure-diagnostics-wide"><span>Exception Message</span><strong>{latest.exceptionMessage}</strong></div>
@@ -443,7 +494,7 @@ function ProductDetectionPanel({ detection, evidence = [] }: { detection: Produc
   );
 }
 
-function LoginPanel({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
+function LoginPanel({ onAuthenticated, notice }: { onAuthenticated: (user: AuthUser) => void; notice?: string }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -454,7 +505,7 @@ function LoginPanel({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => 
     setSubmitting(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetchWithTimeout("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -476,6 +527,7 @@ function LoginPanel({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => 
       <p>Tasks, source files, reviews, and outputs are available only to the signed-in account.</p>
       <label><span>Username</span><input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label>
       <label><span>Password</span><input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></label>
+      {notice && <div className="login-error" role="status">{notice}</div>}
       {error && <div className="login-error" role="alert">{error}</div>}
       <button className="primary-button" disabled={submitting}>{submitting ? "Signing in…" : "Sign in"}</button>
     </form>
@@ -485,6 +537,7 @@ function LoginPanel({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => 
 export default function Home() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authBootstrapError, setAuthBootstrapError] = useState("");
   const [view, setView] = useState<AppView>("dashboard");
   const [batches, setBatches] = useState<Batch[]>([]);
   const [templates, setTemplates] = useState<SampleTemplate[]>([]);
@@ -501,8 +554,17 @@ export default function Home() {
   const [newUser, setNewUser] = useState<NewUserDraft>({ username: "", role: "member" });
   const [newUserPasswordVisible, setNewUserPasswordVisible] = useState(false);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [resetPasswordNotice, setResetPasswordNotice] = useState<{ id: string; password: string } | null>(null);
+  const [provider, setProvider] = useState<ProviderConfig | null>(null);
+  const [providerDraft, setProviderDraft] = useState<ProviderDraft | null>(null);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerAction, setProviderAction] = useState<"save" | "discover" | "test" | null>(null);
+  const [providerMessage, setProviderMessage] = useState("");
+  const [providerMessageTone, setProviderMessageTone] = useState<"success" | "error">("success");
   const [workerOnline, setWorkerOnline] = useState(false);
+  const [reconnectingCodex, setReconnectingCodex] = useState(false);
+  const [codexReconnectNotice, setCodexReconnectNotice] = useState("");
   const [, setTick] = useState(0);
   const draftStorageKey = authUser ? `${newBatchDraftKey}:${authUser.id}` : newBatchDraftKey;
   useEffect(() => {
@@ -511,12 +573,29 @@ export default function Home() {
   }, []);
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me", { cache: "no-store" })
-      .then(async (response) => response.ok ? await response.json() as { user?: AuthUser } : {})
-      .then((payload) => { if (active) setAuthUser(payload.user || null); })
-      .catch(() => { if (active) setAuthUser(null); })
-      .finally(() => { if (active) setAuthLoading(false); });
-    return () => { active = false; };
+    const fallback = window.setTimeout(() => {
+      if (!active) return;
+      setAuthUser(null);
+      setAuthBootstrapError("登录状态检查超时，请重试。");
+      setAuthLoading(false);
+    }, requestTimeoutMs + 1_000);
+    void (async () => {
+      try {
+        const response = await fetchWithTimeout("/api/auth/me", { cache: "no-store" });
+        const payload = response.ok ? await response.json() as { user?: AuthUser } : {};
+        if (!active) return;
+        setAuthUser(payload.user || null);
+        setAuthBootstrapError(response.status >= 500 ? "服务暂时不可用，请重试。" : "");
+      } catch (caught) {
+        if (!active) return;
+        setAuthUser(null);
+        setAuthBootstrapError(caught instanceof Error ? caught.message : "无法检查登录状态，请重试。");
+      } finally {
+        window.clearTimeout(fallback);
+        if (active) setAuthLoading(false);
+      }
+    })();
+    return () => { active = false; window.clearTimeout(fallback); };
   }, []);
   const activityAgeSec = useCallback((at?: string) => {
     if (!at) return Infinity;
@@ -528,7 +607,7 @@ export default function Home() {
     return "activity-dead";
   }, []);
   const activeStatuses = ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"];
-  const [accountState, setAccountState] = useState<{ codex?: { ready?: boolean; response?: string }; chatcut?: { ready?: boolean } }>({});
+  const [accountState, setAccountState] = useState<{ codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } }>({});
   const [sourceMode, setSourceMode] = useState<"nas" | "upload">("nas");
   const [nasPath, setNasPath] = useState(defaultNasPath);
   const [nasScan, setNasScan] = useState<NasScanView | null>(null);
@@ -577,10 +656,10 @@ export default function Home() {
     }
     try {
       const [batchResponse, healthResponse, templateResponse, dashboardResponse] = await Promise.all([
-        fetch("/api/batches", { cache: "no-store" }),
-        fetch("/api/health", { cache: "no-store" }),
-        fetch("/api/templates", { cache: "no-store" }),
-        fetch("/api/dashboard", { cache: "no-store" }),
+        fetchWithTimeout("/api/batches", { cache: "no-store" }),
+        fetchWithTimeout("/api/health", { cache: "no-store" }),
+        fetchWithTimeout("/api/templates", { cache: "no-store" }),
+        fetchWithTimeout("/api/dashboard", { cache: "no-store" }),
       ]);
       if ([batchResponse, healthResponse, templateResponse, dashboardResponse].some((response) => response.status === 401)) {
         setAuthUser(null);
@@ -592,7 +671,7 @@ export default function Home() {
         // 工作台不自动打开某个任务；只有用户明确点击任务或新建批次后才进入批次工作区。
       }
       if (healthResponse.ok) {
-        const health = (await healthResponse.json()) as { workerOnline: boolean; codex?: { ready?: boolean; response?: string }; chatcut?: { ready?: boolean } };
+        const health = (await healthResponse.json()) as { workerOnline: boolean; codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } };
         setWorkerOnline(health.workerOnline);
         setAccountState({ codex: health.codex, chatcut: health.chatcut });
       }
@@ -602,6 +681,8 @@ export default function Home() {
         setSelectedTemplateId((current) => current || data.templates.find((item) => item.status === "ready")?.id || "");
       }
       if (dashboardResponse.ok) setDashboard((await dashboardResponse.json()) as DashboardSnapshot);
+    } catch (caught) {
+      setError(caught instanceof Error ? `工作区加载失败：${caught.message}` : "工作区加载失败，请重试。");
     } finally {
       setLoading(false);
     }
@@ -627,6 +708,33 @@ export default function Home() {
     } finally {
       setUsersLoading(false);
     }
+  }, [authUser]);
+
+  const loadProvider = useCallback(async () => {
+    if (authUser?.role !== "admin") return;
+    setProviderLoading(true);
+    try {
+      const response = await fetchWithTimeout("/api/admin/ai-provider", { cache: "no-store" }, 30_000);
+      const payload = await response.json().catch(() => ({})) as { provider?: ProviderConfig; error?: string };
+      if (response.status === 401) { setAuthUser(null); return; }
+      if (!response.ok || !payload.provider) throw new Error(payload.error || "无法读取 AI Provider 配置");
+      setProvider(payload.provider);
+      setProviderDraft({
+        providerName: payload.provider.providerName,
+        baseUrl: payload.provider.baseUrl,
+        protocolMode: payload.provider.protocolMode,
+        candidateModels: payload.provider.candidateModels,
+        fastModel: payload.provider.fastModel,
+        strongModel: payload.provider.strongModel,
+        requestTimeoutMs: payload.provider.requestTimeoutMs,
+        maxConcurrency: payload.provider.maxConcurrency,
+        pilotRequestCap: payload.provider.pilotRequestCap,
+        retryLimit: payload.provider.retryLimit,
+        apiKey: "",
+      });
+    } catch (caught) {
+      setProviderMessage(caught instanceof Error ? caught.message : "无法读取 AI Provider 配置");
+    } finally { setProviderLoading(false); }
   }, [authUser]);
 
   const loadNasDirectories = useCallback(async () => {
@@ -661,6 +769,12 @@ export default function Home() {
     const requestId = window.setTimeout(() => { void loadManagedUsers(); }, 0);
     return () => window.clearTimeout(requestId);
   }, [authUser, loadManagedUsers, view]);
+
+  useEffect(() => {
+    if (view !== "ai-provider" || authUser?.role !== "admin") return;
+    const requestId = window.setTimeout(() => { void loadProvider(); }, 0);
+    return () => window.clearTimeout(requestId);
+  }, [authUser, loadProvider, view]);
 
   useEffect(() => {
     if (!authUser || view !== "new-batch" || sourceMode !== "nas") return;
@@ -737,11 +851,11 @@ export default function Home() {
   const completedCount = reviewBatches.length;
   const activeCount = batches.filter((batch) => ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising", "cancel_requested"].includes(batch.status)).length;
   const taskNavigationActive = ["batches", "new-batch", "batch-detail"].includes(view);
-  const pageTitle = view === "dashboard" ? "工作台" : view === "batches" ? "任务" : view === "new-batch" ? "新建任务" : view === "batch-detail" ? "任务详情" : view === "templates" ? "样片母版库" : "成片审核";
-  const pageDescription = view === "dashboard" ? "先看今天待处理、待审核与异常任务；从这里继续任务或新建批次。" : view === "batches" ? "查看全部剪辑任务；打开一条任务后，只显示该任务的执行信息。" : view === "new-batch" ? "选择母版、接入素材，然后创建一条新的剪辑任务。" : view === "batch-detail" ? "查看当前任务的素材、执行进度、识别结果与后续操作。" : view === "templates" ? "公共样片母版库：所有已登录账号都可查看、预览和选用；上传与重新分析仅由创建者管理。" : "逐条预览成片，确认通过后自动交付到成片目录。";
+  const pageTitle = view === "dashboard" ? "工作台" : view === "batches" ? "任务" : view === "new-batch" ? "新建任务" : view === "batch-detail" ? "任务详情" : view === "templates" ? "样片母版库" : view === "reviews" ? "成片审核" : "设置";
+  const pageDescription = view === "dashboard" ? "先看今天待处理、待审核与异常任务；从这里继续任务或新建批次。" : view === "batches" ? "查看全部剪辑任务；打开一条任务后，只显示该任务的执行信息。" : view === "new-batch" ? "选择母版、接入素材，然后创建一条新的剪辑任务。" : view === "batch-detail" ? "查看当前任务的素材、执行进度、识别结果与后续操作。" : view === "templates" ? "公共样片母版库：所有已登录账号都可查看、预览和选用；上传与重新分析仅由创建者管理。" : view === "reviews" ? "逐条预览成片，确认通过后自动交付到成片目录。" : "管理 AI Provider 的 Pilot 配置与连接状态。";
 
-  const displayedPageTitle = view === "users" ? "用户管理" : pageTitle;
-  const displayedPageDescription = view === "users" ? "仅管理员可创建账号并查看工作区用户。" : pageDescription;
+  const displayedPageTitle = view === "users" ? "用户管理" : view === "ai-provider" ? "AI Provider" : pageTitle;
+  const displayedPageDescription = view === "users" ? "仅管理员可创建账号并查看工作区用户。" : view === "ai-provider" ? "仅管理员可配置 Provider；API Key 保存后不会再次显示。" : pageDescription;
 
   function clearNewBatchDraft() {
     window.localStorage.removeItem(draftStorageKey);
@@ -814,7 +928,7 @@ export default function Home() {
   }
 
   function navigateTo(nextView: AppView) {
-    if (nextView === "users" && authUser?.role !== "admin") return;
+    if ((nextView === "users" || nextView === "ai-provider") && authUser?.role !== "admin") return;
     if (view === "new-batch" && nextView !== "new-batch") cacheNewBatchDraft();
     setView(nextView);
   }
@@ -824,6 +938,56 @@ export default function Home() {
     setError("");
     setUserCreateError("");
     navigateTo("users");
+  }
+
+  function openProviderSettings() {
+    if (authUser?.role !== "admin") return;
+    setProviderMessageTone("success");
+    setProviderMessage("");
+    navigateTo("ai-provider");
+  }
+
+  async function saveProvider() {
+    if (!providerDraft || authUser?.role !== "admin") return;
+    setProviderAction("save");
+    setProviderMessageTone("success");
+    setProviderMessage("");
+    try {
+      const response = await fetchWithTimeout("/api/admin/ai-provider", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(providerDraft) }, 30_000);
+      const payload = await response.json().catch(() => ({})) as { provider?: ProviderConfig; error?: string };
+      if (!response.ok || !payload.provider) throw new Error(payload.error || "保存配置失败");
+      setProvider(payload.provider);
+      setProviderDraft((current) => current ? { ...current, apiKey: "" } : current);
+      setProviderMessage("配置已保存。API Key 不会回显。");
+    } catch (caught) { setProviderMessageTone("error"); setProviderMessage(caught instanceof Error ? caught.message : "保存配置失败"); }
+    finally { setProviderAction(null); }
+  }
+
+  async function discoverProviderModels() {
+    if (authUser?.role !== "admin") return;
+    setProviderAction("discover"); setProviderMessageTone("success"); setProviderMessage("");
+    try {
+      const response = await fetchWithTimeout("/api/admin/ai-provider/discover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(providerDraft) }, 45_000);
+      const payload = await response.json().catch(() => ({})) as { discovery?: { models?: string[]; supported?: boolean }; provider?: ProviderConfig; error?: string };
+      if (!response.ok) throw new Error(payload.error || "模型发现失败");
+      if (payload.provider) setProvider(payload.provider);
+      if (Array.isArray(payload.discovery?.models)) setProviderDraft((current) => current ? { ...current, candidateModels: payload.discovery!.models || [] } : current);
+      setProviderMessage(payload.discovery?.supported ? `已发现 ${payload.discovery.models?.length || 0} 个 Provider 报告的模型。` : "该 Provider 未提供可用的模型列表；可在下方填写候选模型 ID。");
+    } catch (caught) { setProviderMessageTone("error"); setProviderMessage(caught instanceof Error ? caught.message : "模型发现失败"); }
+    finally { setProviderAction(null); }
+  }
+
+  async function testProviderConnection() {
+    if (authUser?.role !== "admin") return;
+    setProviderAction("test"); setProviderMessageTone("success"); setProviderMessage("");
+    try {
+      const response = await fetchWithTimeout("/api/admin/ai-provider/test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...providerDraft, model: providerDraft?.fastModel || providerDraft?.candidateModels[0] || "" }) }, 60_000);
+      const payload = await response.json().catch(() => ({})) as { probe?: { providerReadyForP1?: boolean; latencyMs?: number | null; error?: string; selectedModel?: string | null; selectedModels?: { fastModel?: string | null; strongModel?: string | null }; capabilities?: Record<string, string>; endpointTelemetry?: NonNullable<ProviderConfig["lastProbe"]>["endpointTelemetry"]; modelMatrix?: NonNullable<ProviderConfig["lastProbe"]>["modelMatrix"] }; provider?: ProviderConfig; error?: string };
+      if (payload.provider) setProvider(payload.provider);
+      if (!response.ok || !payload.probe?.providerReadyForP1) throw new Error(payload.error || payload.probe?.error || "连接测试未通过");
+      setProviderMessage(`连接测试通过${payload.probe.latencyMs ? `，延迟 ${payload.probe.latencyMs}ms` : ""}。`);
+    } catch (caught) { setProviderMessageTone("error"); setProviderMessage(caught instanceof Error ? caught.message : "连接测试未通过"); }
+    finally { setProviderAction(null); }
   }
 
   async function createManagedUser(event: FormEvent<HTMLFormElement>) {
@@ -867,6 +1031,23 @@ export default function Home() {
       setUserCreateError(caught instanceof Error ? caught.message : "重置密码失败");
     } finally {
       setResettingUserId(null);
+    }
+  }
+
+  async function deleteManagedUser(user: ManagedUser) {
+    if (authUser?.role !== "admin") return;
+    if (!window.confirm(`确定删除“${user.username}”吗？该账号会立刻无法继续登录；该账号已有任务与素材不会被删除。`)) return;
+    setDeletingUserId(user.id);
+    setUserCreateError("");
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "删除账号失败");
+      await loadManagedUsers();
+    } catch (caught) {
+      setUserCreateError(caught instanceof Error ? caught.message : "删除账号失败");
+    } finally {
+      setDeletingUserId(null);
     }
   }
 
@@ -928,6 +1109,26 @@ export default function Home() {
       await loadBatches();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "无法重新同步 ChatCut 项目");
+    }
+  }
+
+  async function reconnectCodex() {
+    if (authUser?.role !== "admin") return;
+    setReconnectingCodex(true);
+    setCodexReconnectNotice("正在检查 Codex 账号、模型服务和执行器…");
+    try {
+      const response = await fetchWithTimeout("/api/admin/codex/reconnect", { method: "POST" }, 30_000);
+      const payload = await response.json().catch(() => ({})) as { codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; response?: string }; error?: string };
+      if (payload.codex) setAccountState((current) => ({ ...current, codex: payload.codex }));
+      if (!response.ok || payload.codex?.authenticationValid === false) {
+        throw new Error(payload.codex?.response || payload.error || "Codex 重新连接失败，请完成账号登录后再试。");
+      }
+      setCodexReconnectNotice(payload.codex?.ready === true ? "Codex 已重新连接，队列会由现有 Worker 自动继续处理。" : "模型服务可达；Codex 执行器正在自动恢复，非 Codex 任务继续运行。");
+      await loadBatches();
+    } catch (caught) {
+      setCodexReconnectNotice(caught instanceof Error ? caught.message : "Codex 重新连接失败，请稍后重试。");
+    } finally {
+      setReconnectingCodex(false);
     }
   }
 
@@ -1159,7 +1360,7 @@ export default function Home() {
   }
 
   if (authLoading) return <main className="login-shell"><div className="login-card"><div className="login-brand"><span>GC</span><div><strong>Cutflow</strong><small>Loading private workspace…</small></div></div></div></main>;
-  if (!authUser) return <LoginPanel onAuthenticated={(user) => { setAuthUser(user); setLoading(true); }} />;
+  if (!authUser) return <LoginPanel notice={authBootstrapError} onAuthenticated={(user) => { setAuthBootstrapError(""); setAuthUser(user); setLoading(true); }} />;
 
   return (
     <main className="app-shell">
@@ -1171,7 +1372,10 @@ export default function Home() {
           <button className={`nav-item ${view === "templates" ? "active" : ""}`} onClick={() => navigateTo("templates")}><span>◫</span>样片母版<i>{templates.filter((item) => item.status === "ready").length}</i></button>
           <button className={`nav-item ${view === "reviews" ? "active" : ""}`} onClick={() => navigateTo("reviews")}><span>✓</span>成片审核<i>{completedCount}</i></button>
         </nav>
-        {authUser.role === "admin" && <button className={`admin-user-management ${view === "users" ? "active" : ""}`} onClick={openUserManagement}><span>⚙</span>用户管理</button>}
+        {authUser.role === "admin" && <div className="admin-navigation">
+          <button className={`admin-user-management ${view === "users" ? "active" : ""}`} onClick={openUserManagement}><span>⚙</span>用户管理</button>
+          <button className={`admin-user-management ${view === "ai-provider" ? "active" : ""}`} onClick={openProviderSettings}><span>◈</span>AI Provider</button>
+        </div>}
         {view !== "dashboard" && <div className="sidebar-note">
           <span className={`status-dot ${workerOnline ? "online" : ""}`} />
           <div><strong>{workerOnline ? "剪辑工作机在线" : "剪辑工作机未连接"}</strong><small>{workerOnline ? "任务会自动处理" : "启动本地Worker后自动接单"}</small></div>
@@ -1188,18 +1392,32 @@ export default function Home() {
           </div>
         </header>
 
-        {view !== "dashboard" && !loading && (!workerOnline || !accountState.codex?.ready) && (
+        {view !== "dashboard" && !loading && !workerOnline && (
           <div className="safe-mode-banner">
             <span className="safe-mode-icon">⚠</span>
             <div>
-              <strong>自动剪辑暂停 — 等待账号恢复</strong>
+              <strong>自动剪辑 Worker 未连接</strong>
               <small>
                 {!workerOnline && <>剪辑工作机未连接，当前任务不会开始处理。</>}
-                {!workerOnline && !accountState.codex?.ready ? " " : null}
-                {!accountState.codex?.ready && <>Codex 账号不可用{accountState.codex?.response ? `（${accountState.codex.response}）` : null}，自动剪辑不接单。</>}
+                {accountState.codex?.status === "auth_invalid" && <>Codex 账号需要重新连接，Codex 任务将保持等待。</>}
+                {accountState.codex?.status === "unresponsive" && <>Codex 执行器暂时无响应，恢复后会自动重试。</>}
               </small>
             </div>
-            <small className="safe-mode-action">恢复后双击 <code>scripts\restart-cutflow.cmd</code> 重新连接</small>
+            <div className="safe-mode-action">
+              {accountState.codex?.status === "auth_invalid" && (authUser.role === "admin" ? <button className="safe-mode-reconnect" type="button" onClick={() => void reconnectCodex()} disabled={reconnectingCodex} aria-busy={reconnectingCodex}>{reconnectingCodex ? "检测中…" : "重新连接"}</button> : <small>请联系管理员恢复 Codex 账号。</small>)}
+            </div>
+            {codexReconnectNotice && <small className={accountState.codex?.ready ? "safe-mode-result success" : "safe-mode-result"} role="status" aria-live="polite">{codexReconnectNotice}</small>}
+          </div>
+        )}
+
+        {view !== "dashboard" && !loading && workerOnline && accountState.codex && accountState.codex.status !== "normal" && (
+          <div className="safe-mode-banner codex-status-banner">
+            <span className="safe-mode-icon">i</span>
+            <div>
+              <strong>Codex：{accountState.codex.status === "running" ? "正在执行" : accountState.codex.status === "unresponsive" ? "暂时无响应" : accountState.codex.status === "backoff" ? "退避中" : accountState.codex.status === "auth_invalid" ? "认证失效" : "正常"}</strong>
+              <small>{accountState.codex.status === "auth_invalid" ? "Codex账号需要重新连接" : accountState.codex.status === "backoff" ? `429/并发退避中，当前槽位 ${accountState.codex.activeSlotCount || 0}/${accountState.codex.concurrencyLimit || 1}，Codex 队列等待 ${accountState.codex.queue?.waiting || 0}` : accountState.codex.status === "running" ? `当前 ${accountState.codex.currentTurn?.service || "Codex"} Turn 正在执行；最近事件 ${accountState.codex.lastSdkEventAt ? new Date(accountState.codex.lastSdkEventAt).toLocaleTimeString("zh-CN", { hour12: false }) : "暂无"}` : accountState.codex.probe?.response || accountState.codex.response || "Codex 执行器正在恢复，非 Codex 任务继续运行。"}</small>
+            </div>
+            {accountState.codex.status === "auth_invalid" && authUser.role === "admin" && <button className="safe-mode-reconnect" type="button" onClick={() => void reconnectCodex()} disabled={reconnectingCodex}>{reconnectingCodex ? "检测中…" : "重新连接"}</button>}
           </div>
         )}
 
@@ -1214,7 +1432,45 @@ export default function Home() {
           </div>
         )}
 
-        {view === "users" && authUser.role === "admin" ? (
+        {view === "ai-provider" && authUser.role === "admin" ? (
+          <section className="provider-settings-page" aria-labelledby="ai-provider-title">
+            <div className="provider-settings-head">
+              <div><span className="eyebrow">ADMIN ONLY</span><h2 id="ai-provider-title">AI Provider</h2><p>连接信息只在服务端使用。模型名称是 Provider 报告的候选元数据，尚未构成生产能力保证。</p></div>
+              <div className={`provider-status ${provider?.connectionStatus?.toLowerCase() || "unknown"}`}><span>连接</span><strong>{provider?.connectionStatus || "UNKNOWN"}</strong></div>
+            </div>
+            {providerLoading || !providerDraft ? <div className="provider-settings-loading">正在读取 Provider 配置…</div> : <div className="provider-settings-grid">
+              <form className="provider-settings-form" onSubmit={(event) => { event.preventDefault(); void saveProvider(); }}>
+                <div className="provider-source-line"><span>实际来源</span><strong>{provider?.source || "DEFAULT"}</strong>{provider?.environmentControlled && <small>{provider.environmentMessage || "当前配置由环境变量控制"}</small>}</div>
+                <div className="provider-field-grid">
+                  <label><span>Provider 名称</span><input value={providerDraft.providerName} onChange={(event) => setProviderDraft((current) => current ? { ...current, providerName: event.target.value } : current)} /></label>
+                  <label><span>Protocol Mode</span><select value={providerDraft.protocolMode} onChange={(event) => setProviderDraft((current) => current ? { ...current, protocolMode: event.target.value as ProviderDraft["protocolMode"] } : current)}><option value="auto">AUTO</option><option value="responses">Responses</option><option value="chat_completions">Chat Completions</option></select></label>
+                </div>
+                <label><span>Base URL</span><input type="url" required value={providerDraft.baseUrl} onChange={(event) => setProviderDraft((current) => current ? { ...current, baseUrl: event.target.value } : current)} placeholder="https://provider.example/v1" /></label>
+                <label><span>API Key</span><input type="password" value={providerDraft.apiKey} onChange={(event) => setProviderDraft((current) => current ? { ...current, apiKey: event.target.value } : current)} placeholder={provider?.apiKeyConfigured ? `已配置（${provider.apiKeyHint || "隐藏"}）` : "保存后不会再次显示"} autoComplete="new-password" /></label>
+                <label><span>Candidate Models</span><textarea value={providerDraft.candidateModels.join("\n")} onChange={(event) => setProviderDraft((current) => current ? { ...current, candidateModels: event.target.value.split(/[\n,]/).map((item) => item.trim()).filter(Boolean) } : current)} rows={4} placeholder="优先使用“检测接口并拉取模型”；只有自动发现不可用时才手动填写。" /></label>
+                <div className="provider-field-grid">
+                  <label><span>Fast Model</span><input value={providerDraft.fastModel} onChange={(event) => setProviderDraft((current) => current ? { ...current, fastModel: event.target.value } : current)} placeholder="P1 Benchmark 自动选择" /></label>
+                  <label><span>Strong Model</span><input value={providerDraft.strongModel} onChange={(event) => setProviderDraft((current) => current ? { ...current, strongModel: event.target.value } : current)} placeholder="P1 Benchmark 自动选择" /></label>
+                  <label><span>Request Timeout (ms)</span><input type="number" min={5000} max={180000} value={providerDraft.requestTimeoutMs} onChange={(event) => setProviderDraft((current) => current ? { ...current, requestTimeoutMs: Number(event.target.value) } : current)} /></label>
+                  <label><span>Max Concurrency</span><input type="number" min={1} max={16} value={providerDraft.maxConcurrency} onChange={(event) => setProviderDraft((current) => current ? { ...current, maxConcurrency: Number(event.target.value) } : current)} /></label>
+                  <label><span>Pilot Request Cap</span><input type="number" min={1} max={10000} value={providerDraft.pilotRequestCap} onChange={(event) => setProviderDraft((current) => current ? { ...current, pilotRequestCap: Number(event.target.value) } : current)} /></label>
+                </div>
+                <div className="provider-actions"><button className="secondary-button" type="button" onClick={() => void discoverProviderModels()} disabled={providerAction !== null}>{providerAction === "discover" ? "检测中…" : "检测接口并拉取模型"}</button><button className="secondary-button" type="button" onClick={() => void testProviderConnection()} disabled={providerAction !== null}>{providerAction === "test" ? "测试中…" : "测试连接"}</button><button className="primary-button" disabled={providerAction !== null}>{providerAction === "save" ? "保存中…" : "保存配置"}</button></div>
+                {providerMessage && <div className={`provider-message ${providerMessageTone}`} role="status">{providerMessage}</div>}
+              </form>
+              <aside className="provider-capability-panel">
+                <div><span>CONFIG_STATUS</span><strong>{provider?.configStatus || "NOT_CONFIGURED"}</strong></div>
+                <div><span>LAST_TESTED_AT</span><strong>{provider?.lastTestedAt ? new Date(provider.lastTestedAt).toLocaleString("zh-CN", { hour12: false }) : "-"}</strong></div>
+                <div><span>ACTIVE_FAST_MODEL</span><strong>{provider?.activeFastModel || "PILOT CANDIDATE"}</strong></div>
+                <div><span>ACTIVE_STRONG_MODEL</span><strong>{provider?.activeStrongModel || "PILOT CANDIDATE"}</strong></div>
+                <div><span>PROVIDER_READY_FOR_P1</span><strong>{provider?.providerReadyForP1 ? "YES" : "NO"}</strong></div>
+                <div className="capability-list"><span>Capability Probe</span>{Object.entries(provider?.lastProbe?.capabilities || {}).length ? Object.entries(provider!.lastProbe!.capabilities!).map(([name, status]) => <div key={name}><code>{name}</code><b className={status === "PASS" ? "pass" : status === "FAIL" ? "fail" : "unknown"}>{status}</b></div>) : <small>尚未执行测试连接。</small>}</div>
+                <div className="provider-probe-evidence"><span>Endpoint Probe</span>{provider?.lastProbe?.endpointTelemetry?.length ? provider.lastProbe.endpointTelemetry.map((entry, index) => <article key={`${entry.url || "endpoint"}-${entry.capability || "probe"}-${index}`}><code>{entry.capability || "REQUEST"}{entry.model ? ` · ${entry.model}` : ""}</code><strong>{entry.httpStatus ?? "-"} · {entry.contentType || "-"}</strong><small>{entry.url || "-"}</small>{entry.error && <em>{entry.error}</em>}</article>) : <small>尚未记录端点请求。</small>}</div>
+                <div className="provider-probe-evidence"><span>Model Capability Matrix</span>{provider?.lastProbe?.modelMatrix?.length ? provider.lastProbe.modelMatrix.map((entry) => <article key={entry.model || "model"}><code>{entry.model || "-"}</code><strong>{entry.latencyMs ? `${entry.latencyMs}ms` : "-"}</strong><small>{Object.entries(entry.capabilities || {}).filter(([name]) => ["TEXT", "VISION_INPUT", "MULTI_IMAGE", "STRUCTURED_OUTPUT_NATIVE", "JSON_FALLBACK", "TIMEOUT_RETRY_GUARD"].includes(name)).map(([name, status]) => `${name}=${status}`).join(" · ")}</small>{entry.p1FailureReasons?.length ? <em>{entry.p1FailureReasons.join("; ")}</em> : null}{entry.error && <em>{entry.error}</em>}</article>) : <small>尚未执行候选模型探测。</small>}</div>
+              </aside>
+            </div>}
+          </section>
+        ) : view === "users" && authUser.role === "admin" ? (
           <section className="user-management-page" aria-labelledby="user-management-title">
             <div className="user-management-head">
               <div><span className="eyebrow">ADMIN ONLY</span><h2 id="user-management-title">用户管理</h2><p>创建工作区账号，并查看当前账号权限。</p></div>
@@ -1234,7 +1490,7 @@ export default function Home() {
                 {usersLoading ? <div className="user-list-empty">正在读取账号列表…</div> : !managedUsers.length ? <div className="user-list-empty">尚未找到账号。</div> : <div className="user-list">
                   {managedUsers.map((user) => <article className="managed-user-row" key={user.id}>
                     <div><strong>{user.username}</strong><small>创建于 {new Date(user.createdAt).toLocaleDateString("zh-CN")}</small>{resetPasswordNotice?.id === user.id && <em className="password-reset-notice">已重置为初始密码：{resetPasswordNotice.password}</em>}</div>
-                    <div className="managed-user-badges"><button className="reset-password-button" type="button" onClick={() => void resetManagedUserPassword(user)} disabled={resettingUserId === user.id}>{resettingUserId === user.id ? "重置中…" : "重置密码"}</button><span className={`user-role ${user.role}`}>{user.role === "admin" ? "管理员" : "成员"}</span><span className={`user-status ${user.status}`}>{user.status === "active" ? "启用" : "已停用"}</span></div>
+                    <div className="managed-user-badges"><button className="reset-password-button" type="button" onClick={() => void resetManagedUserPassword(user)} disabled={resettingUserId === user.id}>{resettingUserId === user.id ? "重置中…" : "重置密码"}</button><button className="delete-user-button" type="button" onClick={() => void deleteManagedUser(user)} disabled={deletingUserId === user.id || user.id === authUser.id}>{deletingUserId === user.id ? "删除中…" : "删除账号"}</button><span className={`user-role ${user.role}`}>{user.role === "admin" ? "管理员" : "成员"}</span><span className={`user-status ${user.status}`}>{user.status === "active" ? "启用" : "已停用"}</span></div>
                   </article>)}
                 </div>}
               </section>
@@ -1252,7 +1508,7 @@ export default function Home() {
                   const meta = statusMeta[batch.status];
                   const current = lifecycleCurrent(batch);
                   return <button className="task-list-row" role="row" key={batch.id} onClick={() => openBatchWorkspace(batch.id)}>
-                    <strong>{batch.name}</strong>
+                    <strong>{batch.name}<small className="task-number">{batch.taskNumber}</small></strong>
                     <span><i className={`status-badge ${batch.status}`} />{meta.label}</span>
                     <span title={current.detail}>{current.label}</span>
                     <span>{batch.files.filter((file) => file.kind === "products").length} 个文件</span>
@@ -1338,7 +1594,7 @@ export default function Home() {
         {view === "batch-detail" && (selected ? (
           <section className="batch-detail">
             <div className="detail-head">
-              <div><span className="eyebrow">任务详情</span><h2>{selected.name}</h2><p>{selected.files.length}个文件 · {selected.sourceMode === "nas" ? "NAS原片直读" : "本机素材"} · 最长{selected.durationMax}秒 · 原速</p></div>
+              <div><span className="eyebrow">任务详情</span><h2>{selected.name}</h2><p><b className="task-number">{selected.taskNumber}</b> · {selected.files.length}个文件 · {selected.sourceMode === "nas" ? "NAS原片直读" : "本机素材"} · 最长{selected.durationMax}秒 · 原速</p></div>
               <div className="detail-head-actions"><button className="back-button" onClick={() => openBatchWorkspace()}>← 任务列表</button><span className={`large-status ${statusMeta[selected.status].tone}`}>{lifecycleCurrent(selected).label}</span></div>
             </div>
             <details className="task-lifecycle-detail" open><summary><span>任务执行详情</span><small>查看当前阶段与已知记录</small></summary><BatchLifecycle batch={selected} /><BatchActivityTimeline batch={selected} recoveryEvents={recoveryByBatch[selected.id]?.events} /><FailureDiagnosticsPanel diagnostics={diagnosticsByBatch[selected.id]} /></details>
@@ -1361,6 +1617,7 @@ export default function Home() {
               })}
             </section> : null}
             <TransitionSummary batch={selected} />
+            {selected.revisionHistory?.length ? <section className="revision-history"><div><span>REVISION HISTORY</span><strong>成片修改记录</strong></div>{[...selected.revisionHistory].reverse().map((revision) => <article key={revision.id}><b>v{revision.version}</b><p>{revision.command}</p><small>{formatTime(revision.submittedAt)} · {revision.status === "queued" ? "等待处理" : revision.status === "processing" ? "处理中" : revision.status === "review" ? "已生成新成片，等待审核" : `失败：${revision.error || "请查看诊断"}`}</small>{revision.previousOutputs?.length ? <small>保留上一版 {revision.previousOutputs.length} 条成片</small> : null}</article>)}</section> : null}
             {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedProducts}款 · 质量门禁全部通过</strong>{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
             <div className="detail-actions">
               {cancelableStatuses.includes(selected.status) && selected.status !== "cancel_requested" && <button className="cancel-button" onClick={() => cancelBatch(selected)}>取消当前任务</button>}

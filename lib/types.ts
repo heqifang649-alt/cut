@@ -147,6 +147,7 @@ export type SampleTemplate = {
 
 export type Batch = {
   id: string;
+  taskNumber?: string;
   ownerId: string;
   // New records use storage/users/<ownerId>/...; historical records retain
   // their original on-disk location for non-destructive compatibility.
@@ -154,6 +155,7 @@ export type Batch = {
   // Incremented only when a user starts a new workflow. Service tasks carry
   // this token so stale reference/regroup work cannot overwrite newer states.
   workflowVersion?: number;
+  revisionVersion?: number;
   name: string;
   requirements: string;
   durationMax: number;
@@ -198,6 +200,21 @@ export type Batch = {
     transitionProfile?: TransitionProfile;
     transitions?: Array<{ type: StableTransitionType; durationSeconds: number; count: number }>;
   };
+  revisionHistory?: BatchRevision[];
+  outputHistory?: BatchFile[];
+};
+
+export type BatchRevision = {
+  id: string;
+  version: number;
+  command: string;
+  submittedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  status: "queued" | "processing" | "review" | "failed";
+  previousOutputs?: BatchFile[];
+  outputIds?: string[];
+  error?: string;
 };
 
 export const MOTION_ENERGY_VALUES = ["high", "medium", "low"] as const;

@@ -1,13 +1,15 @@
 import path from "node:path";
 import type { Batch, BatchFile } from "./types";
 import { readJson, withFileLock, writeJsonAtomic } from "./atomic-json.mjs";
+import { taskNumberForBatch } from "./task-number.mjs";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "batches.json");
 let mutationQueue: Promise<unknown> = Promise.resolve();
 
 async function readAll(): Promise<Batch[]> {
-  return readJson(STORE_FILE, []) as Promise<Batch[]>;
+  const records = await readJson(STORE_FILE, []) as Batch[];
+  return records.map((batch) => ({ ...batch, taskNumber: taskNumberForBatch(batch) }));
 }
 
 async function writeAll(batches: Batch[]) {
@@ -51,7 +53,8 @@ export function mutateBatch(id: string, mutate: (batch: Batch) => Batch | void) 
 
 export async function createBatch(input: Pick<Batch, "ownerId" | "name" | "requirements" | "durationMax" | "outputCount" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "cvrText" | "hookText" | "colorStrategy" | "musicSource" | "templateId" | "templateName" | "referenceProfile" | "transitionMode" | "transitionProfile">>) {
   const now = new Date().toISOString();
-  const batch: Batch = { ...input, id: crypto.randomUUID(), storageVersion: 2, workflowVersion: 1, status: "uploading", progress: 2, files: [], commands: [], groupCommands: [], createdAt: now, updatedAt: now };
+  const id = crypto.randomUUID();
+  const batch: Batch = { ...input, id, taskNumber: taskNumberForBatch({ id, createdAt: now }), storageVersion: 2, workflowVersion: 1, status: "uploading", progress: 2, files: [], commands: [], groupCommands: [], createdAt: now, updatedAt: now, revisionHistory: [] };
   mutationQueue = mutationQueue.then(() => withFileLock(STORE_FILE, async () => {
     const batches = await readAll();
     batches.push(batch);

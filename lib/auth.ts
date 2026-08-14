@@ -6,6 +6,7 @@ import {
   createSession,
   createUser,
   deleteSession,
+  deleteUser,
   getSessionUser,
   listUsers,
   resetUserPassword,
@@ -25,6 +26,23 @@ export type AuthUser = {
 
 export const SESSION_COOKIE = "gc_cutflow_session";
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const legacyArchiveTasks = new Map<string, Promise<void>>();
+
+// Historical migration is maintenance work, never a prerequisite for reading
+// an already authenticated session. It must not put the login page or an
+// existing workspace behind the global batches.json lock.
+function scheduleLegacyArchive(root: string) {
+  const existing = legacyArchiveTasks.get(root);
+  if (existing) return existing;
+  const task = archiveLegacyResources(root)
+    .catch((error) => {
+      // The migration remains retryable on a later sign-in or restart.
+      console.error("Legacy archive maintenance deferred:", error);
+    })
+    .finally(() => { legacyArchiveTasks.delete(root); });
+  legacyArchiveTasks.set(root, task);
+  return task;
+}
 
 export async function ensureAuthReady(root = process.cwd()) {
   if (await userCount(root)) return;
@@ -36,9 +54,10 @@ export async function ensureAuthReady(root = process.cwd()) {
 export async function currentUser(root = process.cwd()): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  const user = await getSessionUser(root, token);
-  if (user) await archiveLegacyResources(root);
-  return user as AuthUser | null;
+  // Authentication is a read-only hot path for every API route, including
+  // NAS browsing and video range requests. Legacy migration is explicit and
+  // must never wait behind a long-running Batch writer here.
+  return await getSessionUser(root, token) as AuthUser | null;
 }
 
 export async function signIn(root: string, username: string, password: string, key: string) {
@@ -53,8 +72,11 @@ export async function signIn(root: string, username: string, password: string, k
     return null;
   }
   loginAttempts.delete(key);
-  await archiveLegacyResources(root);
-  return { user, session: await createSession(root, user.id) };
+  const session = await createSession(root, user.id);
+  // Keep the archive visible and transferable for administrators without
+  // putting a storage migration on the synchronous sign-in path.
+  void scheduleLegacyArchive(root);
+  return { user, session };
 }
 
 export async function signOut(root = process.cwd()) {
@@ -102,7 +124,7 @@ export function requireSameOrigin(request: Request) {
     if (source.protocol !== "http:" && source.protocol !== "https:") return false;
     // Next may construct request.url with its bind address (0.0.0.0 or
     // localhost) even when the browser reached the service through its LAN
-    // address.  Compare the browser Origin to the actual Host header instead;
+    // address. Compare the browser Origin to the actual Host header instead;
     // a cross-site browser request cannot forge that destination Host header.
     const destinationHost = (request.headers.get("x-forwarded-host") || request.headers.get("host") || new URL(request.url).host).toLowerCase();
     if (source.host.toLowerCase() !== destinationHost) return false;
@@ -112,4 +134,4 @@ export function requireSameOrigin(request: Request) {
 }
 
 export function isAdmin(user: AuthUser) { return user.role === "admin"; }
-export { createUser, listUsers, resetUserPassword, setUserStatus };
+export { createUser, deleteUser, listUsers, resetUserPassword, setUserStatus };

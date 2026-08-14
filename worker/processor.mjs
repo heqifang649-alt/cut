@@ -1,4 +1,3 @@
-import { Codex } from "@openai/codex-sdk";
 import { existsSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -9,14 +8,16 @@ import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool } from "./ai-
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
 import { createProductViews, isNewSchedulerEnabled, scheduleProductView } from "./shot-scheduler.mjs";
+import { isSemanticShadowEnabled, runSemanticShadow } from "./semantic-shadow.mjs";
 import { groupProductsByFilename, groupProductsByProductDirectory } from "./filename-product-grouper.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
-import { MAX_RECOVERY_ATTEMPTS, classifyRecoveryError, codexInactivityManualMessage, isRetryDue, markFatalFailure, markManualRequired, markRecoveryRetryReady, markRecoverySucceeded, readRecoveryState, recoveryAttemptLimit, scheduleRecovery } from "./recovery.mjs";
+import { MAX_RECOVERY_ATTEMPTS, classifyRecoveryError, codexInactivityManualMessage, isRetryDue, markFatalFailure, markManualRequired, markRecoveryRetryReady, markRecoverySucceeded, readRecoveryState, recordCodexSdkEvent, recordCodexTurnCompleted, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, scheduleRecovery } from "./recovery.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { assertLegacyEditPlanReady, editPlanPrerequisiteError } from "./edit-plan-readiness.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
+import { createCodexClient } from "../lib/codex-client.mjs";
 
 const ROOT = process.cwd();
 const STORE = path.join(ROOT, "data", "batches.json");
@@ -48,7 +49,9 @@ class CanceledError extends Error {
 class TurnTimeoutError extends Error {
   constructor(context = {}) {
     const timeoutMs = Number(context.timeoutMs) || TURN_TIMEOUT_MS;
-    super(`Codex 剪辑已连续 ${Math.round(timeoutMs / 60000)} 分钟没有新的 SDK 事件`);
+    super(context.completionMissing
+      ? "Codex executor ended without a completed turn event"
+      : `Codex 剪辑已连续 ${Math.round(timeoutMs / 60000)} 分钟没有新的 SDK 事件`);
     this.name = "TurnTimeoutError";
     this.code = "CODEX_TURN_INACTIVITY_TIMEOUT";
     this.codexTurn = {
@@ -58,8 +61,42 @@ class TurnTimeoutError extends Error {
       lastEventType: context.lastEventType,
       lastEventSummary: context.lastEventSummary,
       threadId: context.threadId,
+      turnId: context.turnId,
     };
   }
+}
+
+class ExecutorIncompleteError extends Error {
+  constructor(context = {}) {
+    super("Codex executor ended without a completed turn event");
+    this.name = "ExecutorIncompleteError";
+    this.code = "CODEX_EXECUTOR_INCOMPLETE";
+    this.codexTurn = context;
+  }
+}
+
+function codexErrorDiagnostic(error, context = {}) {
+  const source = error && typeof error === "object" ? error : {};
+  const message = error instanceof Error ? error.message : String(error || "Unknown Codex failure");
+  const statusMatch = message.match(/\b(?:http\s*)?(401|403|429|500|502|503|504)\b/i);
+  const suppliedStatus = Number(source.httpStatus ?? source.status ?? source.statusCode);
+  return {
+    ...context,
+    errorCode: source.code ? String(source.code) : undefined,
+    httpStatus: Number.isInteger(suppliedStatus) ? suppliedStatus : statusMatch ? Number(statusMatch[1]) : undefined,
+    cause: source.cause instanceof Error ? source.cause.message.slice(-800) : undefined,
+  };
+}
+
+function turnFailedError(failure, context) {
+  const source = failure && typeof failure === "object" ? failure : {};
+  const error = new Error(source.message || String(failure || "Codex turn failed"));
+  if (source.code) error.code = String(source.code);
+  if (source.status !== undefined) error.status = source.status;
+  if (source.statusCode !== undefined) error.statusCode = source.statusCode;
+  if (source.httpStatus !== undefined) error.httpStatus = source.httpStatus;
+  error.codexTurn = context;
+  return error;
 }
 
 const batchDirFor = (batch) => batchWorkspacePath(ROOT, batch);
@@ -80,6 +117,7 @@ function resolveFilePath(batch, file) {
 }
 const ACTIVE_BATCH_STATUSES = new Set(["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"]);
 const RUNNABLE_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
+const CODEX_DEPENDENT_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
 
 async function validateProductSource(batch, batchDir, file) {
   const videoPath = resolveFilePath(batch, file);
@@ -351,6 +389,10 @@ async function runTurn(thread, batchId, prompt, options = {}) {
     isBatchCanceled = () => isCanceled(batchId),
     timeoutMs = TURN_TIMEOUT_MS,
     activityPersistMs = TURN_ACTIVITY_PERSIST_MS,
+    runtimeRoot = ROOT,
+    codexService = failureContext?.service || "legacy",
+    codexSlotId,
+    queueLeaseId,
     ...turnOptions
   } = options;
   const turnId = crypto.randomUUID();
@@ -376,7 +418,10 @@ async function runTurn(thread, batchId, prompt, options = {}) {
     lastEventType,
     lastEventSummary,
     threadId: thread.id || undefined,
+    turnId,
   });
+
+  await recordCodexTurnStart({ root: runtimeRoot, turnId, threadId: thread.id || undefined, taskKey: batchId, service: codexService, slotId: codexSlotId, queueLeaseId }).catch(() => undefined);
 
   const writeActivity = async ({ throwOnFailure = false } = {}) => {
     if (turnInvalidated) return;
@@ -412,9 +457,9 @@ async function runTurn(thread, batchId, prompt, options = {}) {
         item.renderingLabel = "Codex SDK 无事件，正在终止当前 Turn";
         item.codexTurn = {
           state: "timed_out",
-          turnId: `${turnId}:expired`,
           timedOutAt: new Date().toISOString(),
           ...turnContext(),
+          turnId: `${turnId}:expired`,
         };
       })).catch(() => undefined);
       controller.abort();
@@ -427,6 +472,7 @@ async function runTurn(thread, batchId, prompt, options = {}) {
     eventCount += 1;
     lastEventType = event?.type || "unknown";
     lastEventSummary = describeTurnEvent(event);
+    void recordCodexSdkEvent({ root: runtimeRoot, turnId, event }).catch(() => undefined);
     armInactivityTimer();
     if (lastEventAt - lastPersistedAt >= activityPersistMs) {
       lastPersistedAt = lastEventAt;
@@ -451,6 +497,7 @@ async function runTurn(thread, batchId, prompt, options = {}) {
     let finalResponse = "";
     let usage = null;
     let failure = null;
+    let completed = false;
     for await (const event of events) {
       noteActivity(event);
       if (event.type === "item.completed") {
@@ -458,13 +505,18 @@ async function runTurn(thread, batchId, prompt, options = {}) {
         items.push(event.item);
       } else if (event.type === "turn.completed") {
         usage = event.usage;
+        completed = true;
       } else if (event.type === "turn.failed") {
         failure = event.error;
+        break;
+      } else if (event.type === "error") {
+        failure = event.error || { message: event.message || "Codex SDK stream error." };
         break;
       }
     }
     if (timedOut) throw timeoutError;
-    if (failure) throw new Error(failure.message || "Codex turn failed");
+    if (failure) throw turnFailedError(failure, turnContext());
+    if (!completed) throw new ExecutorIncompleteError(turnContext());
     return { items, finalResponse, usage };
   };
 
@@ -479,9 +531,26 @@ async function runTurn(thread, batchId, prompt, options = {}) {
       if (item.codexTurn?.turnId && item.codexTurn.turnId !== turnId) return;
       item.codexTurn = { ...item.codexTurn, state: "completed", turnId, completedAt: new Date().toISOString() };
     })).catch(() => undefined);
+    await recordCodexTurnCompleted({ root: runtimeRoot, turnId }).catch(() => undefined);
     return result;
   } catch (error) {
-    if (await isBatchCanceled()) throw new CanceledError();
+    if (await isBatchCanceled()) {
+      await recordCodexTurnFailure({ root: runtimeRoot, turnId, kind: "canceled", message: "Batch canceled" }).catch(() => undefined);
+      throw new CanceledError();
+    }
+    const classification = classifyRecoveryError(error);
+    const diagnostic = codexErrorDiagnostic(error, turnContext());
+    if (error && typeof error === "object" && !error.codexTurn) {
+      try { error.codexTurn = turnContext(); } catch {}
+    }
+    await recordCodexTurnFailure({
+      root: runtimeRoot,
+      turnId,
+      kind: timedOut ? "codex_inactivity" : classification.kind,
+      failureClass: timedOut ? "inactivity_timeout" : classification.failureClass,
+      message: error instanceof Error ? error.message : String(error),
+      diagnostic,
+    }).catch(() => undefined);
     if (timedOut) throw timeoutError || new TurnTimeoutError(turnContext());
     throw error;
   } finally {
@@ -582,7 +651,7 @@ async function readBatches() {
 
 async function accountReady() {
   const state = await readJson(ACCOUNT_STATE, null);
-  return state?.ready === true;
+  return Boolean(state && state.authenticationValid !== false && (state.ready === true || state.apiReady === true));
 }
 
 async function writeBatches(batches) {
@@ -603,7 +672,7 @@ async function update(id, change) {
 }
 
 function createThread(batch) {
-  const codex = new Codex();
+  const codex = createCodexClient();
   const batchDir = batchDirFor(batch);
   const options = {
     // This is a hard tenant boundary for every Codex turn. Do not use the
@@ -1023,6 +1092,9 @@ async function runAnalyzeQuality(batch) {
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
     });
   }
+  if (isSemanticShadowEnabled()) {
+    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG });
+  }
 }
 
 async function markRenderQueued(batch, operation = "render") {
@@ -1100,6 +1172,9 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       batchDir,
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
     });
+  }
+  if (includeAnalyze && isSemanticShadowEnabled()) {
+    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG });
   }
   let scheduledProducts = [];
   if (isNewSchedulerEnabled()) {
@@ -1280,18 +1355,36 @@ async function runRenderBatch(batch) {
   const { files, summary } = rendered;
   if (!files.length) await captureLegacyFailure(batch, new Error("未生成任何可审核的 MP4 成片。"), "视频渲染");
   await update(batch.id, (item) => {
+    const isRevision = batch.status === "revising" && Number(item.revisionVersion || 0) > 0;
+    const priorOutputs = item.files.filter((file) => file.kind === "output");
     item.status = files.length ? "review" : "failed";
     item.progress = files.length ? 100 : 92;
     item.error = files.length ? undefined : "未生成任何可审核的 MP4 成片。";
+    if (isRevision && priorOutputs.length) item.outputHistory = [...(item.outputHistory || []), ...priorOutputs];
     item.files = item.files.filter((file) => file.kind !== "output").concat(files);
     item.renderSummary = summary;
     item.renderingLabel = undefined;
+    if (isRevision) {
+      const revision = item.revisionHistory?.find((entry) => entry.version === Number(item.revisionVersion));
+      if (revision) {
+        revision.status = files.length ? "review" : "failed";
+        revision.completedAt = new Date().toISOString();
+        revision.outputIds = files.map((file) => file.id);
+        if (!files.length) revision.error = item.error;
+      }
+    }
   });
 }
 
 async function runRevision(batch, { render = true } = {}) {
   await throwIfCanceled(batch.id);
-  await update(batch.id, (item) => { item.status = "revising"; item.progress = 86; item.error = undefined; });
+  await update(batch.id, (item) => {
+    item.status = "revising";
+    item.progress = 86;
+    item.error = undefined;
+    const revision = item.revisionHistory?.find((entry) => entry.version === Number(item.revisionVersion));
+    if (revision) { revision.status = "processing"; revision.startedAt ??= new Date().toISOString(); }
+  });
   const command = batch.commands.at(-1)?.text || "按最新反馈统一调整整批成片。";
   const thread = createThread(batch);
   const batchDir = batchDirFor(batch);
@@ -1309,7 +1402,19 @@ async function runRevision(batch, { render = true } = {}) {
   const refreshed = (await readBatches()).find((item) => item.id === batch.id) || batch;
   const { files, summary } = await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, ffmpeg: FFMPEG, isCanceled: () => isCanceled(batch.id), onActivity: async (label) => update(batch.id, (item) => { item.renderingLabel = label; item.lastWorkerActivityAt = new Date().toISOString(); }), onProgress: async (done, total, label) => update(batch.id, (item) => { item.progress = 86 + Math.round((done / total) * 11); item.renderingLabel = `${label}（${done}/${total}）`; item.lastWorkerActivityAt = new Date().toISOString(); }) });
   if (!files.length) await captureLegacyFailure(batch, new Error("修改任务未生成任何可审核的 MP4 成片。"), "修改渲染");
-  await update(batch.id, (item) => { item.status = files.length ? "review" : "failed"; item.progress = files.length ? 100 : 92; item.error = files.length ? undefined : "修改任务未生成任何可审核的 MP4 成片。"; item.threadId = thread.id || item.threadId; item.files = item.files.filter((file) => file.kind !== "output").concat(files); item.renderSummary = summary; item.renderingLabel = undefined; });
+  await update(batch.id, (item) => {
+    const priorOutputs = item.files.filter((file) => file.kind === "output");
+    item.status = files.length ? "review" : "failed";
+    item.progress = files.length ? 100 : 92;
+    item.error = files.length ? undefined : "修改任务未生成任何可审核的 MP4 成片。";
+    item.threadId = thread.id || item.threadId;
+    if (priorOutputs.length) item.outputHistory = [...(item.outputHistory || []), ...priorOutputs];
+    item.files = item.files.filter((file) => file.kind !== "output").concat(files);
+    item.renderSummary = summary;
+    item.renderingLabel = undefined;
+    const revision = item.revisionHistory?.find((entry) => entry.version === Number(item.revisionVersion));
+    if (revision) { revision.status = files.length ? "review" : "failed"; revision.completedAt = new Date().toISOString(); revision.outputIds = files.map((file) => file.id); if (!files.length) revision.error = item.error; }
+  });
 }
 
 async function scanOutputs(directory) {
@@ -1328,12 +1433,12 @@ async function scanOutputs(directory) {
 async function tick() {
   await writeHeartbeat();
   const batches = await readBatches();
-  if (!(await accountReady())) {
+  const codexAvailable = await accountReady();
+  if (!codexAvailable) {
     const interrupted = batches.find((item) => ACTIVE_BATCH_STATUSES.has(item.status));
     if (interrupted) await recoverCodexConnection(interrupted);
-    return false;
   }
-  const batch = batches.find((item) => RUNNABLE_BATCH_STATUSES.has(item.status));
+  const batch = batches.find((item) => RUNNABLE_BATCH_STATUSES.has(item.status) && (codexAvailable || !CODEX_DEPENDENT_BATCH_STATUSES.has(item.status)));
   if (!batch) return false;
   if (!(await resumeRecoveryIfNeeded(batch))) return false;
   try {
@@ -1351,7 +1456,7 @@ async function tick() {
   return true;
 }
 
-export { TurnTimeoutError, analyzeReference, detectProducts, runAnalyzeQuality, runBatchEdit, runRenderBatch, runRevision, runTurn, readBatches, update, isCanceled, recoverOrEscalate, setLeaseGuard, setFailureContext, createReadOnlyNasVideoProxy, prepareEditWorkspaceContext };
+export { TurnTimeoutError, ExecutorIncompleteError, analyzeReference, detectProducts, runAnalyzeQuality, runBatchEdit, runRenderBatch, runRevision, runTurn, readBatches, update, isCanceled, recoverOrEscalate, setLeaseGuard, setFailureContext, createReadOnlyNasVideoProxy, prepareEditWorkspaceContext };
 
 function setLeaseGuard(guard) {
   leaseGuard = typeof guard === "function" ? guard : null;

@@ -13,6 +13,8 @@ const RECOVERY_FILE = "recovery-log.json";
 const CODEX_CONTROL_FILE = "codex-execution-control.json";
 const CODEX_SLOT_TTL_MS = Math.max(60_000, Number(process.env.CUTFLOW_CODEX_SLOT_TTL_MS) || 2 * 60_000);
 const CODEX_CAPACITY_WAIT_MS = Math.max(5_000, Number(process.env.CUTFLOW_CODEX_CAPACITY_WAIT_MS) || 30_000);
+const CODEX_PROBE_FRESH_MS = Math.max(30_000, Number(process.env.CUTFLOW_CODEX_PROBE_FRESH_MS) || 5 * 60_000);
+const MAX_RECENT_CODEX_FAILURES = 12;
 
 export async function recoveryFileFor(root, batch) {
   const batchDir = typeof batch === "object" && batch ? batchWorkspacePath(root, batch) : await batchWorkspacePathForId(root, batch);
@@ -36,11 +38,43 @@ function parseTime(value) {
   return Number.isFinite(time) ? time : 0;
 }
 
+// Keep the retry implementation's existing `kind` values stable while
+// exposing a precise, user-visible Codex failure class in diagnostics.
+export function codexFailureClassFor(value) {
+  const kind = String(typeof value === "object" && value ? value.failureClass || value.kind || "" : value || "").toLowerCase();
+  if (["healthy", "normal"].includes(kind)) return "healthy";
+  if (["stream_disconnected", "codex_stream_disconnected", "reconnect"].includes(kind)) return "stream_disconnected";
+  if (["executor_stalled", "codex_executor_stalled", "codex_executor_incomplete"].includes(kind)) return "executor_stalled";
+  if (["executor_crashed", "codex_executor_crashed"].includes(kind)) return "executor_crashed";
+  if (["inactivity_timeout", "codex_inactivity", "codex_turn_inactivity_timeout"].includes(kind)) return "inactivity_timeout";
+  if (["rate_limited", "codex_rate_limit", "codex_concurrency", "concurrency_limited"].includes(kind)) return "rate_limited";
+  if (["auth_failed", "codex_authentication"].includes(kind)) return "auth_failed";
+  if (["service_unavailable", "codex_service_unavailable"].includes(kind)) return "service_unavailable";
+  return undefined;
+}
+
 function initialCodexControl() {
   return {
     schemaVersion: 1,
     circuit: { state: "closed", consecutiveFailures: 0 },
     slots: [],
+    runtime: {
+      modelServiceReachable: null,
+      codexExecutorAlive: null,
+      sdkTurnActive: false,
+      sdkTurnCompleted: false,
+      authenticationValid: null,
+      status: "normal",
+      failureClass: "healthy",
+      currentTurn: null,
+      lastTurn: null,
+      lastSdkEventAt: null,
+      lastCompletedAt: null,
+      failedRequests: 0,
+      rateLimitErrors: 0,
+      concurrencyErrors: 0,
+      recentFailures: [],
+    },
   };
 }
 
@@ -55,11 +89,209 @@ async function mutateCodexControl(root, change) {
     const control = await readJson(file, initialCodexControl());
     control.schemaVersion = 1;
     control.circuit ??= { state: "closed", consecutiveFailures: 0 };
+    control.runtime ??= initialCodexControl().runtime;
     pruneExpiredSlots(control);
     const result = await change(control);
     control.updatedAt = nowIso();
     await writeJsonAtomic(file, control);
     return result;
+  });
+}
+
+export async function readCodexExecutionState(root) {
+  const control = await readJson(codexControlFileFor(root), initialCodexControl());
+  const account = await readJson(path.join(root, "data", "codex-account-state.json"), null);
+  const accountProbeFresh = Boolean(account && parseTime(account.checkedAt) >= Date.now() - CODEX_PROBE_FRESH_MS);
+  const runtime = {
+    ...initialCodexControl().runtime,
+    ...(control.runtime || {}),
+    ...(accountProbeFresh ? {
+      modelServiceReachable: account.apiReady === true,
+      codexExecutorAlive: account.executorReady === true,
+      // A fresh probe can confirm a healthy account, but must never overwrite
+      // a later real-Turn authentication failure recorded by a worker.
+      authenticationValid: control.runtime?.authenticationValid === false || account.authenticationValid === false
+        ? false
+        : account.apiReady === true ? true : null,
+    } : {}),
+  };
+  const slots = (Array.isArray(control.slots) ? control.slots : []).filter((slot) => parseTime(slot.expiresAt) > Date.now());
+  const circuit = control.circuit || { state: "closed", consecutiveFailures: 0 };
+  const queueFile = path.join(root, "data", "service-queue.json");
+  let queue = { waiting: 0, running: 0, failed: 0, retry: 0, tasks: [] };
+  try {
+    const serviceQueue = await readJson(queueFile, { tasks: [] });
+    for (const task of Array.isArray(serviceQueue.tasks) ? serviceQueue.tasks : []) {
+      if (!isCodexServiceTask(task?.stage, task?.operation)) continue;
+      if (task.status === "queued") queue.waiting += 1;
+      if (task.status === "leased") queue.running += 1;
+      if (task.status === "retry") { queue.waiting += 1; queue.retry += 1; }
+      if (task.status === "manual") queue.failed += 1;
+      if (["queued", "leased", "retry", "manual"].includes(task.status)) {
+        queue.tasks.push({
+          key: task.key,
+          stage: task.stage,
+          operation: task.operation,
+          status: task.status,
+          attempt: Number(task.attempt || 0),
+          notBefore: task.notBefore || null,
+          reason: task.reason || null,
+          lease: task.lease ? {
+            workerId: task.lease.workerId,
+            leaseId: task.lease.leaseId,
+            heartbeatAt: task.lease.heartbeatAt,
+            expiresAt: task.lease.expiresAt,
+          } : null,
+        });
+      }
+    }
+  } catch (error) {
+    queue.readError = String(error instanceof Error ? error.message : error).slice(-300);
+  }
+  const status = runtime.authenticationValid === false
+    ? "auth_invalid"
+    : circuit.state === "open" || circuit.state === "half_open" || circuit.state === "manual"
+      ? "backoff"
+      : runtime.sdkTurnActive
+        ? "running"
+        : ["auth_invalid", "backoff", "unresponsive"].includes(runtime.status)
+          ? runtime.status
+        : runtime.modelServiceReachable === true && runtime.codexExecutorAlive === true
+          ? "normal"
+          : "unresponsive";
+  return {
+    ...runtime,
+    status,
+    circuit,
+    slots,
+    concurrencyLimit: codexConcurrencyLimit(),
+    activeSlotCount: slots.length,
+    currentTurn: runtime.currentTurn || null,
+    lastTurn: runtime.lastTurn || null,
+    queue,
+    probe: account ? {
+      checkedAt: account.checkedAt || null,
+      fresh: accountProbeFresh,
+      response: account.response || null,
+      failureClass: account.failureClass || null,
+      error: account.error || null,
+      sdkEventCount: Number(account.sdkEventCount || 0),
+      lastSdkEventType: account.lastSdkEventType || null,
+      threadId: account.threadId || null,
+    } : null,
+  };
+}
+
+export async function updateCodexRuntime(root, change) {
+  return mutateCodexControl(root, (control) => {
+    control.runtime = { ...initialCodexControl().runtime, ...(control.runtime || {}), ...change };
+    return structuredClone(control.runtime);
+  });
+}
+
+export async function recordCodexTurnStart({ root, turnId, threadId, taskKey, service, slotId, queueLeaseId }) {
+  return updateCodexRuntime(root, {
+    sdkTurnActive: true,
+    sdkTurnCompleted: false,
+    codexExecutorAlive: true,
+    status: "running",
+    failureClass: "healthy",
+    currentTurn: { turnId, threadId, taskKey, service, slotId, queueLeaseId, startedAt: nowIso(), eventCount: 0 },
+  });
+}
+
+export async function recordCodexSdkEvent({ root, turnId, event }) {
+  const at = nowIso();
+  return mutateCodexControl(root, (control) => {
+    const runtime = { ...initialCodexControl().runtime, ...(control.runtime || {}) };
+    if (runtime.currentTurn?.turnId && runtime.currentTurn.turnId !== turnId) return false;
+    runtime.sdkTurnActive = true;
+    runtime.sdkTurnCompleted = false;
+    runtime.lastSdkEventAt = at;
+    runtime.currentTurn = {
+      ...(runtime.currentTurn || {}),
+      turnId,
+      ...(event?.thread_id ? { threadId: event.thread_id } : {}),
+      eventCount: Number(runtime.currentTurn?.eventCount || 0) + 1,
+      lastEventAt: at,
+      lastEventType: event?.type || "unknown",
+    };
+    runtime.status = "running";
+    control.runtime = runtime;
+    return true;
+  });
+}
+
+export async function recordCodexTurnCompleted({ root, turnId }) {
+  const at = nowIso();
+  return mutateCodexControl(root, (control) => {
+    const runtime = { ...initialCodexControl().runtime, ...(control.runtime || {}) };
+    if (runtime.currentTurn?.turnId && runtime.currentTurn.turnId !== turnId) return false;
+    runtime.sdkTurnActive = false;
+    runtime.sdkTurnCompleted = true;
+    runtime.lastCompletedAt = at;
+    runtime.lastSdkEventAt = at;
+    runtime.status = "normal";
+    runtime.failureClass = "healthy";
+    runtime.lastTurn = runtime.currentTurn ? { ...runtime.currentTurn, completedAt: at, outcome: "completed" } : runtime.lastTurn;
+    runtime.currentTurn = null;
+    control.runtime = runtime;
+    return true;
+  });
+}
+
+export async function recordCodexTurnFailure({ root, turnId, kind, failureClass, message, diagnostic }) {
+  return mutateCodexControl(root, (control) => {
+    const runtime = { ...initialCodexControl().runtime, ...(control.runtime || {}) };
+    runtime.sdkTurnActive = false;
+    runtime.sdkTurnCompleted = false;
+    runtime.failedRequests = Number(runtime.failedRequests || 0) + 1;
+    if (kind === "codex_concurrency") runtime.concurrencyErrors = Number(runtime.concurrencyErrors || 0) + 1;
+    if (kind === "codex_rate_limit") runtime.rateLimitErrors = Number(runtime.rateLimitErrors || 0) + 1;
+    const normalizedFailureClass = codexFailureClassFor(failureClass || kind);
+    if (normalizedFailureClass === "auth_failed") runtime.authenticationValid = false;
+    if (["executor_crashed", "executor_stalled"].includes(normalizedFailureClass)) runtime.codexExecutorAlive = false;
+    runtime.status = normalizedFailureClass === "auth_failed"
+      ? "auth_invalid"
+      : ["inactivity_timeout", "stream_disconnected", "executor_stalled", "executor_crashed", "service_unavailable"].includes(normalizedFailureClass)
+        ? "unresponsive"
+        : normalizedFailureClass === "rate_limited" ? "backoff" : "normal";
+    runtime.failureClass = normalizedFailureClass || "service_unavailable";
+    const failure = {
+      at: nowIso(),
+      turnId,
+      kind,
+      failureClass: normalizedFailureClass,
+      message: String(message || "").slice(-800),
+      ...(diagnostic && typeof diagnostic === "object" ? { diagnostic: structuredClone(diagnostic) } : {}),
+    };
+    runtime.recentFailures = [failure, ...(Array.isArray(runtime.recentFailures) ? runtime.recentFailures : [])].slice(0, MAX_RECENT_CODEX_FAILURES);
+    if (runtime.currentTurn?.turnId === turnId) {
+      runtime.lastTurn = { ...runtime.currentTurn, failedAt: failure.at, errorKind: kind, error: failure.message, outcome: "failed" };
+      runtime.currentTurn = null;
+    }
+    control.runtime = runtime;
+    return structuredClone(runtime);
+  });
+}
+
+export async function setCodexProbeState({ root, modelServiceReachable, codexExecutorAlive, authenticationValid, status, response, sdkTurnCompleted, failureClass }) {
+  return mutateCodexControl(root, (control) => {
+    const runtime = { ...initialCodexControl().runtime, ...(control.runtime || {}) };
+    runtime.modelServiceReachable = modelServiceReachable;
+    runtime.codexExecutorAlive = codexExecutorAlive;
+    runtime.authenticationValid = authenticationValid;
+    runtime.failureClass = failureClass || (status === "normal" ? "healthy" : runtime.failureClass);
+    // An administrative probe may fail while a real Turn is still active. It
+    // reports probe health, but must never erase the active Turn lifecycle.
+    if (!runtime.sdkTurnActive) {
+      runtime.status = status;
+      runtime.sdkTurnCompleted = sdkTurnCompleted === true;
+    }
+    if (response) runtime.lastProbeResponse = String(response).slice(-800);
+    runtime.checkedAt = nowIso();
+    control.runtime = runtime;
+    return structuredClone(runtime);
   });
 }
 
@@ -73,7 +305,7 @@ export async function acquireCodexExecution({ root, task, service, workerId }) {
   return mutateCodexControl(root, (control) => {
     const circuit = control.circuit;
     if (circuit.state === "manual") {
-      return { state: "manual", message: circuit.lastError || "Codex account concurrency circuit requires manual attention." };
+      return { state: "manual", message: circuit.lastError || "Codex concurrency backoff requires bounded manual requeue." };
     }
 
     if (circuit.state === "half_open") {
@@ -157,7 +389,7 @@ export async function releaseCodexExecution({ root, slot, succeeded = false }) {
   });
 }
 
-export async function tripCodexConcurrencyCircuit({ root, message, task, service, workerId }) {
+export async function tripCodexConcurrencyCircuit({ root, message, task, service, workerId, kind = "codex_concurrency" }) {
   return mutateCodexControl(root, (control) => {
     const previous = Number(control.circuit?.consecutiveFailures || 0);
     const attempt = previous + 1;
@@ -167,13 +399,16 @@ export async function tripCodexConcurrencyCircuit({ root, message, task, service
       lastTaskKey: task?.key,
       lastService: service,
       lastWorkerId: workerId,
+      lastKind: kind,
       consecutiveFailures: attempt,
     };
-    if (attempt >= MAX_CODEX_CONCURRENCY_ATTEMPTS) {
+    // Keep all five documented account-level backoff windows (1/2/5/10/15
+    // minutes). Only the following failure requires manual intervention.
+    if (attempt > MAX_CODEX_CONCURRENCY_ATTEMPTS) {
       control.circuit = { state: "manual", ...details, manualAt: nowIso() };
       return { state: "manual", attempt };
     }
-    const delayMs = retryDelayFor(attempt, { kind: "codex_concurrency" });
+    const delayMs = retryDelayFor(attempt, { kind });
     control.circuit = {
       state: "open",
       ...details,
@@ -194,14 +429,49 @@ export function classifyRecoveryError(error, context = {}) {
   if (errorCode === "edit_plan_not_ready") {
     return { category: "business", kind: "edit_plan_not_ready", recoverable: false, label: "剪辑计划未生成，等待人工处理" };
   }
+  if (errorCode === "codex_executor_incomplete" || /(?:executor|codex).*?(?:ended|exited).*?(?:without|missing).*?(?:turn\.)?completed|without a completed turn event/.test(message)) {
+    return { category: "recoverable", kind: "codex_executor_stalled", failureClass: "executor_stalled", recoverable: true, label: "Codex executor did not complete its Turn; rebuilding executor" };
+  }
+  if (errorCode === "codex_executor_crashed" || /codex exec exited with (?:code|signal)|child process has no (?:stdin|stdout)/.test(message)) {
+    return { category: "recoverable", kind: "codex_executor_crashed", failureClass: "executor_crashed", recoverable: true, label: "Codex executor exited; rebuilding executor" };
+  }
   if (errorCode === "codex_turn_inactivity_timeout") {
+    // Keep the established bounded inactivity retry policy, while recording
+    // the stable public failure class separately from the legacy retry kind.
     return { category: "recoverable", kind: "codex_inactivity", recoverable: true, label: "Codex 长时间无事件，正在重新连接" };
   }
   if (
+    errorCode === "codex_service_unavailable"
+    || /country,? region,? or territory not supported|region not supported|model service (?:is )?(?:unavailable|unreachable)|service unavailable|upstream request failed/.test(message)
+    || /\b(?:500|502|503|504)\b/.test(message)
+  ) {
+    return { category: "recoverable", kind: "codex_service_unavailable", failureClass: "service_unavailable", recoverable: true, label: "Codex model service is temporarily unavailable; backing off" };
+  }
+  if (
+    errorCode === "codex_authentication"
+    || /\b401\b|unauthori[sz]ed|invalid api key|authentication failed|auth expired|credential(?:s)? (?:is )?missing|missing (?:api )?(?:credential|token|key)/.test(message)
+    || /\b403\b.*(?:api key|credential|access token|authentication)/.test(message)
+  ) {
+    return { category: "business", kind: "codex_authentication", failureClass: "auth_failed", recoverable: false, label: "Codex authentication requires reconnect" };
+  }
+  if (
+    errorCode === "codex_rate_limit"
+    || /\b429\b|too many requests|usage limit|hit your usage|rate limit/.test(message)
+  ) {
+    return { category: "recoverable", kind: "codex_rate_limit", recoverable: true, label: "Codex rate limit backoff is active" };
+  }
+  if (
     errorCode === "codex_concurrency_limit"
-    || /concurrency limit exceeded|too many concurrent|rate limit|http\s*429|status\s*429/.test(message)
+    || /concurrency limit exceeded|too many concurrent/.test(message)
   ) {
     return { category: "recoverable", kind: "codex_concurrency", recoverable: true, label: "Codex 账户并发受限，正在全局退避" };
+  }
+
+  if (
+    errorCode === "codex_stream_disconnected"
+    || /stream disconnected|stream.*?(?:closed|ended|reset)|connection reset|econnreset|socket hang up/.test(message)
+  ) {
+    return { category: "recoverable", kind: "codex_stream_disconnected", recoverable: true, label: "Codex stream disconnected; rebuilding Turn" };
   }
 
   const manualResources = [
@@ -237,7 +507,7 @@ export function classifyRecoveryError(error, context = {}) {
   const reconnect = [
     /worker.*(?:disconnect|crash)/,
     /econnrefused|econnreset|ehostunreach|enetunreach|eai_again/,
-    /connection refused|connection reset|network timeout|network path|network name/,
+    /connection refused|connection reset|network timeout|network path|network name|upstream request failed|stream disconnected before completion/,
     /worker.*disconnect|codex.*disconnect|heartbeat.*(lost|missing)|nas.*(unavailable|temporarily|不可读)/,
     /连接被拒绝|连接断开|网络超时|网络路径.*不可用|心跳.*丢失/,
   ];
@@ -252,7 +522,7 @@ export function classifyRecoveryError(error, context = {}) {
 
 export function recoveryAttemptLimit(classification) {
   if (classification?.kind === "codex_inactivity") return MAX_CODEX_INACTIVITY_ATTEMPTS;
-  if (classification?.kind === "codex_concurrency") return MAX_CODEX_CONCURRENCY_ATTEMPTS;
+  if (["codex_concurrency", "codex_rate_limit"].includes(classification?.kind)) return MAX_CODEX_CONCURRENCY_ATTEMPTS;
   return MAX_RECOVERY_ATTEMPTS;
 }
 
@@ -289,7 +559,7 @@ export async function appendRecoveryEvent(root, batchId, event) {
 }
 
 export function retryDelayFor(attempt, classification) {
-  const delays = classification?.kind === "codex_concurrency" ? CODEX_CONCURRENCY_DELAYS_MS : RETRY_DELAYS_MS;
+  const delays = ["codex_concurrency", "codex_rate_limit"].includes(classification?.kind) ? CODEX_CONCURRENCY_DELAYS_MS : RETRY_DELAYS_MS;
   return delays[Math.min(Math.max(0, Number(attempt || 1) - 1), delays.length - 1)];
 }
 
@@ -299,7 +569,7 @@ export async function scheduleRecovery({ root, batchId, attempt, stage, classifi
     attempts: attempt,
     state: "recovering",
     stage,
-    issue: classification.kind,
+    issue: classification.failureClass || codexFailureClassFor(classification) || classification.kind,
     nextRetryAt,
     sourceError: String(message || "").slice(-1200),
     message: `自动恢复中：${classification.label}，第 ${attempt} 次尝试`,

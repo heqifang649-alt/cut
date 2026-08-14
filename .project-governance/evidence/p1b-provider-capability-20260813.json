@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1B_PROVIDER_CAPABILITY_PROBE",
+  "executedAt": "2026-08-13T09:38:17.517Z",
+  "status": "BLOCKED_PROVIDER",
+  "constraints": {
+    "maxCandidateModels": 4,
+    "requestTimeoutMs": 15000,
+    "retryLimit": 0,
+    "requestCap": 30,
+    "maxConcurrency": 1,
+    "protocolMode": "auto"
+  },
+  "provider": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "providerName": "尔尔",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "baseUrlFingerprint": "492b6311cff5fcfc"
+  },
+  "reliability": {
+    "requestGuard": {
+      "started": 4,
+      "running": 0,
+      "waiting": 0,
+      "requestCap": 30,
+      "maxConcurrency": 1,
+      "circuit": "OPEN",
+      "circuitOpenUntil": 1786613959116
+    },
+    "observedRequestCount": 4,
+    "boundedPolicyApplied": true,
+    "interpretation": "Every external request in this one-shot P1B probe used the recorded timeout, zero-retry, concurrency, and request-cap policy. Abort/retry mechanics remain covered by targeted adapter regressions; this probe does not induce a provider failure."
+  },
+  "result": {
+    "providerReadyForP1": false,
+    "apiRoot": "https://sub2.de5.net/v1",
+    "selectedModel": "gpt-5.2",
+    "selectedModels": {
+      "fastModel": null,
+      "strongModel": null
+    },
+    "latencyMs": 0,
+    "capabilities": {
+      "AUTH": "UNKNOWN",
+      "MODEL": "UNKNOWN",
+      "TEXT": "UNKNOWN",
+      "RESPONSES_API": "UNKNOWN",
+      "CHAT_COMPLETIONS_API": "UNKNOWN",
+      "MODELS_API": "PASS",
+      "VISION_INPUT": "UNKNOWN",
+      "MULTI_IMAGE": "UNKNOWN",
+      "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+      "JSON_FALLBACK": "UNKNOWN",
+      "USAGE_METADATA": "UNKNOWN",
+      "STREAMING": "UNKNOWN",
+      "TIMEOUT_RETRY_GUARD": "PASS"
+    },
+    "p1FailureReasons": [
+      "AUTH=UNKNOWN",
+      "MODEL=UNKNOWN",
+      "TEXT=UNKNOWN",
+      "VISION_INPUT=UNKNOWN",
+      "MULTI_IMAGE=UNKNOWN",
+      "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+      "JSON_FALLBACK=UNKNOWN"
+    ],
+    "endpointTelemetry": [
+      {
+        "url": "https://sub2.de5.net/v1/models",
+        "httpStatus": 200,
+        "contentType": "application/json; charset=utf-8",
+        "model": null,
+        "capability": "MODELS_API"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 503,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6",
+        "capability": "TEXT",
+        "error": "Service temporarily unavailable"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 0,
+        "contentType": null,
+        "model": "gpt-5.5",
+        "capability": "TEXT",
+        "error": "Provider request timed out."
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 0,
+        "contentType": null,
+        "model": "gpt-5.4",
+        "capability": "TEXT",
+        "error": "Provider request timed out."
+      }
+    ],
+    "modelMatrix": [
+      {
+        "model": "gpt-5.6",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "PASS"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 503,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6",
+            "capability": "TEXT",
+            "error": "Service temporarily unavailable"
+          }
+        ],
+        "error": "Service temporarily unavailable",
+        "status": 503
+      },
+      {
+        "model": "gpt-5.5",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "PASS"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 0,
+            "contentType": null,
+            "model": "gpt-5.5",
+            "capability": "TEXT",
+            "error": "Provider request timed out."
+          }
+        ],
+        "error": "Provider request timed out.",
+        "status": 0
+      },
+      {
+        "model": "gpt-5.4",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "PASS"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 0,
+            "contentType": null,
+            "model": "gpt-5.4",
+            "capability": "TEXT",
+            "error": "Provider request timed out."
+          }
+        ],
+        "error": "Provider request timed out.",
+        "status": 0
+      },
+      {
+        "model": "gpt-5.2",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "PASS"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open.",
+        "status": 0
+      }
+    ],
+    "error": "Provider circuit breaker is open."
+  }
+}

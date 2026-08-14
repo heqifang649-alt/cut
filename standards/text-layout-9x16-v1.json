@@ -36,8 +36,15 @@
     "pointer_center_x_percent": 70,
     "pointer_top_y_percent": 77.4,
     "pointer_bottom_y_percent": 86.7,
-    "pointer_fill": "#E7E7E7",
-    "pointer_stroke": "#FF7A00"
+    "pointer_fill": "#00000000",
+    "pointer_stroke": "#FF3B30",
+    "pointer_inner_stroke": "#FFFFFF",
+    "pointer_glow": "#FF2D20",
+    "pointer_width_ratio": 0.46,
+    "pointer_stroke_width_at_1080": 16,
+    "pointer_inner_stroke_width_at_1080": 5,
+    "pointer_glow_width_at_1080": 38,
+    "pointer_glow_blur_at_1080": 18
   },
   "safe_zone": {
     "left_percent": 4,

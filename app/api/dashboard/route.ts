@@ -6,6 +6,7 @@ import { queueOverview } from "../../../worker/service-queue.mjs";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { batchWorkspacePath } from "@/lib/tenant-paths.mjs";
+import { readCodexExecutionState } from "../../../worker/recovery.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ const FLAG_NAMES = [
   "ENABLE_NEW_SCHEDULER",
   "ENABLE_NEW_RENDERER",
   "ENABLE_TEMPLATE_TRANSITION",
+  "ENABLE_API_SEMANTIC_SCORER",
+  "ENABLE_HYBRID_PILOT",
 ] as const;
 
 const WAITING_STATUSES = new Set(["uploading", "reference_queued", "regroup_queued", "reference_ready", "batch_queued", "revision_queued"]);
@@ -71,6 +74,7 @@ export async function GET() {
   if (!user) return unauthenticated();
   const batches = await listBatchesForOwners(accessibleOwnerIds(user));
   const serviceQueue = await queueOverview(process.cwd(), batches.map((batch) => batch.id));
+  const codex = await readCodexExecutionState(process.cwd());
   const artifacts = await Promise.all(batches.map(async (batch) => {
     const batchDir = batchWorkspacePath(process.cwd(), batch);
     const [validation, schedule, render] = await Promise.all([
@@ -242,6 +246,7 @@ export async function GET() {
       nextRestartAt: serviceHeartbeats[stage]?.nextRestartAt || null,
       ...queue,
     }])),
+    codex,
     flags: FLAG_NAMES.map((name) => ({ name, enabled: flags[name], configured: configuredFlags[name] })),
     tasks: taskOverview,
     quality: { ...quality, trend: days.map((day) => trendByDay.get(day)) },

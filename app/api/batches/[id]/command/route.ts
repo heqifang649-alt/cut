@@ -11,10 +11,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!user) return unauthenticated();
   const { id } = await context.params;
   const { command } = await request.json();
-  if (!String(command || "").trim()) return NextResponse.json({ error: "修改指令不能为空" }, { status: 400 });
-  if (!(await getBatchForOwners(id, accessibleOwnerIds(user)))) return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  const text = String(command || "").trim();
+  if (!text) return NextResponse.json({ error: "Modification instruction is required." }, { status: 400 });
+  const existing = await getBatchForOwners(id, accessibleOwnerIds(user));
+  if (!existing) return NextResponse.json({ error: "Batch not found." }, { status: 404 });
+  if (!["review", "completed"].includes(existing.status)) return NextResponse.json({ error: "Only a completed or review-ready output can be revised." }, { status: 400 });
   const batch = await mutateBatch(id, (item) => {
-    item.commands.push({ text: String(command).trim(), createdAt: new Date().toISOString() });
+    const submittedAt = new Date().toISOString();
+    const revisionVersion = Math.max(0, Number(item.revisionVersion) || 0) + 1;
+    item.commands.push({ text, createdAt: submittedAt });
+    item.revisionVersion = revisionVersion;
+    item.revisionHistory ??= [];
+    item.revisionHistory.push({
+      id: crypto.randomUUID(),
+      version: revisionVersion,
+      command: text,
+      submittedAt,
+      status: "queued",
+      previousOutputs: item.files.filter((file) => file.kind === "output").map((file) => ({ ...file })),
+    });
     item.workflowVersion = Math.max(1, Number(item.workflowVersion) || 1) + 1;
     item.status = "revision_queued";
     item.progress = 82;

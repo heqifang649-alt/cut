@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-13T03:40:52.4762118Z",
+  "status": "P0_PASS_INDEPENDENT_ACCEPTANCE_VERIFIED",
+  "repository": {
+    "head": "56e64689000d99272301257c1a1eaf7e8c837f7d",
+    "branch": "architecture-v2",
+    "worktreeWasDirty": true
+  },
+  "browser": {
+    "url": "http://localhost:3001/",
+    "authBootstrap": "resolved",
+    "visibleState": "authenticated workspace rendered",
+    "previousFailure": "stale next start process served loading-only runtime"
+  },
+  "targetedRegression": {
+    "command": "node --test tests/ai-provider-adapter.test.mjs tests/semantic-shadow.test.mjs",
+    "pass": 16,
+    "fail": 0,
+    "skip": 0
+  },
+  "repositoryRegression": {
+    "command": "node --test tests/*.test.mjs",
+    "pass": 206,
+    "fail": 0,
+    "skip": 1,
+    "skipReason": "expected HTTP integration skip"
+  },
+  "build": { "status": "PASS", "warning": "Turbopack NFT tracing warning remains" },
+  "p0Fixes": [
+    "configured literal secrets are redacted from provider errors and admin DTO boundaries",
+    "queued in-memory provider requests reserve the request cap",
+    "capability probe validates semantic output and probes one-image plus two-image vision",
+    "shadow input policy reserves a representative shot frame",
+    "malformed semantic cache is rebuilt in shadow mode without propagating to Control A"
+  ],
+  "rollback": {
+    "status": "VERIFIED",
+    "evidence": ".project-governance/evidence/control-a-replay-rollback-20260813.json",
+    "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+    "flags": {
+      "ENABLE_NEW_SHOTPOOL": false,
+      "ENABLE_API_SEMANTIC_SCORER": false,
+      "ENABLE_HYBRID_PILOT": false
+    },
+    "equivalence": "decoded video and audio hashes match; container hashes vary only due to h264_mf MP4 metadata timestamps"
+  },
+  "independentAcceptance": {
+    "status": "PASS",
+    "reviewerRole": "Independent Acceptance Reviewer",
+    "acceptedAt": "2026-08-13T04:19:00.000Z",
+    "scope": [
+      "P0 implementation rework",
+      "cache invalidation regression",
+      "measured Control A replay",
+      "flag-off rollback equivalence"
+    ],
+    "limitations": "The fresh replay is content-equivalent between Control A and rollback. It is not a bit-identical reproduction of the older August 7 historical artifact."
+  },
+  "apiConfigurationGate": "USER_ACTION_REQUIRED"
+}

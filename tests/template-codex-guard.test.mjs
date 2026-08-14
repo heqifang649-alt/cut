@@ -10,5 +10,6 @@ test("template analysis shares the global Codex limiter and heartbeats its slot"
   assert.match(source, /tripCodexConcurrencyCircuit/);
   assert.match(source, /codexRetryAt/);
   assert.match(source, /attempts < MAX_RECOVERY_ATTEMPTS/);
-  assert.match(source, /retryDelayFor\(attempts, \{ kind: "codex_inactivity" \}\)/);
+  assert.match(source, /runCompletedCodexTurn/);
+  assert.match(source, /retryDelayFor\(attempts, classification\)/);
 });

@@ -15,6 +15,9 @@ test("approved 9:16 text layout matches the supplied reference positions", async
   assert.equal(layout.cvr.top_y_percent, 71.2);
   assert.equal(layout.cvr.pointer_top_y_percent, 77.4);
   assert.ok(layout.cvr.pointer_bottom_y_percent <= 92);
+  assert.equal(layout.cvr.pointer_stroke, "#FF3B30");
+  assert.equal(layout.cvr.pointer_inner_stroke, "#FFFFFF");
+  assert.ok(layout.cvr.pointer_glow_blur_at_1080 >= 12);
 });
 
 test("renderer and ChatCut manifest use the same layout authority", async () => {
@@ -22,6 +25,8 @@ test("renderer and ChatCut manifest use the same layout authority", async () => 
   const renderer = await readFile(new URL("worker/batch-renderer.mjs", root), "utf8");
   assert.match(overlay, /text-layout-9x16-v1\.json/);
   assert.match(overlay, /top_y_percent/);
+  assert.match(overlay, /GaussianBlur/);
+  assert.match(overlay, /pointer_inner_stroke/);
   assert.match(renderer, /loadRenderRuntimeConfig/);
   assert.match(renderer, /runtimeConfig\.subtitleTemplatePath/);
   assert.match(renderer, /layout_standard: textLayout/);
