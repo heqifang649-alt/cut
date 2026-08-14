@@ -2,8 +2,8 @@
 
 ```text
 PROJECT = CUTFLOW_HYBRID_PILOT
-STAGE = P1E Visual Provider Readiness / P1 Capability Boundary; P2 and P3A Local Preparation
-STATUS = PARTIAL / P1E_LOCAL_HARNESS_VERIFIED / P1E_REAL_BENCHMARK_BLOCKED_SAMPLE_AND_CREDENTIALS / P1_BLOCKED_CAPABILITY_BOUNDARY / P2_PREPARED_LOCAL / P3A_LOCAL_VERIFIED
+STAGE = P2 Semantic Evaluation; P1 Vision Capability passed and mainline recovered
+STATUS = P1_PASS / PILOT_PRIMARY_SELECTED / SCHEDULER_LOCAL_INTEGRATION_VERIFIED / P2_BLOCKED_REAL_LABELS / P3A_LOCAL_VERIFIED
 HISTORICAL_BASELINE_COMMIT = 56e64689000d99272301257c1a1eaf7e8c837f7d
 EXECUTION_BASELINE_COMMIT = 56e64689000d99272301257c1a1eaf7e8c837f7d
 CONTROL_A = preserved; timeout/launcher regression verified; historical baseline augmented by a measured isolated replay
@@ -14,12 +14,12 @@ TC-P1-API-ROOT-CAUSE = PASS / same root, key identity, model, protocol, and Bear
 P1D = BLOCKED_CAPABILITY_BOUNDARY / `gpt-5.6-terra` recorded `/models` 200, TEXT PASS, and validated JSON fallback PASS; native schema and single-image vision returned 502. MULTI_IMAGE consequently did not pass, and the request guard opened after transient failures.
 P1D_SCOPE_REWORK = LOCAL_PASS / explicit P1D model is now strict single-model; regression prevents a probe from continuing to later candidates. The historical P1D evidence's one `gpt-5.6` request is excluded from the `gpt-5.6-terra` capability conclusion.
 TC-P1-CIRCUIT-IDENTITY-AND-HALF-OPEN = LOCAL_PASS / durable breaker state is isolated by normalized URL, credential and configuration fingerprints; CLOSED -> OPEN -> HALF_OPEN -> one probe -> CLOSED/OPEN tests pass.
-P1_GATE = BLOCKED_CAPABILITY_BOUNDARY / AUTH, TEXT, and validated JSON fallback are evidenced. Required VISION_INPUT, MULTI_IMAGE, and timeout/retry reliability are not. This is not evidence that the Provider is categorically incompatible. Streaming and usage metadata do not block P1.
+P1_GATE = PASS / `gpt-5.6-sol` passed TEXT, real SINGLE_IMAGE, real MULTI_IMAGE, semantic-shot.v1 via validated JSON fallback, and bounded reliability. Native structured output and Streaming remain non-blocking.
 P1E-0 = LOCAL_PASS / isolated Gemini and Qwen2.5-VL Chat Completions profile definitions reuse the shared Adapter and frozen `semantic-shot.v1`; no Analyze, Clip, Render, Scheduler, EDL, NAS, Artifact Gate, account-isolation, active Provider config, or production flag changed.
 P1E-1 = PARTIAL_SAMPLE_AND_CREDENTIALS_INSUFFICIENT / current `data/` inventory has zero batches, zero media files, and zero independent labels. Gemini and Qwen credentials are not locally configured. The runner returns before any Provider request until the real 10 normal / 5 confusing-product / 5 AI-artifact / 5 multi-image independently-labelled dataset gate and all three comparison arms are present.
 P1E-2 = LOCAL_PASS / the isolated runner records native structured output and validated JSON fallback separately, then dispatches only when Gemini, Qwen2.5-VL, and the current control provider are all configured. MODEL_FAST and MODEL_STRONG remain empty until complete same-manifest visual and real stability evidence exists.
 P1E = BLOCKED_REAL_EVIDENCE / after P1E-1 is satisfied, run one frozen manifest through Gemini, Qwen2.5-VL, and current `gpt-5.6-terra`, using separate durable provider breaker identities. No recommendation is applied to production.
-P2 = PREPARED_LOCAL / local metrics and synthetic fixture verify accounting only; independently labelled real representative shots and real Provider observations are still required
+P2 = BLOCKED_REAL_LABELS / local metrics, semantic contract, and scheduler integration are verified; independently labelled real representative shots and real Provider observations are still required
 P3A = LOCAL_PASS / A/B infrastructure verifies immutable same inputs, emits paired artifact manifests, QA/efficiency comparison, and anonymous blind-review packages; 4 targeted tests plus scoped ESLint pass
 P3B = NOT_STARTED / requires P1 and P2 evidence before real paired A/B runs
 P3C = NOT_STARTED / requires P3B real outputs and independent blind review
@@ -27,7 +27,7 @@ P3 = NOT_STARTED / P3A does not constitute real A/B evidence or a P3 pass
 P4 = NOT_STARTED
 P5 = NOT_STARTED
 PRODUCTION_MIGRATION = NOT_AUTHORIZED_BY_EVIDENCE
-USER_ACTION_REQUIRED = GEMINI_AND_QWEN_CREDENTIALS_PLUS_INDEPENDENTLY_LABELLED_REAL_P1E_DATASET / credentials must be set only in protected local runtime configuration, never in chat, Git, logs, or evidence. Real P1E requires 10 normal, 5 confusing-product, 5 AI-artifact, and 5 multi-image cases with hashes and independent labels.
+USER_ACTION_REQUIRED = NONE_FOR_CURRENT_P2_PATH / P1E Gemini/Qwen credentials are not required for the current P2 path. If P1E comparison is later authorized, credentials must be set only in protected local runtime configuration, never in chat, Git, logs, or evidence.
 TASK_CARD_DISCIPLINE = P1E-0 and P1E-2 are closed. P1E-1 is blocked on the stated external inputs and dispatches no calls while incomplete. Ordinary Provider 502s, test failures, retries, or non-blocking Streaming support do not authorize a broad repeat loop.
 ```
 
@@ -53,3 +53,4 @@ P1E reuses the shared Adapter's Chat Completions, image-url, JSON fallback, time
 - P1 Vision Capability is PASS. Control A remains preserved and Production Cutover remains false. The next critical path is semantic evidence into the deterministic Treatment B scheduler.
 - Minimal scheduler integration is now locally verified: optional semantic evidence hard-rejects `usable=false`, guards `product_match < 0.5`, and ranks remaining candidates with conservative semantic signals. Legacy calls and Control A remain unchanged.
 - P1 is closed. Next Task Card is P2 real semantic evaluation with independent labels; no further Provider/model discovery is authorized for this gate.
+- P2 dataset inventory is complete: 31 real batches and 2061 media files are available, but independent labels and a frozen 10/5/5/5 manifest are absent. P2 remains blocked on evidence quality, not media availability.
