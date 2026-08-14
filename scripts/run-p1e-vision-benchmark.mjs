@@ -22,7 +22,7 @@ function envValue(name) {
 
 function currentProfile(resolved) {
   const config = resolved?.config;
-  const model = envValue("P1E_CURRENT_MODEL") || config?.strongModel || config?.fastModel || "gpt-5.6-terra";
+  const model = envValue("P1E_CURRENT_MODEL") || config?.strongModel || config?.fastModel || "";
   return {
     id: "current",
     displayName: "Current Provider",

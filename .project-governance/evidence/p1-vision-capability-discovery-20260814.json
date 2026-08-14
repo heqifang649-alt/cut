@@ -1,0 +1,295 @@
+{
+  "schemaVersion": 1,
+  "kind": "P1_VISION_CAPABILITY_DISCOVERY",
+  "executedAt": "2026-08-14T01:58:55.488Z",
+  "taskCard": {
+    "id": "TC-P1-VISION-CAPABILITY-DISCOVERY",
+    "objective": "Find one verified VLM through a bounded real-image P1 probe.",
+    "exitCondition": "Record actual model, endpoint, protocol, visual and semantic JSON outcomes; stop after the first P1-qualified model.",
+    "candidateLimit": 4
+  },
+  "production": {
+    "productionCutover": false,
+    "controlAChanged": false,
+    "treatmentB": "SHADOW_ONLY"
+  },
+  "provider": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "normalizedApiRoot": "https://sub2.de5.net/v1",
+    "baseUrlFingerprint": "492b6311cff5fcfc"
+  },
+  "inputs": [
+    {
+      "sourceId": "storage/batches/0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3/edit/analysis/ah1_M1 (1)-half-second.jpg",
+      "sha256": "013b50cabbf1e0dc0b3120eeacd851e2b381ac62612e0b348e7a640a8ff5a7de"
+    },
+    {
+      "sourceId": "storage/batches/0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3/edit/analysis/ah1_M1 (2)-half-second.jpg",
+      "sha256": "e76290674a83ec31a6ecd9223967727e1766ca5de8d2a25dbda39f1017e1242f"
+    }
+  ],
+  "result": {
+    "providerReadyForP1": false,
+    "selectedModel": "gpt-5.2",
+    "selectedModels": {
+      "fastModel": null,
+      "strongModel": null
+    },
+    "discoveredModels": [
+      "codex-auto-review",
+      "gpt-4o-audio-preview",
+      "gpt-4o-realtime-preview",
+      "gpt-5.2",
+      "gpt-5.2-2025-12-11",
+      "gpt-5.2-chat-latest",
+      "gpt-5.2-pro",
+      "gpt-5.2-pro-2025-12-11",
+      "gpt-5.3-codex",
+      "gpt-5.3-codex-spark",
+      "gpt-5.4",
+      "gpt-5.4-2026-03-05",
+      "gpt-5.4-mini",
+      "gpt-5.5",
+      "gpt-5.6",
+      "gpt-5.6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-image",
+      "gpt-image-1",
+      "gpt-image-1.5",
+      "gpt-image-2"
+    ],
+    "capabilities": {
+      "AUTH": "UNKNOWN",
+      "MODEL": "UNKNOWN",
+      "TEXT": "UNKNOWN",
+      "RESPONSES_API": "UNKNOWN",
+      "CHAT_COMPLETIONS_API": "UNKNOWN",
+      "MODELS_API": "PASS",
+      "VISION_INPUT": "UNKNOWN",
+      "MULTI_IMAGE": "UNKNOWN",
+      "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+      "JSON_FALLBACK": "UNKNOWN",
+      "USAGE_METADATA": "UNKNOWN",
+      "STREAMING": "UNKNOWN",
+      "TIMEOUT_RETRY_GUARD": "FAIL"
+    },
+    "p1FailureReasons": [
+      "AUTH=UNKNOWN",
+      "MODEL=UNKNOWN",
+      "TEXT=UNKNOWN",
+      "VISION_INPUT=UNKNOWN",
+      "MULTI_IMAGE=UNKNOWN",
+      "TIMEOUT_RETRY_GUARD=FAIL",
+      "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+      "JSON_FALLBACK=UNKNOWN"
+    ],
+    "endpointTelemetry": [
+      {
+        "url": "https://sub2.de5.net/v1/models",
+        "httpStatus": 200,
+        "contentType": "application/json; charset=utf-8",
+        "model": null,
+        "capability": "MODELS_API",
+        "protocol": null,
+        "fallbackAttempted": false,
+        "fallbackProtocol": null,
+        "fallbackResult": null,
+        "fallbackErrorCode": null
+      },
+      {
+        "url": "https://sub2.de5.net/v1/responses",
+        "httpStatus": 503,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6",
+        "capability": "TEXT",
+        "protocol": "responses",
+        "fallbackAttempted": true,
+        "fallbackProtocol": "chat_completions",
+        "fallbackResult": "FAIL",
+        "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
+        "error": "Service temporarily unavailable"
+      },
+      {
+        "url": "https://sub2.de5.net/v1/chat/completions",
+        "httpStatus": 503,
+        "contentType": "application/json; charset=utf-8",
+        "model": "gpt-5.6",
+        "capability": "TEXT",
+        "protocol": "chat_completions",
+        "fallbackAttempted": true,
+        "fallbackProtocol": "chat_completions",
+        "fallbackResult": "FAIL",
+        "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
+        "error": "Service temporarily unavailable"
+      }
+    ],
+    "modelMatrix": [
+      {
+        "model": "gpt-5.6",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [
+          {
+            "url": "https://sub2.de5.net/v1/responses",
+            "httpStatus": 503,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6",
+            "capability": "TEXT",
+            "protocol": "responses",
+            "fallbackAttempted": true,
+            "fallbackProtocol": "chat_completions",
+            "fallbackResult": "FAIL",
+            "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
+            "error": "Service temporarily unavailable"
+          },
+          {
+            "url": "https://sub2.de5.net/v1/chat/completions",
+            "httpStatus": 503,
+            "contentType": "application/json; charset=utf-8",
+            "model": "gpt-5.6",
+            "capability": "TEXT",
+            "protocol": "chat_completions",
+            "fallbackAttempted": true,
+            "fallbackProtocol": "chat_completions",
+            "fallbackResult": "FAIL",
+            "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
+            "error": "Service temporarily unavailable"
+          }
+        ],
+        "error": "Service temporarily unavailable"
+      },
+      {
+        "model": "gpt-5.5",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open."
+      },
+      {
+        "model": "gpt-5.4",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open."
+      },
+      {
+        "model": "gpt-5.2",
+        "capabilities": {
+          "AUTH": "UNKNOWN",
+          "MODEL": "UNKNOWN",
+          "TEXT": "UNKNOWN",
+          "RESPONSES_API": "UNKNOWN",
+          "CHAT_COMPLETIONS_API": "UNKNOWN",
+          "MODELS_API": "PASS",
+          "VISION_INPUT": "UNKNOWN",
+          "MULTI_IMAGE": "UNKNOWN",
+          "STRUCTURED_OUTPUT_NATIVE": "UNKNOWN",
+          "JSON_FALLBACK": "UNKNOWN",
+          "USAGE_METADATA": "UNKNOWN",
+          "STREAMING": "UNKNOWN",
+          "TIMEOUT_RETRY_GUARD": "FAIL"
+        },
+        "latencyMs": 0,
+        "p1FailureReasons": [
+          "AUTH=UNKNOWN",
+          "MODEL=UNKNOWN",
+          "TEXT=UNKNOWN",
+          "VISION_INPUT=UNKNOWN",
+          "MULTI_IMAGE=UNKNOWN",
+          "TIMEOUT_RETRY_GUARD=FAIL",
+          "STRUCTURED_OUTPUT_NATIVE=UNKNOWN",
+          "JSON_FALLBACK=UNKNOWN"
+        ],
+        "endpointTelemetry": [],
+        "error": "Provider circuit breaker is open."
+      }
+    ]
+  },
+  "reliability": {
+    "requestGuard": {
+      "started": 4,
+      "running": 0,
+      "waiting": 0,
+      "requestCap": 32,
+      "maxConcurrency": 1,
+      "circuit": "OPEN",
+      "circuitOpenUntil": 1786672767865
+    },
+    "boundedPolicyApplied": true
+  },
+  "failure": null,
+  "status": "BLOCKED_CAPABILITY"
+}

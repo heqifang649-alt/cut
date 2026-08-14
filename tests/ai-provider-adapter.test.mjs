@@ -71,6 +71,76 @@ test("auto protocol detection tries Chat Completions after a transient Responses
   assert.deepEqual(requests, ["https://provider.test/v1/responses", "https://provider.test/v1/chat/completions"]);
 });
 
+test("protocol cache is scoped to each model and capability, with vision falling back to Chat", async () => {
+  const requests = [];
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url, init) => {
+    const body = JSON.parse(init.body);
+    const hasImages = Boolean(body.input?.[0]?.content?.some((item) => item.type === "input_image"));
+    requests.push({ url, model: body.model, hasImages });
+    if (url.endsWith("/responses") && hasImages) return jsonResponse({ error: { message: "vision route unavailable" } }, 502);
+    if (url.endsWith("/responses")) return jsonResponse({ output_text: "READY" });
+    return jsonResponse({ choices: [{ message: { content: "READY" } }] });
+  } });
+  await adapter.complete({ model: "model-a", prompt: "text" });
+  const firstVision = await adapter.complete({ model: "model-a", prompt: "vision", images: ["data:image/png;base64,AA=="] });
+  await adapter.complete({ model: "model-a", prompt: "vision-again", images: ["data:image/png;base64,AA=="] });
+  await adapter.complete({ model: "model-a", prompt: "text-again" });
+  assert.equal(firstVision.protocol, "chat_completions");
+  assert.equal(firstVision.endpointTelemetry[0].fallbackAttempted, true);
+  assert.equal(firstVision.endpointTelemetry[1].fallbackResult, "PASS");
+  assert.deepEqual(requests.map((request) => request.url), [
+    "https://provider.test/v1/responses",
+    "https://provider.test/v1/responses",
+    "https://provider.test/v1/chat/completions",
+    "https://provider.test/v1/chat/completions",
+    "https://provider.test/v1/responses",
+  ]);
+});
+
+test("auto vision fallback preserves multi-image payloads and refuses auth or redirect fallback", async () => {
+  const calls = [];
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url, init) => {
+    const body = JSON.parse(init.body);
+    calls.push({ url, body });
+    if (url.endsWith("/responses")) return jsonResponse({ error: { message: "route unavailable" } }, 502);
+    return jsonResponse({ choices: [{ message: { content: "READY" } }] });
+  } });
+  await adapter.complete({ model: "model-a", prompt: "compare", images: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
+  assert.equal(calls[1].body.messages[0].content.filter((item) => item.type === "image_url").length, 2);
+
+  const authCalls = [];
+  const authAdapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url) => {
+    authCalls.push(url);
+    return jsonResponse({ error: { message: "unauthorized" } }, 401);
+  } });
+  await assert.rejects(() => authAdapter.complete({ model: "model-a", prompt: "vision", images: ["data:image/png;base64,AA=="] }), (error) => error.status === 401);
+  assert.deepEqual(authCalls, ["https://provider.test/v1/responses"]);
+
+  const redirectCalls = [];
+  const redirectAdapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url) => {
+    redirectCalls.push(url);
+    return new Response("", { status: 302, headers: { location: "https://other.test" } });
+  } });
+  await assert.rejects(() => redirectAdapter.complete({ model: "model-a", prompt: "vision", images: ["data:image/png;base64,AA=="] }), (error) => error.code === "PROVIDER_REDIRECT_REFUSED");
+  assert.deepEqual(redirectCalls, ["https://provider.test/v1/responses"]);
+});
+
+test("model-specific vision protocol state does not leak to another candidate", async () => {
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async (url, init) => {
+    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "model-a" }, { id: "model-b" }] });
+    const body = JSON.parse(init.body);
+    const hasImages = Boolean(body.input?.[0]?.content?.some((item) => item.type === "input_image"));
+    if (body.model === "model-a" && hasImages && url.endsWith("/responses")) return jsonResponse({ error: { message: "model-a vision unavailable" } }, 502);
+    if (url.endsWith("/chat/completions") && body.model === "model-a") return jsonResponse({ choices: [{ message: { content: "WRONG" } }] });
+    if (url.endsWith("/chat/completions")) return jsonResponse({ choices: [{ message: { content: "READY" } }] });
+    return jsonResponse({ output_text: "READY" });
+  } });
+  const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
+  assert.equal(probe.modelMatrix.find((entry) => entry.model === "model-a").capabilities.VISION_INPUT, "FAIL");
+  assert.equal(probe.modelMatrix.find((entry) => entry.model === "model-b").capabilities.VISION_INPUT, "PASS");
+  assert.equal(probe.selectedModel, "model-b");
+});
+
 test("adapter refuses redirects instead of forwarding provider authorization", async () => {
   const adapter = new AiProviderAdapter(config, { fetchImpl: async () => new Response("", { status: 302, headers: { location: "https://other.test" } }) });
   await assert.rejects(() => adapter.complete({ model: "m", prompt: "x", protocolMode: "responses" }), (error) => error.code === "PROVIDER_REDIRECT_REFUSED");
@@ -204,7 +274,7 @@ test("capability probe accepts local schema-validated JSON fallback and records 
       const schemaRequested = Boolean(body.text?.format?.schema);
       const hasImages = body.input?.[0]?.content?.some((item) => item.type === "input_image");
       const prompt = typeof body.input === "string" ? body.input : body.input?.[0]?.content?.[0]?.text;
-      if (prompt?.startsWith("Return only this exact")) {
+      if (prompt?.includes("Return only this exact")) {
         return jsonResponse({ output_text: JSON.stringify({ schema_version: "semantic-shot.v1", shot_id: "probe-shot", shot_type: "other", product_match: 0.5, clothing_visibility: 0.5, visual_quality: 0.5, hook_value: 0.5, usable: true, confidence: 0.5 }) });
       }
       if (schemaRequested) return jsonResponse({ error: { message: "json schema unsupported" } }, 422);

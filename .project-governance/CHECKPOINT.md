@@ -1,14 +1,16 @@
 # Checkpoint
 
 ```text
-CHECKPOINT_ID = CUTFLOW-HYBRID-PILOT-20260813-P1E-THREE-ARM-GUARD-PARTIAL
-BASELINE = 56e64689000d99272301257c1a1eaf7e8c837f7d
-CURRENT_COMMIT = 56e64689000d99272301257c1a1eaf7e8c837f7d
-CURRENT_STAGE = P1E Visual Provider Readiness; P1 Capability Boundary; P2 Prepared; P3A Local Evaluation Infrastructure Verified
-PASS_FAIL = P0_PASS; P1A_LOCAL_VERIFIED; P1_ADAPTER_ROOT_CAUSE_RESOLVED; P1D_CAPABILITY_BOUNDARY_RECORDED; P1D_STRICT_SCOPE_LOCAL_PASS; CIRCUIT_IDENTITY_HALF_OPEN_LOCAL_PASS; P1E-0_LOCAL_PASS; P1E-1_PARTIAL_SAMPLE_AND_CREDENTIALS_INSUFFICIENT; P1E-2_THREE_ARM_GUARD_LOCAL_PASS; P1_GATE_BLOCKED_CAPABILITY_BOUNDARY; P2_PREPARED_LOCAL_ONLY; P3A_LOCAL_VERIFIED_ONLY
-BLOCKERS = Current P1E data inventory is zero media / zero batches / zero independent labels, Gemini/Qwen credentials are absent, and a comparable P1E run also requires current-provider configuration. Required P1 VISION_INPUT, MULTI_IMAGE, and timeout/retry reliability are not yet evidenced. For `gpt-5.6-terra`, P1D recorded native schema and single-image `/responses` 502 failures; JSON fallback itself passed. Do not place any key in chat, Prompt, AGENTS.md, Git, logs, or evidence.
-DECISIONS = preserve dirty worktree; P0 shadow-only; credentials stay outside Git; P1E profiles are isolated and reuse the shared Adapter; provider breakers include normalized URL + credential + configuration and remain cross-provider isolated; P1E runner has no dispatch path until an independently-labelled real cohort and all three comparison arms are configured; native structure and validated JSON fallback are separately recorded; Streaming excluded from P1 hard gate; no provider recommendation can activate Treatment B or production
-OPEN_RISKS = protected Gemini/Qwen credentials, independently labelled real P1E dataset, concrete Provider vision/schema stability, current-provider comparison observations, cost evidence, real paired A/B outputs, independent blind review, regression and canary evidence
-NEXT_CRITICAL_TASK = collect protected credentials and an independently labelled real 10/5/5/5 P1E manifest. Then configure all three comparison arms and run exactly one bounded same-manifest comparison across Gemini, Qwen2.5-VL, and current `gpt-5.6-terra`; record native/fallback JSON and isolated real stability evidence, and exit P1E with PASS/PARTIAL/BLOCKED evidence.
-EVIDENCE = P1E readiness at .project-governance/evidence/p1e-readiness-20260813.json; P1 root-cause evidence at .project-governance/evidence/p1-api-root-cause-20260813.json and .project-governance/evidence/p1-codex-compatible-request-20260813.json; P1D capability evidence at .project-governance/evidence/p1d-progressive-capability-20260813.json; P1E/provider/circuit/semantic focused suite (30 pass) plus syntax and diff checks; P0 independent acceptance and isolated Control A replay/flag-off rollback evidence remain valid
+CHECKPOINT_ID = CUTFLOW-HYBRID-PILOT-20260814-P1-VISION-PROTOCOL-BOUNDARY
+BASELINE = 812659a4a6ea4022000347eb058ea4328d1adfc2
+CURRENT_STAGE = P1 Vision Capability Discovery
+PRODUCTION_CUTOVER = FALSE
+CONTROL_A = PRESERVED
+TREATMENT_B = SHADOW_ONLY
+PASS_FAIL = ADAPTER_PROTOCOL_FIX_LOCAL_PASS; P1E_TERRA_DEFAULT_REMOVED; REAL_DISCOVERY_BLOCKED_PROVIDER_AVAILABILITY
+EVIDENCE = .project-governance/evidence/p1-vision-capability-discovery-20260814.json
+REAL_RESULT = /models 200; gpt-5.6 text /responses 503; Chat fallback /chat/completions 503; no verified VLM
+BLOCKERS = Current Provider availability prevents a real capability conclusion. VISION_INPUT, MULTI_IMAGE, semantic-shot.v1 output, and basic timeout/retry reliability remain unverified.
+USER_ACTION_REQUIRED = NONE
+NEXT_CRITICAL_PATH = Restore or change the currently configured Provider availability, then run one new bounded real-image P1 discovery. Only after VERIFIED_VLM >= 1: integrate semantic-evidence.v1 into the deterministic Treatment B scheduler, then P2 and P3.
 ```
