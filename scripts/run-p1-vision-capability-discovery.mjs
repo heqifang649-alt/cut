@@ -109,7 +109,7 @@ const evidence = {
   } : null,
   executionSummary: probe ? {
     PROJECT: "CUTFLOW_HYBRID_PILOT",
-    HEAD: "190518b410e27556373d5b98cb073741774679f2",
+    HEAD: "8678829f859536db929fd5b2975aeadf139225bc",
     FILES_CHANGED: ["lib/ai-provider-adapter.mjs", "scripts/run-p1-vision-capability-discovery.mjs", "scripts/run-p1e-vision-benchmark.mjs", "tests/ai-provider-adapter.test.mjs", ".project-governance/CHECKPOINT.md", ".project-governance/PILOT_STATUS.md", ".project-governance/TASK_DAG.md", ".project-governance/DECISION_LOG.md"],
     MODELS_DISCOVERED: probe.models,
     CANDIDATE_ORDER: probe.modelMatrix.map((entry) => entry.model).concat(probe.unattemptedModels || []),
