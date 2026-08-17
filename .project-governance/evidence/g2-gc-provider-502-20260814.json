@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "artifact": "semantic-evidence.v1",
+  "isolated": true,
+  "shadowOnly": true,
+  "batchId": "f84691f5-aa30-4eb9-9bca-55278665773c",
+  "generatedAt": "2026-08-14T04:37:35.819Z",
+  "provider": {
+    "source": "LOCAL_ADMIN_CONFIG",
+    "baseUrlFingerprint": "492b6311cff5fcfc",
+    "model": "gpt-5.6-sol",
+    "providerReportedModelId": "gpt-5.6-sol"
+  },
+  "promptVersion": "semantic-shot-prompt.v1",
+  "semanticSchemaVersion": "semantic-shot.v1",
+  "templateVersion": "8ea9c0cf35289368f3602bc8",
+  "records": [
+    {
+      "shotId": "41796183a388344d4cc6a4b414d917e4",
+      "status": "error",
+      "cacheKey": "4cccc664a1f8047e140d2ddeaa5990be6d237e74aaf42200878f3835491c5346",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "4ed36c36ded6295bd665c98c1b8bbfa2",
+      "status": "error",
+      "cacheKey": "46eee279e61855a61f23a90c687a012d8d9c6decfd8a43b184887667a3ab809c",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "a253b4c5a5b935a23f209bedd332ee28",
+      "status": "error",
+      "cacheKey": "208eb3fd888cfd1cc37c21b1351b5502a0c893828e23d6f360e3df67ed54ad52",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "ed59bff35a7d43315bc774cf5b8b5d0a",
+      "status": "error",
+      "cacheKey": "8ee11c636cc07fcd85266ca7a89cdc7ef163f1349487fd479fc19c68e42afba8",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "2121520c51c8d2968ba7092460bb6ab9",
+      "status": "error",
+      "cacheKey": "9d2bfb3bccbbd9fae88f434d6b81693a65fb52139efd069e475f8cbfe4e342d8",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "2abf10d2f9083ab7df917fb143fa0d5e",
+      "status": "error",
+      "cacheKey": "4d66b8534dbe52b1272eda2ee025dcaefc05988aacfdaa0d78abbec30d31623a",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "cd96b7291c00c48d996038c714b6f5d9",
+      "status": "error",
+      "cacheKey": "7e15c03c03db30a058c70037d3a959ae4a11b477df63337c7599812744ce62b0",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "4890db90197664ed76ae9975f6617794",
+      "status": "error",
+      "cacheKey": "4cb21b6f075ace3e9fb8956426ae543b28fcb9a5094cf5aec4c58b377bdda636",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "b5f4b7aeb33a6280560fa9179352135a",
+      "status": "error",
+      "cacheKey": "42ae0ea159390dd306ae4fa3c532d6029929a8089768056ef2b3fdc9208b241c",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "04df87b9d07f86be9bb032ad3a97d113",
+      "status": "error",
+      "cacheKey": "058cb8a267a245287024805740b73b0ded65d2edf601c9b0215d3ac09efcc4d2",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "f5ce04ea05e4b84284cf52e10d7d37b1",
+      "status": "error",
+      "cacheKey": "39bacf489ee6b787c0227684b66724d32cd3462143731d59174c3e835ec7ef21",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "c8ba1273fe3910e10dd49040afb3ad6d",
+      "status": "error",
+      "cacheKey": "f9f56180dc7220b1a66d6bae53c6ade026a05adc195e08f5e189421eaec89c30",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "47dc9b44c0513b810ec79a4bff8f685d",
+      "status": "error",
+      "cacheKey": "b5bf137a76b35a97cbdcc57438b294a46bc5831f84c45c3c88e77b657fbde41e",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "7b281990b2893cb3bbd9e4036dfb72d3",
+      "status": "error",
+      "cacheKey": "aef01f6b918c2fcf718ae94e8a6f389c9605db3ccc19ceb857ce8303a4a1446d",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "dc3f1a933898b98b5d154aa125c4bc85",
+      "status": "error",
+      "cacheKey": "04996d8fa5b2a881dc4867190165f736ff9d6ea2a544291067004c2896cd58c2",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "9b7bb011d5fd4605d39b0c106720f16e",
+      "status": "error",
+      "cacheKey": "c08e2b30bcef49ca6e6c7876d270797209dd1466c5b50f3deeef4b402877fda0",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "25fdd70526fe21af50c4732e32ad38b9",
+      "status": "error",
+      "cacheKey": "e775567b4e4145ebe9b9cb2e9743a89c9a81abe873cb3e10527341638c3cb958",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "4e8bacf46009c3ed1006129f0a890509",
+      "status": "error",
+      "cacheKey": "b3011f9fe4983b4736e9ebaa75b3e4d3e7c200297aabbecb900fc1f243c332ae",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "30053c2d14c63b8a5a69f947565adbb6",
+      "status": "error",
+      "cacheKey": "27f79d63858403b6eb0e912661db2bef180ef9f5b085b7456c77d9f2add3b763",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "6cfefc707f2696e485dd1f1032850916",
+      "status": "error",
+      "cacheKey": "6bd297995d352609c473183173498dbe70d4afc27a2811eb0be6111f8c196a5b",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "be6f1ebf75118b73b3797e335480a6ed",
+      "status": "error",
+      "cacheKey": "f9b6c372ff3dbaae8d670bbfb3300e0a34d388a98398f8cb866a286c818257f9",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "2c0b36cf97fba8354e274e525f851653",
+      "status": "error",
+      "cacheKey": "f1eff0877fcd5055e4a2689ff9fc3c80c19741c5d390a658f7c4b9c7346f296b",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "85b51768fc64200c65d0a4bb5ba6a54c",
+      "status": "error",
+      "cacheKey": "eac7cef6e489baf6b868665e5ed67e95c062ceb1750b40a9b8f1a27272e6223b",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    },
+    {
+      "shotId": "3aaac1f0b9f61cec81f1dd0b7df365b5",
+      "status": "error",
+      "cacheKey": "446744eb0c701f35ba4a3e27c55a38ea1df764b5b327939619ad0c86ecbd4619",
+      "error": {
+        "code": "PROVIDER_CIRCUIT_OPEN",
+        "status": null,
+        "message": "Provider circuit breaker is open."
+      }
+    }
+  ],
+  "cacheReset": false,
+  "guard": {
+    "requests": 4,
+    "running": 0,
+    "waiting": null,
+    "requestCap": 100,
+    "maxConcurrency": 4,
+    "circuit": "OPEN",
+    "circuitOpenUntil": 1786682256692,
+    "failureCount": 4,
+    "openedAt": "2026-08-14T04:37:06.692Z",
+    "cooldownMs": 30000,
+    "nextProbeAt": "2026-08-14T04:37:36.692Z",
+    "lastSafeProviderError": {
+      "code": "PROVIDER_HTTP_ERROR",
+      "status": 502,
+      "retryable": true,
+      "message": "Upstream request failed",
+      "recordedAt": "2026-08-14T04:37:06.692Z"
+    },
+    "scopeFingerprint": "64a90e429810b3b245a24ded1e1f09fd2ab41b3a5d7902343a0429e7d1809c01",
+    "windowStartedAt": "2026-08-14T04:36:28.563Z"
+  }
+}

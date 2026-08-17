@@ -92,15 +92,32 @@ function semanticRecordMap(semanticEvidence) {
     .map((record) => [record.shotId, record.result]));
 }
 
-function semanticEligible(shot, semantic) {
-  if (!semantic) return true;
-  if (semantic.usable === false) return false;
-  return Number(semantic.product_match) >= 0.5;
+const SHOT_TYPES_BY_SLOT = Object.freeze({
+  hook: new Set(["front_full_body", "overall", "detail"]),
+  outfit_interest: new Set(["front_full_body", "overall"]),
+  front_reason: new Set(["front_full_body", "detail", "overall"]),
+  sleeve_fabric_reason: new Set(["detail"]),
+  back_or_best_reason: new Set(["back_full_body", "overall", "detail"]),
+});
+
+function semanticEligible(shot, semantic, slot, semanticRequired) {
+  if (!semantic) return !semanticRequired;
+  if (semantic.usable !== true) return false;
+  const productMatch = Number(semantic.product_match);
+  const clothingVisibility = Number(semantic.clothing_visibility);
+  const confidence = Number(semantic.confidence);
+  if (![productMatch, clothingVisibility, confidence].every(Number.isFinite)) return false;
+  if (productMatch < 0.5 || clothingVisibility < 0.5 || confidence < 0.5) return false;
+  const allowedTypes = SHOT_TYPES_BY_SLOT[slot.id];
+  if (allowedTypes && !allowedTypes.has(semantic.shot_type)) return false;
+  if (slot.id === "hook" && (!Number.isFinite(Number(semantic.hook_value)) || Number(semantic.hook_value) < 0.5)) return false;
+  return true;
 }
 
 function semanticScore(semantic) {
   if (!semantic) return 0;
-  return (Number(semantic.product_match) + Number(semantic.clothing_visibility) + Number(semantic.visual_quality) + Number(semantic.hook_value) + Number(semantic.confidence)) / 5;
+  const values = [semantic.product_match, semantic.clothing_visibility, semantic.visual_quality, semantic.hook_value, semantic.confidence].map(Number);
+  return values.every(Number.isFinite) ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
 }
 
 function compareCandidates(left, right) {
@@ -120,11 +137,12 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
 function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const semanticByShotId = semanticRecordMap(semanticEvidence);
+  const semanticRequired = semanticByShotId !== null;
   const selected = [];
   const usedShotIds = new Set();
   for (const slot of scriptTemplate.slots) {
     const candidates = shots
-      .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id)))
+      .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
       .sort(compareCandidates);
     const best = candidates[0]?.shot;
@@ -153,4 +171,24 @@ export function scheduleProductView({ batchId, productView, scriptTemplate, crea
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
   return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence });
+}
+
+export function partitionScheduledProducts(scheduledProducts) {
+  if (!Array.isArray(scheduledProducts)) throw new TypeError("scheduledProducts must be an array");
+  const renderable = [];
+  const excludedProducts = [];
+  for (const entry of scheduledProducts) {
+    const productId = entry?.product?.id;
+    if (typeof productId !== "string" || !productId) throw new TypeError("Scheduled Product requires product.id");
+    if (entry?.scheduleResult?.status === "success") {
+      renderable.push(entry);
+      continue;
+    }
+    const failure = entry?.scheduleResult || {};
+    excludedProducts.push({
+      product_id: productId,
+      reason: `schedule:${failure.slotId || failure.reason || "unknown"}`,
+    });
+  }
+  return { renderable, excludedProducts };
 }

@@ -113,10 +113,11 @@ def draw_pointer(draw, width, height, spec):
     draw.line(outline, fill=spec.get("pointer_inner_stroke", "#FFFFFF"), width=inner_stroke, joint="curve")
 
 
-def make_cvr(width, height, text, secondary_text, output, bold_font, italic_font, layout):
+def make_cvr(width, height, text, secondary_text, output, bold_font, italic_font, layout, overrides=None):
     image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    spec = layout["cvr"]
+    allowed = set(layout["cvr"].keys())
+    spec = {**layout["cvr"], **{key: value for key, value in (overrides or {}).items() if key in allowed}}
     preferred = scaled(spec["primary_font_size_at_1080"], width, 1080)
     minimum = scaled(spec["minimum_font_size_at_1080"], width, 1080)
     stroke_width = scaled(spec["stroke_width_at_1080"], width, 1080)
@@ -133,6 +134,14 @@ def make_cvr(width, height, text, secondary_text, output, bold_font, italic_font
         secondary_face = fit_face(draw, secondary_text, bold_font, preferred - scaled(8, width, 1080), minimum, max_width, stroke_width)
         centered(draw, (center_x, y), secondary_text, secondary_face, spec["secondary_fill"], stroke_width, spec["stroke"])
     draw_pointer(draw, width, height, spec)
+    bbox = image.getchannel("A").getbbox()
+    bottom_safe_percent = float(layout.get("safe_zone", {}).get("bottom_percent", 8))
+    minimum_bottom_clearance = int(round(height * bottom_safe_percent / 100))
+    actual_bottom_clearance = height - bbox[3] if bbox else height
+    if actual_bottom_clearance < minimum_bottom_clearance:
+        raise ValueError(
+            f"CVR overlay violates bottom safe zone: {actual_bottom_clearance}px < {minimum_bottom_clearance}px"
+        )
     image.save(output)
 
 
@@ -152,7 +161,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     make_hook(width, height, master.get("hook", {}).get("text", "Wearing what I believe."), output / "hook.png", args.font, layout)
     cvr = master.get("cvr", {})
-    make_cvr(width, height, cvr.get("text", "One of our best sellers."), cvr.get("secondary_text", ""), output / "cvr.png", args.font, args.italic_font, layout)
+    make_cvr(width, height, cvr.get("text", "One of our best sellers."), cvr.get("secondary_text", ""), output / "cvr.png", args.font, args.italic_font, layout, cvr)
 
 
 if __name__ == "__main__":

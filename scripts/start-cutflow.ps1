@@ -1,6 +1,7 @@
 ﻿param(
   [switch]$NoBrowser,
   [switch]$SkipAccountCheck,
+  [switch]$ControlA,
   [string]$CodexHome = 'D:\codex\.codex'
 )
 
@@ -61,6 +62,44 @@ $env:ALLOWED_NAS_ROOTS = "\\192.168.120.60\$creativeDepartment-fb$adDelivery;\\1
 $env:GOLD_STANDARD_PATH = Join-Path $portalRoot 'standards\reference-sets\gc-good-20260805\gold-standard-v2.json'
 $env:PYTHONPATH = 'D:\codex\cache\pydeps'
 $env:PYTHON_PATH = $runtimePython
+
+# G3-authorized production default. -ControlA is the one-command rollback;
+# it preserves the website, queues and workers while disabling the Hybrid path.
+$hybridFlags = @(
+  'ENABLE_NEW_VALIDATOR',
+  'ENABLE_NEW_SHOTPOOL',
+  'ENABLE_NEW_SCHEDULER',
+  'ENABLE_NEW_RENDERER',
+  'ENABLE_API_SEMANTIC_SCORER',
+  'ENABLE_HYBRID_PILOT'
+)
+foreach ($flag in $hybridFlags) {
+  [Environment]::SetEnvironmentVariable($flag, $(if ($ControlA) { 'false' } else { 'true' }), 'Process')
+}
+$env:ENABLE_ARTIFACT_GATE = 'false'
+$env:MODEL_FAST = 'gpt-5.6-sol'
+$env:MODEL_STRONG = 'gpt-5.6-sol'
+if ($ControlA) {
+  Write-Host 'Cutflow production path: Control A rollback mode.' -ForegroundColor Yellow
+} else {
+  Write-Host 'Cutflow production path: Hybrid deterministic default (gpt-5.6-sol).' -ForegroundColor Green
+}
+$productionPathState = @{
+  schemaVersion = 1
+  mode = if ($ControlA) { 'control_a' } else { 'hybrid' }
+  controlA = [bool]$ControlA
+  modelFast = $env:MODEL_FAST
+  modelStrong = $env:MODEL_STRONG
+  artifactGate = $false
+  flags = @{}
+  startedAt = (Get-Date).ToUniversalTime().ToString('o')
+}
+foreach ($flag in $hybridFlags) { $productionPathState.flags[$flag] = [Environment]::GetEnvironmentVariable($flag, 'Process') }
+[System.IO.File]::WriteAllText(
+  (Join-Path $dataRoot 'production-path.json'),
+  ($productionPathState | ConvertTo-Json -Depth 4),
+  [System.Text.UTF8Encoding]::new($false)
+)
 
 $codexReady = $false
 $codexResponse = ''

@@ -94,6 +94,7 @@ type RenderReadinessDiagnostic = {
 };
 
 const requestTimeoutMs = 12_000;
+const providerTestClientTimeoutMs = 70_000;
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = requestTimeoutMs) {
   const controller = new AbortController();
@@ -970,7 +971,22 @@ export default function Home() {
       const response = await fetchWithTimeout("/api/admin/ai-provider/discover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(providerDraft) }, 45_000);
       const payload = await response.json().catch(() => ({})) as { discovery?: { models?: string[]; supported?: boolean }; provider?: ProviderConfig; error?: string };
       if (!response.ok) throw new Error(payload.error || "模型发现失败");
-      if (payload.provider) setProvider(payload.provider);
+      if (payload.provider) {
+        setProvider(payload.provider);
+        // Keep the editable form in sync with the server-reported provider
+        // configuration. Never copy the credential back into the client
+        // draft; the API key remains write-only in this UI.
+        setProviderDraft((current) => current ? {
+          ...current,
+          candidateModels: payload.provider?.candidateModels?.length ? payload.provider.candidateModels : current.candidateModels,
+          fastModel: payload.provider?.fastModel || current.fastModel,
+          strongModel: payload.provider?.strongModel || current.strongModel,
+          requestTimeoutMs: payload.provider?.requestTimeoutMs ?? current.requestTimeoutMs,
+          maxConcurrency: payload.provider?.maxConcurrency ?? current.maxConcurrency,
+          pilotRequestCap: payload.provider?.pilotRequestCap ?? current.pilotRequestCap,
+          retryLimit: payload.provider?.retryLimit ?? current.retryLimit,
+        } : current);
+      }
       if (Array.isArray(payload.discovery?.models)) setProviderDraft((current) => current ? { ...current, candidateModels: payload.discovery!.models || [] } : current);
       setProviderMessage(payload.discovery?.supported ? `已发现 ${payload.discovery.models?.length || 0} 个 Provider 报告的模型。` : "该 Provider 未提供可用的模型列表；可在下方填写候选模型 ID。");
     } catch (caught) { setProviderMessageTone("error"); setProviderMessage(caught instanceof Error ? caught.message : "模型发现失败"); }
@@ -981,9 +997,24 @@ export default function Home() {
     if (authUser?.role !== "admin") return;
     setProviderAction("test"); setProviderMessageTone("success"); setProviderMessage("");
     try {
-      const response = await fetchWithTimeout("/api/admin/ai-provider/test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...providerDraft, model: providerDraft?.fastModel || providerDraft?.candidateModels[0] || "" }) }, 60_000);
+      const response = await fetchWithTimeout("/api/admin/ai-provider/test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...providerDraft, model: providerDraft?.fastModel || providerDraft?.candidateModels[0] || "" }) }, providerTestClientTimeoutMs);
       const payload = await response.json().catch(() => ({})) as { probe?: { providerReadyForP1?: boolean; latencyMs?: number | null; error?: string; selectedModel?: string | null; selectedModels?: { fastModel?: string | null; strongModel?: string | null }; capabilities?: Record<string, string>; endpointTelemetry?: NonNullable<ProviderConfig["lastProbe"]>["endpointTelemetry"]; modelMatrix?: NonNullable<ProviderConfig["lastProbe"]>["modelMatrix"] }; provider?: ProviderConfig; error?: string };
-      if (payload.provider) setProvider(payload.provider);
+      if (payload.provider) {
+        setProvider(payload.provider);
+        // The capability probe may select FAST/STRONG models and persist the
+        // normalized provider settings. Reflect those values in the editable
+        // form without ever returning the API key to the client state.
+        setProviderDraft((current) => current ? {
+          ...current,
+          candidateModels: payload.provider?.candidateModels?.length ? payload.provider.candidateModels : current.candidateModels,
+          fastModel: payload.provider?.fastModel || current.fastModel,
+          strongModel: payload.provider?.strongModel || current.strongModel,
+          requestTimeoutMs: payload.provider?.requestTimeoutMs ?? current.requestTimeoutMs,
+          maxConcurrency: payload.provider?.maxConcurrency ?? current.maxConcurrency,
+          pilotRequestCap: payload.provider?.pilotRequestCap ?? current.pilotRequestCap,
+          retryLimit: payload.provider?.retryLimit ?? current.retryLimit,
+        } : current);
+      }
       if (!response.ok || !payload.probe?.providerReadyForP1) throw new Error(payload.error || payload.probe?.error || "连接测试未通过");
       setProviderMessage(`连接测试通过${payload.probe.latencyMs ? `，延迟 ${payload.probe.latencyMs}ms` : ""}。`);
     } catch (caught) { setProviderMessageTone("error"); setProviderMessage(caught instanceof Error ? caught.message : "连接测试未通过"); }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AiProviderAdapter, ProviderRequestGuard } from "../lib/ai-provider-adapter.mjs";
+import { AiProviderAdapter, ProviderAdapterError, ProviderRequestGuard } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -292,6 +292,36 @@ test("capability probe accepts local schema-validated JSON fallback and records 
   assert.ok(probe.modelMatrix.some((entry) => entry.model === "gpt-5.4" && entry.capabilities.JSON_FALLBACK === "PASS"));
 });
 
+test("diagnostic guard tolerates unsupported capability branches until validated fallbacks finish", async () => {
+  const guard = new ProviderRequestGuard({ requestCap: 20, retryLimit: 0, failureThreshold: 12 });
+  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, {
+    guard,
+    fetchImpl: async (url, init) => {
+      if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6-sol" }] });
+      const body = JSON.parse(init.body);
+      if (url.endsWith("/responses")) return jsonResponse({ error: { message: "upstream capability route unavailable" } }, 502);
+      const prompt = body.messages?.[0]?.content;
+      const promptText = typeof prompt === "string" ? prompt : prompt?.find((item) => item.type === "text")?.text || "";
+      if (body.response_format) return jsonResponse({ error: { message: "native schema unsupported" } }, 400);
+      if (promptText.includes("Return only this exact")) {
+        return jsonResponse({ choices: [{ message: { content: JSON.stringify({ schema_version: "semantic-shot.v1", shot_id: "probe-shot", shot_type: "other", product_match: 0.5, clothing_visibility: 0.5, visual_quality: 0.5, hook_value: 0.5, usable: true, confidence: 0.5 }) } }] });
+      }
+      return jsonResponse({ choices: [{ message: { content: "READY" } }] });
+    },
+  });
+  const probe = await adapter.probeCapabilities({
+    model: "gpt-5.6-sol",
+    strictModel: true,
+    imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="],
+  });
+  assert.equal(probe.providerReadyForP1, true);
+  assert.equal(probe.capabilities.JSON_FALLBACK, "PASS");
+  assert.equal(probe.capabilities.VISION_INPUT, "PASS");
+  assert.equal(probe.capabilities.MULTI_IMAGE, "PASS");
+  assert.equal(probe.capabilities.TIMEOUT_RETRY_GUARD, "PASS");
+  assert.equal(probe.reliability.circuit, "CLOSED");
+});
+
 test("provider errors redact the configured literal secret", async () => {
   const secret = "actual-secret-should-not-leak";
   const adapter = new AiProviderAdapter({ ...config, apiKey: secret }, {
@@ -361,6 +391,31 @@ test("adapter aborts a timed-out request and retries malformed semantic output b
     await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_MALFORMED_RESPONSE");
   }
   await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_CIRCUIT_OPEN");
+});
+
+test("capability probe propagates an overall deadline and cancels the active upstream request", async () => {
+  const controller = new AbortController();
+  let observedAbortReason = null;
+  const adapter = new AiProviderAdapter({ ...config, requestTimeoutMs: 10_000, retryLimit: 0, protocolMode: "responses" }, {
+    fetchImpl: async (url, init) => {
+      if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6-sol" }] });
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => {
+          observedAbortReason = init.signal.reason;
+          reject(init.signal.reason);
+        }, { once: true });
+      });
+    },
+  });
+  const probe = adapter.probeCapabilities({
+    model: "gpt-5.6-sol",
+    strictModel: true,
+    imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="],
+    signal: controller.signal,
+  });
+  setTimeout(() => controller.abort(new ProviderAdapterError("probe deadline", { code: "PROVIDER_PROBE_TIMEOUT", retryable: true })), 20);
+  await assert.rejects(() => probe, (error) => error.code === "PROVIDER_PROBE_TIMEOUT" && error.message === "probe deadline");
+  assert.equal(observedAbortReason?.code, "PROVIDER_PROBE_TIMEOUT");
 });
 
 test("capability probe fails the reliability requirement after its guard opens", async () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { isRenderPlan, isScheduleResult } from "../lib/types.ts";
-import { isNewSchedulerEnabled, scheduleShotPool } from "../worker/shot-scheduler.mjs";
+import { isNewSchedulerEnabled, partitionScheduledProducts, scheduleShotPool } from "../worker/shot-scheduler.mjs";
 
 const shot = (id, overrides = {}) => ({
   id,
@@ -133,6 +133,61 @@ test("optional semantic evidence hard-rejects unusable shots and ranks conservat
   assert.equal(result.renderPlan.slots[0].shot.id, "semantic-high");
 });
 
+test("semantic evidence fills all five frozen production roles with compatible shot types", () => {
+  const roles = [
+    ["hook", "front_full_body"],
+    ["outfit_interest", "overall"],
+    ["front_reason", "front_full_body"],
+    ["sleeve_fabric_reason", "detail"],
+    ["back_or_best_reason", "back_full_body"],
+  ];
+  const shots = roles.map(([id]) => shot(`shot-${id}`));
+  const result = scheduleShotPool({
+    batchId: "semantic-five-role-batch",
+    shotPool: pool(shots),
+    scriptTemplate: template(roles.map(([id]) => slot(id))),
+    semanticEvidence: { records: roles.map(([id, shotType]) => ({
+      shotId: `shot-${id}`,
+      result: { shot_type: shotType, product_match: 0.95, clothing_visibility: 0.95, visual_quality: 0.9, hook_value: 0.8, confidence: 0.95, usable: true },
+    })) },
+  });
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.renderPlan.slots.map(({ slot: selectedSlot }) => selectedSlot.id), roles.map(([id]) => id));
+  assert.equal(new Set(result.renderPlan.slots.map(({ shot: selectedShot }) => selectedShot.id)).size, 5);
+  const typeByShotId = new Map(roles.map(([id, shotType]) => [`shot-${id}`, shotType]));
+  const allowedBySlot = {
+    hook: new Set(["front_full_body", "overall", "detail"]),
+    outfit_interest: new Set(["front_full_body", "overall"]),
+    front_reason: new Set(["front_full_body", "detail", "overall"]),
+    sleeve_fabric_reason: new Set(["detail"]),
+    back_or_best_reason: new Set(["back_full_body", "overall", "detail"]),
+  };
+  for (const selected of result.renderPlan.slots) assert.equal(allowedBySlot[selected.slot.id].has(typeByShotId.get(selected.shot.id)), true);
+});
+
+test("semantic evidence fails fast when a frozen role has no compatible shot type", () => {
+  const result = scheduleShotPool({
+    batchId: "semantic-role-gap",
+    shotPool: pool([shot("front-only")]),
+    scriptTemplate: template([slot("sleeve_fabric_reason")]),
+    semanticEvidence: { records: [{
+      shotId: "front-only",
+      result: { shot_type: "front_full_body", product_match: 0.95, clothing_visibility: 0.95, visual_quality: 0.9, hook_value: 0.8, confidence: 0.95, usable: true },
+    }] },
+  });
+  assert.deepEqual(result, { status: "failed", reason: "no_matching_shot", slotId: "sleeve_fabric_reason" });
+});
+
+test("semantic mode never silently schedules a Shot with missing or incomplete evidence", () => {
+  const result = scheduleShotPool({
+    batchId: "semantic-missing-record",
+    shotPool: pool([shot("missing"), shot("incomplete")]),
+    scriptTemplate: template([slot("hook")]),
+    semanticEvidence: { records: [{ shotId: "incomplete", result: { shot_type: "front_full_body", usable: true } }] },
+  });
+  assert.deepEqual(result, { status: "failed", reason: "no_matching_shot", slotId: "hook" });
+});
+
 test("accepts optional Slot constraints without adding creative fields", () => {
   const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("a")]), scriptTemplate: template([slot("detail", { requireTags: ["detail"], preferTags: [] })]) });
   assert.equal(result.status, "success");
@@ -147,6 +202,14 @@ test("feature flag is exact and defaults off", () => {
   assert.equal(isNewSchedulerEnabled({}), false);
   assert.equal(isNewSchedulerEnabled({ ENABLE_NEW_SCHEDULER: "false" }), false);
   assert.equal(isNewSchedulerEnabled({ ENABLE_NEW_SCHEDULER: "true" }), true);
+});
+
+test("partitions failed products without blocking renderable products", () => {
+  const success = { product: { id: "p1" }, scheduleResult: { status: "success", renderPlan: {} } };
+  const missingDetail = { product: { id: "p2" }, scheduleResult: { status: "failed", reason: "no_matching_shot", slotId: "sleeve_fabric_reason" } };
+  const result = partitionScheduledProducts([success, missingDetail]);
+  assert.deepEqual(result.renderable, [success]);
+  assert.deepEqual(result.excludedProducts, [{ product_id: "p2", reason: "schedule:sleeve_fabric_reason" }]);
 });
 
 test("worker gates Scheduler before the legacy renderer and does not call ffmpeg here", async () => {

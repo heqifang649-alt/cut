@@ -1,6 +1,6 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { randomInt } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import path from "node:path";
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
@@ -88,6 +88,10 @@ function sourceDuration(segment) {
 
 function roundSeconds(value) {
   return Number(Number(value).toFixed(6));
+}
+
+function renderHash(value) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
 }
 
 function requestedTemplateTransition(segment, master) {
@@ -344,7 +348,7 @@ export function dryRunRenderPlan(renderPlan) {
   };
 }
 
-export function renderPlansToEdl({ master = {}, scheduledProducts, transitionProfile, featureEnabled = isTemplateTransitionEnabled() }) {
+export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProducts = [], transitionProfile, featureEnabled = isTemplateTransitionEnabled() }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) throw new TypeError("RenderPlan renderer requires scheduled products");
   const selectedProfile = resolvedTransitionProfile(transitionProfile || scheduledProducts[0]?.scheduleResult?.renderPlan?.transitionProfile);
   const products = scheduledProducts.map(({ product, sourceNamesByShotId, scheduleResult }) => {
@@ -354,7 +358,8 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, transitionPro
     const rawSegments = scheduleResult.renderPlan.slots.map(({ slot, shot }, index) => {
       const sourceName = sourceNamesByShotId[shot.id];
       if (!sourceName || !product.files.includes(sourceName)) throw new Error(`RenderPlan shot ${shot.id} is outside product context ${product.id}`);
-      const duration = Number((shot.end - shot.start).toFixed(6));
+      const availableDuration = Number((shot.end - shot.start).toFixed(6));
+      const duration = Number(Math.min(availableDuration, Number(slot.targetDuration) || availableDuration).toFixed(6));
       if (duration <= 0) throw new Error(`RenderPlan shot ${shot.id} has no renderable duration`);
       return {
         segment_id: `${product.id}-S${String(index + 1).padStart(2, "0")}`,
@@ -363,7 +368,7 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, transitionPro
         source_name: sourceName,
         source_original: shot.path,
         source_in: shot.start,
-        source_out: shot.end,
+        source_out: Number((shot.start + duration).toFixed(6)),
         speed: 1,
         transition_out: "hard_cut",
       };
@@ -381,7 +386,70 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, transitionPro
       segments: timeline.segments,
     };
   });
-  return { master, transition_profile: selectedProfile, transition_feature_enabled: featureEnabled, products, excluded_products: [] };
+  return { master, transition_profile: selectedProfile, transition_feature_enabled: featureEnabled, products, excluded_products: Array.isArray(excludedProducts) ? excludedProducts : [] };
+}
+
+export function mergeRenderReferenceProfile({ templateProfile = {}, batchProfile = {}, storedProfile = {} } = {}) {
+  return {
+    ...(templateProfile || {}),
+    ...(batchProfile || {}),
+    ...(storedProfile || {}),
+  };
+}
+
+export function buildRenderPlanMaster({ batch = {}, legacyMaster = {}, referenceProfile = {}, scheduledProducts = [] } = {}) {
+  const firstSlots = scheduledProducts[0]?.scheduleResult?.renderPlan?.slots || [];
+  const durations = firstSlots.map(({ slot }) => Number(slot?.targetDuration)).filter((value) => Number.isFinite(value) && value > 0);
+  const plannedDuration = Number(durations.reduce((sum, value) => sum + value, 0).toFixed(6));
+  const cuts = [];
+  let cursor = 0;
+  for (const duration of durations.slice(0, -1)) {
+    cursor += duration;
+    cuts.push(Number(cursor.toFixed(6)));
+  }
+  const hookText = typeof batch.hookText === "string" ? batch.hookText : referenceProfile.hook_text;
+  const cvrText = typeof batch.cvrText === "string" ? batch.cvrText : referenceProfile.cvr_text;
+  const cvrLayout = {
+    ...(referenceProfile?.cvr_layout || {}),
+    ...(batch?.cvrLayout || {}),
+  };
+  const legacyCvr = legacyMaster?.cvr && typeof legacyMaster.cvr === "object" ? legacyMaster.cvr : {};
+  const legacyHook = legacyMaster?.hook && typeof legacyMaster.hook === "object" ? legacyMaster.hook : {};
+  const cvrDefaults = Object.keys(legacyCvr).length ? {} : {
+    center_x_percent: 86,
+    max_width_percent: 24,
+    pointer_center_x_percent: 91,
+  };
+  return {
+    ...legacyMaster,
+    width: 1080,
+    height: 1920,
+    fps: 30,
+    ...(plannedDuration > 0 ? { duration_seconds: plannedDuration } : {}),
+    ...(cuts.length ? { cuts } : {}),
+    ...(typeof hookText === "string" ? { hook: { ...legacyHook, text: hookText } } : {}),
+    ...(typeof cvrText === "string" ? { cvr: {
+      ...cvrDefaults,
+      ...legacyCvr,
+      text: cvrText,
+      ...(Number.isFinite(Number(cvrLayout.center_x_percent)) ? { center_x_percent: Number(cvrLayout.center_x_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.max_width_percent)) ? { max_width_percent: Number(cvrLayout.max_width_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.pointer_center_x_percent)) ? { pointer_center_x_percent: Number(cvrLayout.pointer_center_x_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.top_y_percent)) ? { top_y_percent: Number(cvrLayout.top_y_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.pointer_top_y_percent)) ? { pointer_top_y_percent: Number(cvrLayout.pointer_top_y_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.pointer_bottom_y_percent)) ? { pointer_bottom_y_percent: Number(cvrLayout.pointer_bottom_y_percent) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.max_lines)) ? { max_lines: Math.max(1, Math.floor(Number(cvrLayout.max_lines))) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.primary_font_size_at_1080)) ? { primary_font_size_at_1080: Number(cvrLayout.primary_font_size_at_1080) } : {}),
+      ...(Number.isFinite(Number(cvrLayout.minimum_font_size_at_1080)) ? { minimum_font_size_at_1080: Number(cvrLayout.minimum_font_size_at_1080) } : {}),
+    } } : {}),
+  };
+}
+
+export function overlayWindowsForMaster(master = {}, duration = 12.7) {
+  const cuts = Array.isArray(master.cuts) ? master.cuts.map(Number).filter(Number.isFinite) : [];
+  const hookEnd = Math.min(duration, Math.max(0, cuts[0] || 3));
+  const cvrStart = Math.min(duration, Math.max(hookEnd, cuts.at(-1) || Math.max(hookEnd, duration - 3)));
+  return { hookEnd: roundSeconds(hookEnd), cvrStart: roundSeconds(cvrStart) };
 }
 
 function processError({ executable, args, label, stderr = "", stdout, exitCode, code }) {
@@ -692,20 +760,32 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
   return path.relative(root, manifestPath);
 }
 
-export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, excludedProducts = [], onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) {
     throw new Error("Render Plan Not Ready: schedule-result.json has no renderable Product View");
   }
   const editDir = path.join(batchDir, "edit");
   const legacyEdlPath = path.join(editDir, "batch-edl.json");
   const legacyEdl = JSON.parse(await readFile(legacyEdlPath, "utf8").catch(() => "{}"));
-  const referenceProfile = await readJson(path.join(batchDir, "reference-profile.json"), null);
-  const master = { ...(legacyEdl.master || {}) };
+  const storedReferenceProfile = await readJson(path.join(batchDir, "reference-profile.json"), null);
+  const templates = batch.templateId ? await readJson(path.join(root, "data", "templates.json"), []) : [];
+  const templateProfile = templates.find((template) => template?.id === batch.templateId)?.profile || {};
+  // A persisted profile may be an older/partial artifact. Merge the reusable
+  // template profile first, then batch/profile artifacts over it, so text and
+  // transition fields are never lost merely because a partial sidecar exists.
+  // Batch-level text overrides still win in buildRenderPlanMaster.
+  const referenceProfile = mergeRenderReferenceProfile({
+    templateProfile,
+    batchProfile: batch.referenceProfile,
+    storedProfile: storedReferenceProfile,
+  });
+  const master = buildRenderPlanMaster({ batch, legacyMaster: legacyEdl.master || {}, referenceProfile, scheduledProducts });
   if (!Object.hasOwn(master, "transition_plan") && referenceProfile?.transition_plan) master.transition_plan = referenceProfile.transition_plan;
   const transitionRuntime = resolveBatchTransitionRuntime(batch, batch.transitionProfile);
   const renderPlanEdl = renderPlansToEdl({
     master,
     scheduledProducts,
+    excludedProducts,
     transitionProfile: transitionRuntime.transitionProfile,
     featureEnabled: transitionRuntime.featureEnabled,
   });
@@ -815,7 +895,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
       const sourceInfo = await stat(source).catch(() => null);
       if (!sourceInfo?.isFile()) throw new Error(`NAS原片不可读：${source}`);
       const segmentDuration = Number(segment.duration || (segment.source_out - segment.source_in));
-      const segmentPath = path.join(productClips, `${String(index + 1).padStart(2, "0")}-${colorStrategy}.mp4`);
+      const segmentSignature = renderHash({ source, sourceIn: segment.source_in, duration: segmentDuration, width, height, fps, colorStrategy });
+      const segmentPath = path.join(productClips, `${String(index + 1).padStart(2, "0")}-${colorStrategy}-${segmentSignature}.mp4`);
       const filters = [
         `scale=${width}:${height}:force_original_aspect_ratio=increase`,
         `crop=${width}:${height}`,
@@ -835,7 +916,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     const hasSpecialTransition = transitionGraph.transitions.some((transition) => transition.durationSeconds > 0) || Boolean(product.ending_transition);
     const dynamicCacheKey = dynamicPlacements.size ? "-dynamic-" + [...dynamicPlacements.entries()].map(([index, item]) => `${index}-${Number(item.confidence).toFixed(2)}-${Number(item.duration_seconds).toFixed(2)}`).join("-") : "";
     const transitionCacheKey = transitionSignature(transitionGraph.transitions) + (product.ending_transition ? "-end-" + product.ending_transition.duration_seconds : "") + dynamicCacheKey;
-    const basePath = path.join(productClips, hasSpecialTransition || dynamicGraph ? "base-" + colorStrategy + "-" + transitionCacheKey + ".mp4" : "base-" + colorStrategy + ".mp4");
+    const planSignature = renderHash({ segments: product.segments, colorStrategy, transitionCacheKey, width, height, fps });
+    const basePath = path.join(productClips, `base-${colorStrategy}-${planSignature}${hasSpecialTransition || dynamicGraph ? `-${transitionCacheKey}` : ""}.mp4`);
     if (!(await isUsableVideo(ffmpeg, basePath))) {
       if (dynamicGraph) {
         try {
@@ -874,7 +956,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     const outputName = `${product.product_id}${revisionSuffix}${suffix}.mp4`;
     const outputPath = path.join(outputDir, outputName);
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
-    const canReuseOutput = savedOutput.colorStrategy === colorStrategy && await isUsableVideo(ffmpeg, outputPath);
+    const renderSignature = renderHash({ product, master, colorStrategy, transitionProfile, variantIndex });
+    const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
     const musicPath = savedOutput.musicPath || templateMusicPath || musicPool[outputOrdinal];
     await assertActive();
     const musicOffset = Number.isFinite(savedOutput.musicOffset)
@@ -889,6 +972,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
       musicPath,
       musicOffset,
       colorStrategy,
+      renderSignature,
     };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     if (canReuseOutput) {
@@ -907,7 +991,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
       continue;
     }
     const audioEnd = Math.max(0, productDuration - 0.03).toFixed(3);
-    const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,3)'[v1];[v1][3:v]overlay=0:0:enable='between(t,3,${productDuration})'[vout];[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
+    const overlayWindows = overlayWindowsForMaster(master, productDuration);
+    const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][3:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout];[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, "-loop", "1", "-i", hookOverlayPath, "-loop", "1", "-i", cvrOverlayPath, "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
     const record = await buildOutputRecord(root, outputPath, {

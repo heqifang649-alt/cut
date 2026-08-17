@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "artifact": "g3-canary-metrics",
+  "generatedAt": "2026-08-14T06:25:29.110Z",
+  "model": "gpt-5.6-sol",
+  "defaultFlagsChanged": false,
+  "controlAPreserved": true,
+  "batches": [
+    {
+      "batchId": "f84691f5-aa30-4eb9-9bca-55278665773c",
+      "sourceBatchId": "f84691f5-aa30-4eb9-9bca-55278665773c",
+      "durationSeconds": 80.72,
+      "inputProducts": 4,
+      "renderedProducts": 3,
+      "excludedProducts": [{ "product_id": "gc1-m2", "reason": "schedule:hook" }],
+      "semantic": { "cacheHit": 36, "scored": 0, "errors": 0, "circuit": "CLOSED", "failureCount": 0 },
+      "qualityGates": { "productConsistency": "passed", "originalSpeed": "passed", "decodeCheck": "passed", "uniqueMusic": "passed" },
+      "status": "review"
+    },
+    {
+      "batchId": "c50a4f78-0f9e-48eb-91d7-bf903f0663b2",
+      "sourceBatchId": "5d61b0ad-0574-47d9-9d68-60398a9d5819",
+      "durationSeconds": 23.02,
+      "inputProducts": 1,
+      "renderedProducts": 1,
+      "excludedProducts": [],
+      "semantic": { "cacheHit": 15, "scored": 0, "errors": 0, "circuit": "CLOSED", "failureCount": 0 },
+      "qualityGates": { "productConsistency": "passed", "originalSpeed": "passed", "decodeCheck": "passed", "uniqueMusic": "passed" },
+      "status": "review"
+    },
+    {
+      "batchId": "f25ee21e-4a3c-4cb4-ba8b-1bb848e9c25e",
+      "sourceBatchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "durationSeconds": 161.43,
+      "finalRepairRunSeconds": 18.01,
+      "observedRepairRenderSeconds": 75.57,
+      "totalObservedSecondsIncludingRepairs": 237,
+      "reworkRenderCount": 4,
+      "inputProducts": 1,
+      "renderedProducts": 1,
+      "excludedProducts": [],
+      "semantic": { "cacheHit": 0, "scored": 21, "errors": 0, "circuit": "CLOSED", "failureCount": 0 },
+      "qualityGates": { "productConsistency": "passed", "originalSpeed": "passed", "decodeCheck": "passed", "uniqueMusic": "passed" },
+      "firstPassVisualQa": "failed",
+      "finalVisualQa": "passed",
+      "finalCvrAlphaBbox": [840, 1285, 1080, 1750],
+      "bottomSafeZone": { "pixels": 170, "percent": 8.85, "requiredPercent": 8 },
+      "status": "review"
+    }
+  ],
+  "aggregate": {
+    "durationP50Seconds": 80.72,
+    "durationP95SecondsLinear": 153.36,
+    "successfulOutputs": 5,
+    "inputProducts": 6,
+    "renderedProducts": 5,
+    "excludedProducts": 1,
+    "firstPassTechnicalQaRate": 1,
+    "firstPassVisualQaRate": 0.8,
+    "firstPassBatchQaRate": 0.6667,
+    "finalQaPassRate": 1,
+    "reworkRenderCount": 4,
+    "severeProductErrors": 0,
+    "corruptDeliveries": 0,
+    "unrecoverableQueueLosses": 0
+  },
+  "controlAComparison": {
+    "sameSourceControlBatchId": "148186dc-4279-4211-a5d5-ef96475b4aed",
+    "sameSourceControlSeconds": 3691.6,
+    "sameSourceHybridSeconds": 80.72,
+    "elapsedTimeReductionPercent": 97.81,
+    "controlOutputs": 4,
+    "hybridOutputs": 3,
+    "controlSecondsPerOutput": 922.9,
+    "hybridSecondsPerOutput": 26.91,
+    "comparisonNote": "The 15 NAS source paths overlap exactly. Control A includes a Codex turn and produced four review outputs; Hybrid excluded one product fail-closed for missing Hook evidence. The elapsed-time reduction is therefore evidence of throughput improvement, not a claim of identical output count or creative equivalence."
+  }
+}

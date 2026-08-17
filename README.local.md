@@ -27,6 +27,20 @@
 5. 在页面确认产品分组和样片母版，整批素材才会进入统一剪辑。
 6. 成片进入审核后，可以填写一条整批修改指令继续处理。
 
+## Hybrid 受控批量路径
+
+默认仍使用 Control A，保证现有批次可回退。需要执行受控 Canary 时，先在受保护的运行环境中启用：
+
+```text
+ENABLE_NEW_SHOTPOOL=true
+ENABLE_API_SEMANTIC_SCORER=true
+ENABLE_HYBRID_PILOT=true
+ENABLE_NEW_SCHEDULER=true
+ENABLE_NEW_RENDERER=true
+```
+
+已确认样片母版和产品分组的正常批次会走 ShotPool → `gpt-5.6-sol` 语义证据 → 确定性排片 → 渲染；这条路径不要求 Codex 账号在线。首次样片分析、异常分组、低置信和修改任务仍会保留 Codex/人工例外路径。Canary 前必须保留关闭上述开关即可回退 Control A 的能力，且待审核成片仍需通过现有 QA 和人工审核。
+
 NAS 模式下原片始终保留在 NAS，`storage/batches/<批次ID>/proxies` 只保存轻量分析代理，最终剪辑会回链 NAS 原片。浏览器上传仍可作为备用方式。
 
 任务状态保存在 `data/batches.json`。任务处理错误时，可在任务卡片或详情区点击“取消任务”，正在运行的识别、代理生成或剪辑会被中断，已有文件会保留。

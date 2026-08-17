@@ -4,8 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runSemanticShadow } from "../worker/semantic-shadow.mjs";
+import { semanticShotJsonSchema } from "../lib/semantic-shot.mjs";
 
 const validResult = { schema_version: "semantic-shot.v1", shot_id: "shot-1", shot_type: "front_full_body", product_match: 0.9, clothing_visibility: 0.9, visual_quality: 0.8, hook_value: 0.7, usable: true, confidence: 0.91 };
+
+test("semantic JSON schema declares a type for the const schema version", () => {
+  assert.deepEqual(semanticShotJsonSchema().properties.schema_version, { type: "string", const: "semantic-shot.v1" });
+  assert.equal(semanticShotJsonSchema().properties.shot_type.type, "string");
+});
 
 test("semantic shadow is a no-op while flags are off", async () => {
   const result = await runSemanticShadow({ batch: { id: "batch-1" }, batchDir: "unused", shotPool: { shots: [] }, env: {} });

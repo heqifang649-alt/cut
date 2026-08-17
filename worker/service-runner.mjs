@@ -24,6 +24,7 @@ import {
   isCanceled,
   setFailureContext,
   setLeaseGuard,
+  isCodexRequiredForBatch,
 } from "./processor.mjs";
 import {
   MAX_RECOVERY_ATTEMPTS,
@@ -171,7 +172,8 @@ async function runTask(task) {
   // Queue records carry a Batch workflow version. A stale task is completed
   // without calling Codex or writing Batch state.
   if (!taskMayOperate(task, batch, marker)) return { completed: true, skipped: true };
-  if (isCodexServiceTask(task.stage, task.operation)) {
+  const codexRequired = isCodexServiceTask(task.stage, task.operation) && isCodexRequiredForBatch(batch);
+  if (codexRequired) {
     const account = await readJson(path.join(ROOT, "data", "codex-account-state.json"), null);
     if (account?.authenticationValid === false) {
       return {
@@ -186,7 +188,7 @@ async function runTask(task) {
     // and lets the bounded transient-recovery policy decide the outcome.
   }
   let codexSucceeded = false;
-  if (isCodexServiceTask(task.stage, task.operation)) {
+  if (codexRequired) {
     const execution = await acquireCodexExecution({ root: ROOT, task, service: SERVICE, workerId: WORKER_ID });
     if (execution.state === "waiting") {
       await update(batch.id, (item) => {

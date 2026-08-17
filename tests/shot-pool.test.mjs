@@ -10,6 +10,7 @@ import {
   loadShotPool,
   mergeShotsIntoPool,
   readMetadataSidecar,
+  validateTechnicalCandidate,
 } from "../worker/ai-ingest.mjs";
 import { MetadataBudgetUnavailableError, computeMetadataBudget, normalizeMetadataBudget } from "../worker/metadata-budget.mjs";
 
@@ -181,4 +182,30 @@ test("batch import follows ValidationResult accept then Metadata Budget then Sho
   });
   assert.equal(skipped.pool.shots.length, 0);
   assert.deepEqual(skipped.report.records.map((record) => record.status), ["review", "skipped"]);
+});
+
+test("technical shadow admission requires real prepared evidence and preserves the admission boundary", async () => {
+  assert.deepEqual(validateTechnicalCandidate({ width: 1080, height: 1920, duration: 5, bitrate: 1_000_000, frameRate: 30, frameRateConsistent: true }), { verdict: "accept", artifacts: [] });
+  assert.equal(validateTechnicalCandidate({ width: 320, height: 480, duration: 5, frameRate: 30, frameRateConsistent: true }).verdict, "reject");
+  const source = await fixture();
+  await mkdir(source.batchDir, { recursive: true });
+  await writeFile(path.join(source.batchDir, "deterministic-inputs.v1.json"), JSON.stringify({
+    version: 1,
+    batchId: "batch-shadow-admission",
+    sidecars: [{
+      videoPath: source.videoPath,
+      sidecarPath: `${source.videoPath}.json`,
+      technical: { width: 1080, height: 1920, duration: 5, bitrate: 1_000_000, frameRate: 30, frameRateConsistent: true },
+      segments: [{ id: "early", start: 0, end: 2, tags: ["window:early"], budget: validBudget }],
+    }],
+  }), "utf8");
+  const result = await importBatchToShotPool({
+    batch: { id: "batch-shadow-admission", files: [{ kind: "products", absolutePath: source.videoPath, storagePath: source.videoPath }] },
+    batchDir: source.batchDir,
+    admissionPolicy: "technical_metadata_shadow",
+    validate: async () => { throw new Error("full validator must not run in isolated semantic shadow admission"); },
+  });
+  assert.equal(result.report.imported, 1);
+  assert.equal(result.report.admissionPolicy, "technical_metadata_shadow");
+  assert.equal(result.report.records[0].admissionPolicy, "technical_metadata_shadow");
 });

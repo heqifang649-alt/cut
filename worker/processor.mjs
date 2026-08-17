@@ -4,10 +4,10 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isNewRendererEnabled, renderBatchFromEdl, renderBatchFromRenderPlans } from "./batch-renderer.mjs";
-import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool } from "./ai-ingest.mjs";
+import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool, prepareDeterministicInputs } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
-import { createProductViews, isNewSchedulerEnabled, scheduleProductView } from "./shot-scheduler.mjs";
+import { createProductViews, isNewSchedulerEnabled, partitionScheduledProducts, scheduleProductView } from "./shot-scheduler.mjs";
 import { isSemanticShadowEnabled, runSemanticShadow } from "./semantic-shadow.mjs";
 import { groupProductsByFilename, groupProductsByProductDirectory } from "./filename-product-grouper.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
@@ -118,6 +118,31 @@ function resolveFilePath(batch, file) {
 const ACTIVE_BATCH_STATUSES = new Set(["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"]);
 const RUNNABLE_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
 const CODEX_DEPENDENT_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
+
+// Once the reference profile and product groups have been confirmed, the
+// deterministic Scheduler/Renderer path can finish a normal batch without a
+// live Codex session.  Keep the legacy path and all analysis/revision stages
+// Codex-gated so an unavailable session still pauses the work that genuinely
+// needs model reasoning.
+function hasConfirmedDeterministicInputs(batch) {
+  const profile = batch?.referenceProfile;
+  const profileReady = Boolean(profile)
+    && typeof profile.summary === "string"
+    && Array.isArray(profile.structure)
+    && (typeof profile.hook_text === "string" || typeof batch?.hookText === "string")
+    && (typeof profile.cvr_text === "string" || typeof batch?.cvrText === "string");
+  return isNewRendererEnabled()
+    && isNewSchedulerEnabled()
+    && ["batch_queued", "editing"].includes(batch?.status)
+    && profileReady
+    && Array.isArray(batch?.productDetection?.groups)
+    && batch.productDetection.groups.length > 0;
+}
+
+function isCodexRequiredForBatch(batch) {
+  if (!CODEX_DEPENDENT_BATCH_STATUSES.has(batch?.status)) return false;
+  return !hasConfirmedDeterministicInputs(batch);
+}
 
 async function validateProductSource(batch, batchDir, file) {
   const videoPath = resolveFilePath(batch, file);
@@ -1085,11 +1110,13 @@ async function runAnalyzeQuality(batch) {
   const artifactReviews = isArtifactGateEnabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
   if (artifactReviews.length) return pauseForArtifactReview(batch, artifactReviews);
   if (isNewShotPoolEnabled()) {
+    await prepareDeterministicInputs({ batch, batchDir, ffmpeg: FFMPEG });
     await update(batch.id, (item) => { item.renderingLabel = "分析服务：写入完整 ShotPool"; item.lastWorkerActivityAt = new Date().toISOString(); });
     await importBatchToShotPool({
       batch,
       batchDir,
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
+      admissionPolicy: isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator",
     });
   }
   if (isSemanticShadowEnabled()) {
@@ -1163,6 +1190,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
   const artifactReviews = isArtifactGateEnabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
   if (artifactReviews.length) return pauseForArtifactReview(batch, artifactReviews);
   if (includeAnalyze && isNewShotPoolEnabled()) {
+    await prepareDeterministicInputs({ batch, batchDir, ffmpeg: FFMPEG });
     await update(batch.id, (item) => {
       item.renderingLabel = "隔离写入新 ShotPool";
       item.lastWorkerActivityAt = new Date().toISOString();
@@ -1171,6 +1199,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       batch,
       batchDir,
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
+      admissionPolicy: isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator",
     });
   }
   if (includeAnalyze && isSemanticShadowEnabled()) {
@@ -1181,8 +1210,12 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     const scriptTemplatePath = path.join(batchDir, "script-template.json");
     const scriptTemplate = await readJson(scriptTemplatePath, null);
     const productGroups = await readJson(path.join(batchDir, "product-groups.json"), null);
+    const semanticEvidence = isSemanticShadowEnabled()
+      ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
+      : undefined;
     if (!scriptTemplate) throw new Error("New Scheduler requires script-template.json");
     if (!Array.isArray(productGroups?.groups)) throw new Error("New Scheduler requires confirmed product-groups.json");
+    if (isSemanticShadowEnabled() && !Array.isArray(semanticEvidence?.records)) throw new Error("New Scheduler requires semantic-evidence.v1.json");
     const productViews = createProductViews({
       shotPool: await loadShotPool(batch.id, batchDir),
       productGroups: productGroups.groups,
@@ -1190,20 +1223,22 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     scheduledProducts = productViews.map((productView) => ({
       product: productView.product,
       sourceNamesByShotId: productView.sourceNamesByShotId,
-      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch) }),
+      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence }),
     }));
+    const partitioned = partitionScheduledProducts(scheduledProducts);
     await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), {
       isolated: true,
       batchId: batch.id,
       createdAt: new Date().toISOString(),
       products: scheduledProducts,
+      excluded_products: partitioned.excludedProducts,
     });
   }
   if (isNewRendererEnabled()) {
     if (!isNewSchedulerEnabled()) throw new Error("New Renderer requires ENABLE_NEW_SCHEDULER=true");
     if (!scheduledProducts.length) throw new Error("New Renderer requires at least one Product View");
-    const failed = scheduledProducts.filter(({ scheduleResult }) => scheduleResult.status === "failed");
-    if (failed.length) throw new Error(`Schedule Failed: ${failed.map(({ product, scheduleResult }) => `${product.id}:${scheduleResult.slotId}`).join(", ")}`);
+    const { renderable, excludedProducts } = partitionScheduledProducts(scheduledProducts);
+    if (!renderable.length) throw new Error(`Schedule Failed: ${excludedProducts.map((item) => `${item.product_id}:${item.reason}`).join(", ")}`);
     if (!render) {
       await markRenderQueued(batch, "render");
       return { renderReady: true };
@@ -1214,7 +1249,8 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       batch: refreshed,
       batchDir,
       ffmpeg: FFMPEG,
-      scheduledProducts,
+      scheduledProducts: renderable,
+      excludedProducts,
       isCanceled: () => isCanceled(batch.id),
       onProgress: async (done, total, label) => update(batch.id, (item) => {
         item.progress = 50 + Math.round((done / total) * 47);
@@ -1340,13 +1376,20 @@ async function runRenderBatch(batch) {
     item.lastWorkerActivityAt = new Date().toISOString();
   });
   const refreshed = (await readBatches()).find((item) => item.id === batch.id) || batch;
+  const scheduleArtifact = isNewRendererEnabled()
+    ? await readJson(path.join(batchDir, "schedule-result.json"), null)
+    : null;
+  const partitioned = isNewRendererEnabled()
+    ? partitionScheduledProducts(scheduleArtifact?.products || [])
+    : null;
   const rendered = isNewRendererEnabled()
     ? await renderBatchFromRenderPlans({
       root: ROOT,
       batch: refreshed,
       batchDir,
       ffmpeg: runtimeConfig.ffmpegPath,
-      scheduledProducts: (await readJson(path.join(batchDir, "schedule-result.json"), null))?.products || [],
+      scheduledProducts: partitioned.renderable,
+      excludedProducts: Array.isArray(scheduleArtifact?.excluded_products) ? scheduleArtifact.excluded_products : partitioned.excludedProducts,
       isCanceled: () => isCanceled(batch.id),
       onProgress,
       onActivity,
@@ -1435,10 +1478,10 @@ async function tick() {
   const batches = await readBatches();
   const codexAvailable = await accountReady();
   if (!codexAvailable) {
-    const interrupted = batches.find((item) => ACTIVE_BATCH_STATUSES.has(item.status));
+    const interrupted = batches.find((item) => ACTIVE_BATCH_STATUSES.has(item.status) && isCodexRequiredForBatch(item));
     if (interrupted) await recoverCodexConnection(interrupted);
   }
-  const batch = batches.find((item) => RUNNABLE_BATCH_STATUSES.has(item.status) && (codexAvailable || !CODEX_DEPENDENT_BATCH_STATUSES.has(item.status)));
+  const batch = batches.find((item) => RUNNABLE_BATCH_STATUSES.has(item.status) && (codexAvailable || !isCodexRequiredForBatch(item)));
   if (!batch) return false;
   if (!(await resumeRecoveryIfNeeded(batch))) return false;
   try {
@@ -1456,7 +1499,7 @@ async function tick() {
   return true;
 }
 
-export { TurnTimeoutError, ExecutorIncompleteError, analyzeReference, detectProducts, runAnalyzeQuality, runBatchEdit, runRenderBatch, runRevision, runTurn, readBatches, update, isCanceled, recoverOrEscalate, setLeaseGuard, setFailureContext, createReadOnlyNasVideoProxy, prepareEditWorkspaceContext };
+export { TurnTimeoutError, ExecutorIncompleteError, analyzeReference, detectProducts, runAnalyzeQuality, runBatchEdit, runRenderBatch, runRevision, runTurn, readBatches, update, isCanceled, recoverOrEscalate, setLeaseGuard, setFailureContext, createReadOnlyNasVideoProxy, prepareEditWorkspaceContext, hasConfirmedDeterministicInputs, isCodexRequiredForBatch };
 
 function setLeaseGuard(guard) {
   leaseGuard = typeof guard === "function" ? guard : null;

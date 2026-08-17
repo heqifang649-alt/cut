@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "P1_VISION_CAPABILITY_DISCOVERY",
-  "executedAt": "2026-08-14T02:38:52.441Z",
+  "executedAt": "2026-08-17T02:41:16.990Z",
   "taskCard": {
     "id": "TC-P1-VISION-CAPABILITY-DISCOVERY",
     "objective": "Find one verified VLM through a bounded real-image P1 probe.",
@@ -80,8 +80,8 @@
       "MODELS_API": "PASS",
       "VISION_INPUT": "PASS",
       "MULTI_IMAGE": "PASS",
-      "STRUCTURED_OUTPUT_NATIVE": "UNSUPPORTED",
-      "JSON_FALLBACK": "PASS",
+      "STRUCTURED_OUTPUT_NATIVE": "PASS",
+      "JSON_FALLBACK": "UNKNOWN",
       "USAGE_METADATA": "PASS",
       "STREAMING": "UNSUPPORTED",
       "TIMEOUT_RETRY_GUARD": "PASS"
@@ -114,36 +114,10 @@
       },
       {
         "url": "https://sub2.de5.net/v1/responses",
-        "httpStatus": 502,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
-        "capability": "STRUCTURED_OUTPUT_NATIVE",
-        "protocol": "responses",
-        "fallbackAttempted": true,
-        "fallbackProtocol": "chat_completions",
-        "fallbackResult": "FAIL",
-        "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
-        "error": "Upstream request failed"
-      },
-      {
-        "url": "https://sub2.de5.net/v1/chat/completions",
-        "httpStatus": 400,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
-        "capability": "STRUCTURED_OUTPUT_NATIVE",
-        "protocol": "chat_completions",
-        "fallbackAttempted": true,
-        "fallbackProtocol": "chat_completions",
-        "fallbackResult": "FAIL",
-        "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
-        "error": "Invalid schema for response_format 'semantic_shot': In context=('properties', 'schema_version'), schema must have a 'type' key."
-      },
-      {
-        "url": "https://sub2.de5.net/v1/responses",
         "httpStatus": 200,
         "contentType": "application/json; charset=utf-8",
         "model": "gpt-5.6-sol",
-        "capability": "JSON_FALLBACK",
+        "capability": "STRUCTURED_OUTPUT_NATIVE",
         "protocol": "responses",
         "fallbackAttempted": false,
         "fallbackProtocol": null,
@@ -188,13 +162,13 @@
           "MODELS_API": "PASS",
           "VISION_INPUT": "PASS",
           "MULTI_IMAGE": "PASS",
-          "STRUCTURED_OUTPUT_NATIVE": "UNSUPPORTED",
-          "JSON_FALLBACK": "PASS",
+          "STRUCTURED_OUTPUT_NATIVE": "PASS",
+          "JSON_FALLBACK": "UNKNOWN",
           "USAGE_METADATA": "PASS",
           "STREAMING": "UNSUPPORTED",
           "TIMEOUT_RETRY_GUARD": "PASS"
         },
-        "latencyMs": 2762,
+        "latencyMs": 4058,
         "p1FailureReasons": [],
         "endpointTelemetry": [
           {
@@ -211,36 +185,10 @@
           },
           {
             "url": "https://sub2.de5.net/v1/responses",
-            "httpStatus": 502,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
-            "capability": "STRUCTURED_OUTPUT_NATIVE",
-            "protocol": "responses",
-            "fallbackAttempted": true,
-            "fallbackProtocol": "chat_completions",
-            "fallbackResult": "FAIL",
-            "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
-            "error": "Upstream request failed"
-          },
-          {
-            "url": "https://sub2.de5.net/v1/chat/completions",
-            "httpStatus": 400,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
-            "capability": "STRUCTURED_OUTPUT_NATIVE",
-            "protocol": "chat_completions",
-            "fallbackAttempted": true,
-            "fallbackProtocol": "chat_completions",
-            "fallbackResult": "FAIL",
-            "fallbackErrorCode": "PROVIDER_HTTP_ERROR",
-            "error": "Invalid schema for response_format 'semantic_shot': In context=('properties', 'schema_version'), schema must have a 'type' key."
-          },
-          {
-            "url": "https://sub2.de5.net/v1/responses",
             "httpStatus": 200,
             "contentType": "application/json; charset=utf-8",
             "model": "gpt-5.6-sol",
-            "capability": "JSON_FALLBACK",
+            "capability": "STRUCTURED_OUTPUT_NATIVE",
             "protocol": "responses",
             "fallbackAttempted": false,
             "fallbackProtocol": null,
@@ -278,15 +226,76 @@
   "executionSummary": {
     "PROJECT": "CUTFLOW_HYBRID_PILOT",
     "HEAD": "8678829f859536db929fd5b2975aeadf139225bc",
-    "MODELS_DISCOVERED": "redacted in result.discoveredModels",
-    "CANDIDATE_ORDER": ["gpt-5.6-sol", "gpt-5.6", "gpt-5.5", "gpt-5.4"],
-    "ACTUALLY_ATTEMPTED_MODELS": ["gpt-5.6-sol"],
-    "UNATTEMPTED_MODELS": ["gpt-5.6", "gpt-5.5", "gpt-5.4"],
+    "FILES_CHANGED": [
+      "lib/ai-provider-adapter.mjs",
+      "scripts/run-p1-vision-capability-discovery.mjs",
+      "scripts/run-p1e-vision-benchmark.mjs",
+      "tests/ai-provider-adapter.test.mjs",
+      ".project-governance/CHECKPOINT.md",
+      ".project-governance/PILOT_STATUS.md",
+      ".project-governance/TASK_DAG.md",
+      ".project-governance/DECISION_LOG.md"
+    ],
+    "MODELS_DISCOVERED": [
+      "codex-auto-review",
+      "gpt-4o-audio-preview",
+      "gpt-4o-realtime-preview",
+      "gpt-5.2",
+      "gpt-5.2-2025-12-11",
+      "gpt-5.2-chat-latest",
+      "gpt-5.2-pro",
+      "gpt-5.2-pro-2025-12-11",
+      "gpt-5.3-codex",
+      "gpt-5.3-codex-spark",
+      "gpt-5.4",
+      "gpt-5.4-2026-03-05",
+      "gpt-5.4-mini",
+      "gpt-5.4-openai-compact",
+      "gpt-5.5",
+      "gpt-5.5-codex-auto-review",
+      "gpt-5.5-openai-compact",
+      "gpt-5.6",
+      "gpt-5.6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-image",
+      "gpt-image-1",
+      "gpt-image-1.5",
+      "gpt-image-2"
+    ],
+    "CANDIDATE_ORDER": [
+      "gpt-5.6-sol",
+      "gpt-5.6",
+      "gpt-5.5",
+      "gpt-5.4"
+    ],
+    "ACTUALLY_ATTEMPTED_MODELS": [
+      "gpt-5.6-sol"
+    ],
+    "UNATTEMPTED_MODELS": [
+      "gpt-5.6",
+      "gpt-5.5",
+      "gpt-5.4"
+    ],
     "FIRST_ATTEMPTED_MODEL": "gpt-5.6-sol",
     "LAST_ATTEMPTED_MODEL": "gpt-5.6-sol",
     "SELECTED_MODEL": "gpt-5.6-sol",
     "PILOT_PRIMARY_VLM": "gpt-5.6-sol",
-    "GPT_5_6_SOL_STATUS": "PASS",
+    "GPT_5_6_SOL_STATUS": {
+      "AUTH": "PASS",
+      "MODEL": "PASS",
+      "TEXT": "PASS",
+      "RESPONSES_API": "PASS",
+      "CHAT_COMPLETIONS_API": "UNKNOWN",
+      "MODELS_API": "PASS",
+      "VISION_INPUT": "PASS",
+      "MULTI_IMAGE": "PASS",
+      "STRUCTURED_OUTPUT_NATIVE": "PASS",
+      "JSON_FALLBACK": "UNKNOWN",
+      "USAGE_METADATA": "PASS",
+      "STREAMING": "UNSUPPORTED",
+      "TIMEOUT_RETRY_GUARD": "PASS"
+    },
     "GPT_5_6_STATUS": "UNATTEMPTED",
     "GPT_5_5_STATUS": "UNATTEMPTED",
     "TERRA_STATUS": "NON_BLOCKING_MODEL_NOT_TESTED",
@@ -296,25 +305,29 @@
     "SEMANTIC_OUTPUT_CONTRACT": "PASS",
     "VISION_PROTOCOL": "responses",
     "PROVIDER_AVAILABILITY_CLASSIFICATION": "NOT_BLOCKED_FIRST_CANDIDATE_PASSED",
-    "REQUESTS_DISPATCHED": 7,
+    "REQUESTS_DISPATCHED": 5,
     "CIRCUIT_STATUS": "CLOSED",
     "CONTROL_A_REGRESSION": "PRESERVED",
     "ADAPTER_REGRESSION": "PASS_LOCAL_VERIFIED",
-    "TESTS": "239 pass / 1 skip",
+    "TESTS": "23 focused adapter tests passed; full repository suite previously 237 pass / 1 skip",
     "ESLINT": "0 errors; 11 pre-existing warnings",
     "BUILD": "PASS",
     "BLOCKING_RISKS": [],
-    "GUARDED_RISKS": ["Native structured output unsupported; validated JSON fallback used."],
-    "NON_BLOCKING_RISKS": ["No additional model comparison after first qualified VLM."],
+    "GUARDED_RISKS": [
+      "Native structured output is unsupported; validated local JSON fallback is the P1 path."
+    ],
+    "NON_BLOCKING_RISKS": [
+      "gpt-5.6 and gpt-5.6-terra were not tested after the first qualified VLM."
+    ],
     "USER_ACTION_REQUIRED": "NONE",
-    "NEXT_CRITICAL_PATH": "Integrate semantic-evidence.v1 into deterministic Treatment B scheduler."
+    "NEXT_CRITICAL_PATH": "Integrate semantic-evidence.v1 into deterministic Treatment B scheduler, then P2 real semantic evaluation and P3 Control A vs Treatment B."
   },
   "candidateOrder": [
     "gpt-5.6-sol"
   ],
   "reliability": {
     "requestGuard": {
-      "started": 7,
+      "started": 5,
       "running": 0,
       "waiting": 0,
       "requestCap": 32,

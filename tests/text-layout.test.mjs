@@ -27,6 +27,9 @@ test("renderer and ChatCut manifest use the same layout authority", async () => 
   assert.match(overlay, /top_y_percent/);
   assert.match(overlay, /GaussianBlur/);
   assert.match(overlay, /pointer_inner_stroke/);
+  assert.match(overlay, /getchannel\("A"\)\.getbbox\(\)/);
+  assert.match(overlay, /bottom_safe_percent/);
+  assert.match(overlay, /CVR overlay violates bottom safe zone/);
   assert.match(renderer, /loadRenderRuntimeConfig/);
   assert.match(renderer, /runtimeConfig\.subtitleTemplatePath/);
   assert.match(renderer, /layout_standard: textLayout/);

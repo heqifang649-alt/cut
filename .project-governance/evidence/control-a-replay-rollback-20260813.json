@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "control-a-replay-and-rollback.v1",
   "status": "PASS",
-  "capturedAt": "2026-08-13T04:12:53.191Z",
+  "capturedAt": "2026-08-14T05:51:29.295Z",
   "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
   "flags": {
     "ENABLE_NEW_SHOTPOOL": "false",
@@ -130,9 +130,9 @@
   },
   "control": {
     "label": "control-a",
-    "startedAt": "2026-08-13T04:12:55.682Z",
-    "completedAt": "2026-08-13T04:13:04.937Z",
-    "wallClockMs": 11696,
+    "startedAt": "2026-08-14T05:51:31.965Z",
+    "completedAt": "2026-08-14T05:51:41.125Z",
+    "wallClockMs": 11555,
     "workspace": "storage\\pilot-replay\\0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3-control-a",
     "flags": {
       "ENABLE_NEW_SHOTPOOL": "false",
@@ -170,9 +170,9 @@
       "files": [
         {
           "name": "ah1.mp4",
-          "size": 13007948,
-          "containerSha256": "20346c52d14ee451b638a412f4af4500e095a5efb45f41d159600fe5988cec0a",
-          "decodedVideoMd5": "2842a7fa847711570d91fa7fb2c5c940",
+          "size": 12975344,
+          "containerSha256": "33082b72cc86d3f346ff19c6714fda543f04da5e7c0df1cd6d04c3b8a35f34ac",
+          "decodedVideoMd5": "65e0ee9248bca23b2d6682c49b1e665c",
           "decodedAudioMd5": "8201a6b7eb817ab35a23dfb5152bd6ab",
           "qualityStatus": "passed"
         }
@@ -190,43 +190,43 @@
     ],
     "activity": [
       {
-        "at": "2026-08-13T04:12:55.904Z",
+        "at": "2026-08-14T05:51:32.276Z",
         "message": "生成字幕与CVR图层"
       },
       {
-        "at": "2026-08-13T04:12:56.329Z",
+        "at": "2026-08-14T05:51:32.843Z",
         "message": "渲染ah1片段1/5"
       },
       {
-        "at": "2026-08-13T04:12:57.249Z",
+        "at": "2026-08-14T05:51:33.898Z",
         "message": "渲染ah1片段2/5"
       },
       {
-        "at": "2026-08-13T04:12:58.016Z",
+        "at": "2026-08-14T05:51:34.729Z",
         "message": "渲染ah1片段3/5"
       },
       {
-        "at": "2026-08-13T04:12:58.910Z",
+        "at": "2026-08-14T05:51:35.605Z",
         "message": "渲染ah1片段4/5"
       },
       {
-        "at": "2026-08-13T04:12:59.672Z",
+        "at": "2026-08-14T05:51:36.447Z",
         "message": "渲染ah1片段5/5"
       },
       {
-        "at": "2026-08-13T04:13:00.476Z",
+        "at": "2026-08-14T05:51:37.243Z",
         "message": "拼接ah1"
       },
       {
-        "at": "2026-08-13T04:13:00.751Z",
+        "at": "2026-08-14T05:51:37.408Z",
         "message": "合成ah1"
       },
       {
-        "at": "2026-08-13T04:13:04.401Z",
+        "at": "2026-08-14T05:51:40.597Z",
         "message": "质检ah1"
       },
       {
-        "at": "2026-08-13T04:13:04.936Z",
+        "at": "2026-08-14T05:51:41.124Z",
         "done": 1,
         "total": 1,
         "message": "ah1"
@@ -235,9 +235,9 @@
   },
   "rollback": {
     "label": "rollback-flags-off",
-    "startedAt": "2026-08-13T04:13:07.378Z",
-    "completedAt": "2026-08-13T04:13:17.185Z",
-    "wallClockMs": 11909,
+    "startedAt": "2026-08-14T05:51:43.520Z",
+    "completedAt": "2026-08-14T05:51:52.975Z",
+    "wallClockMs": 11696,
     "workspace": "storage\\pilot-replay\\0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3-rollback-flags-off",
     "flags": {
       "ENABLE_NEW_SHOTPOOL": "false",
@@ -275,9 +275,9 @@
       "files": [
         {
           "name": "ah1.mp4",
-          "size": 13007948,
-          "containerSha256": "46e4c2b9a9f432df586c913da667b2b77162137aeb8d5042f15e7c36761a1c0d",
-          "decodedVideoMd5": "2842a7fa847711570d91fa7fb2c5c940",
+          "size": 12975344,
+          "containerSha256": "00053f3649fd9884fe89d0e405159ad9eefaf919c5912154c0c98ea289395b79",
+          "decodedVideoMd5": "65e0ee9248bca23b2d6682c49b1e665c",
           "decodedAudioMd5": "8201a6b7eb817ab35a23dfb5152bd6ab",
           "qualityStatus": "passed"
         }
@@ -295,43 +295,43 @@
     ],
     "activity": [
       {
-        "at": "2026-08-13T04:13:07.577Z",
+        "at": "2026-08-14T05:51:43.730Z",
         "message": "生成字幕与CVR图层"
       },
       {
-        "at": "2026-08-13T04:13:07.949Z",
+        "at": "2026-08-14T05:51:44.276Z",
         "message": "渲染ah1片段1/5"
       },
       {
-        "at": "2026-08-13T04:13:08.819Z",
+        "at": "2026-08-14T05:51:45.232Z",
         "message": "渲染ah1片段2/5"
       },
       {
-        "at": "2026-08-13T04:13:09.556Z",
+        "at": "2026-08-14T05:51:46.068Z",
         "message": "渲染ah1片段3/5"
       },
       {
-        "at": "2026-08-13T04:13:10.525Z",
+        "at": "2026-08-14T05:51:46.897Z",
         "message": "渲染ah1片段4/5"
       },
       {
-        "at": "2026-08-13T04:13:11.756Z",
+        "at": "2026-08-14T05:51:47.781Z",
         "message": "渲染ah1片段5/5"
       },
       {
-        "at": "2026-08-13T04:13:12.720Z",
+        "at": "2026-08-14T05:51:48.946Z",
         "message": "拼接ah1"
       },
       {
-        "at": "2026-08-13T04:13:12.938Z",
+        "at": "2026-08-14T05:51:49.189Z",
         "message": "合成ah1"
       },
       {
-        "at": "2026-08-13T04:13:16.612Z",
+        "at": "2026-08-14T05:51:52.544Z",
         "message": "质检ah1"
       },
       {
-        "at": "2026-08-13T04:13:17.185Z",
+        "at": "2026-08-14T05:51:52.974Z",
         "done": 1,
         "total": 1,
         "message": "ah1"
@@ -346,8 +346,8 @@
     "compared": [
       {
         "name": "ah1.mp4",
-        "controlContainerSha256": "20346c52d14ee451b638a412f4af4500e095a5efb45f41d159600fe5988cec0a",
-        "rollbackContainerSha256": "46e4c2b9a9f432df586c913da667b2b77162137aeb8d5042f15e7c36761a1c0d",
+        "controlContainerSha256": "33082b72cc86d3f346ff19c6714fda543f04da5e7c0df1cd6d04c3b8a35f34ac",
+        "rollbackContainerSha256": "00053f3649fd9884fe89d0e405159ad9eefaf919c5912154c0c98ea289395b79",
         "containerEqual": false,
         "videoDecodedEqual": true,
         "audioDecodedEqual": true,

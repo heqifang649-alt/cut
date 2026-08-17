@@ -18,6 +18,21 @@ test("provider settings APIs remain admin-only, same-origin, and redacted", asyn
   assert.match(connection, /failedCapabilities/);
   assert.match(connection, /p1FailureReasons/);
   assert.match(connection, /The provider did not satisfy the required P1 capability checks/);
+  assert.match(connection, /PROVIDER_PROBE_BUDGET_MS = 50_000/);
+  assert.match(connection, /PROVIDER_PROBE_REQUEST_TIMEOUT_MS = 30_000/);
+  assert.match(connection, /Math\.min\(resolved\.config\.requestTimeoutMs, PROVIDER_PROBE_REQUEST_TIMEOUT_MS\)/);
+  assert.match(connection, /PROVIDER_PROBE_FAILURE_THRESHOLD = 12/);
+  assert.match(connection, /new ProviderRequestGuard/);
+  assert.match(connection, /failureThreshold: PROVIDER_PROBE_FAILURE_THRESHOLD/);
+  assert.match(connection, /strictModel: true/);
+  assert.match(connection, /readFile/);
+  assert.match(connection, /data:image\/jpeg;base64/);
+  assert.match(connection, /TEST_IMAGE_PATHS/);
+  assert.doesNotMatch(connection, /data:image\/png;base64/);
+  assert.match(connection, /probeController\.abort\(new ProviderAdapterError/);
+  assert.match(connection, /signal: probeController\.signal/);
+  assert.match(connection, /PROVIDER_PROBE_TIMEOUT/);
+  assert.match(connection, /status.*504/);
 });
 
 test("P0 settings UI and default-off semantic flags are visible without embedding a key", async () => {
@@ -30,6 +45,8 @@ test("P0 settings UI and default-off semantic flags are visible without embeddin
   assert.match(page, /测试连接/);
   assert.match(page, /candidateModels: payload\.discovery!\.models/);
   assert.match(page, /payload\.error \|\| payload\.probe\?\.error/);
+  assert.match(page, /providerTestClientTimeoutMs = 70_000/);
+  assert.match(page, /providerTestClientTimeoutMs\);/);
   assert.match(page, /provider-message \$\{providerMessageTone\}/);
   assert.match(environment, /ENABLE_API_SEMANTIC_SCORER=false/);
   assert.match(environment, /ENABLE_HYBRID_PILOT=false/);

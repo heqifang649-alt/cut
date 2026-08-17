@@ -42,6 +42,25 @@ test("production launcher starts three stable Supervisor instances for every ser
   assert.match(source, /\$servicesReady = \$false/);
 });
 
+test("production launcher defaults to Hybrid and preserves a one-switch Control A rollback", async () => {
+  const [start, restart] = await Promise.all([
+    readFile(new URL("scripts/start-cutflow.ps1", root), "utf8"),
+    readFile(new URL("scripts/restart-cutflow.ps1", root), "utf8"),
+  ]);
+  assert.match(start, /\[switch\]\$ControlA/);
+  for (const flag of ["ENABLE_NEW_VALIDATOR", "ENABLE_NEW_SHOTPOOL", "ENABLE_NEW_SCHEDULER", "ENABLE_NEW_RENDERER", "ENABLE_API_SEMANTIC_SCORER", "ENABLE_HYBRID_PILOT"]) {
+    assert.match(start, new RegExp(flag));
+  }
+  assert.match(start, /if \(\$ControlA\) \{ 'false' \} else \{ 'true' \}/);
+  assert.match(start, /\$env:MODEL_FAST = 'gpt-5\.6-sol'/);
+  assert.match(start, /\$env:MODEL_STRONG = 'gpt-5\.6-sol'/);
+  assert.match(start, /\$env:ENABLE_ARTIFACT_GATE = 'false'/);
+  assert.match(start, /production-path\.json/);
+  assert.match(start, /mode = if \(\$ControlA\) \{ 'control_a' \} else \{ 'hybrid' \}/);
+  assert.match(restart, /\$controlARollback = \$args -contains '-ControlA'/);
+  assert.match(restart, /-ControlA:\$controlARollback/);
+});
+
 test("render supervisor records crashes and restarts after three seconds", async () => {
   const source = await readFile(new URL("worker/service-supervisor.mjs", root), "utf8");
   assert.match(source, /CUTFLOW_SERVICE_RESTART_DELAY_MS/);
