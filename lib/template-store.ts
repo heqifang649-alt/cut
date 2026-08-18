@@ -1,7 +1,6 @@
 import path from "node:path";
 import type { BatchFile, SampleTemplate } from "./types";
 import { readJson, withFileLock, writeJsonAtomic } from "./atomic-json.mjs";
-import { LEGACY_ARCHIVE_OWNER_ID } from "./tenant-paths.mjs";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "templates.json");
@@ -35,21 +34,14 @@ export async function getTemplateForOwners(id: string, ownerIds: string[]) {
   return template && ownerIds.includes(template.ownerId) ? template : null;
 }
 
-// Ready/sample templates are a shared, read-only workspace library. Legacy
-// archive templates remain admin-only until explicitly transferred.
-function canReadSharedTemplate(template: SampleTemplate, ownerIds: string[]) {
-  return template.ownerId !== LEGACY_ARCHIVE_OWNER_ID || ownerIds.includes(LEGACY_ARCHIVE_OWNER_ID);
+// Sample templates are a workspace-wide, read-only asset library. Ownership
+// controls uploads and re-analysis, but never visibility, preview, or use.
+export async function listSharedTemplates() {
+  return listTemplates();
 }
 
-export async function listSharedTemplates(ownerIds: string[]) {
-  return (await readAll())
-    .filter((item) => canReadSharedTemplate(item, ownerIds))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
-export async function getSharedTemplate(id: string, ownerIds: string[]) {
-  const template = await getTemplate(id);
-  return template && canReadSharedTemplate(template, ownerIds) ? template : null;
+export async function getSharedTemplate(id: string) {
+  return getTemplate(id);
 }
 
 export function mutateTemplate(id: string, mutate: (item: SampleTemplate) => SampleTemplate | void) {

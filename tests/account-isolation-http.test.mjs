@@ -60,6 +60,8 @@ test("HTTP API isolates private resources while exposing shared sample templates
   assert.ok(sharedTemplateList.templates.some((item) => item.id === aTemplate.id), "members can see shared templates");
   assert.equal((await request(`/api/templates/${aTemplate.id}/media`, { cookie: accountB.cookie })).status, 200, "members can preview a shared template");
   assert.equal((await request(`/api/templates/${aTemplate.id}/queue`, { method: "POST", cookie: accountB.cookie })).status, 404, "members cannot modify another account's template");
+  const sharedTemplateBatch = await request("/api/batches", { method: "POST", cookie: accountB.cookie, json: { batchName: "Shared template batch", requirements: "reuse public template", sourceMode: "upload", transitionMode: "standard", templateId: aTemplate.id } });
+  assert.notEqual(sharedTemplateBatch.status, 404, "members can select another account's shared template for a batch");
 
   const aBatchResponse = await request("/api/batches", { method: "POST", cookie: accountA.cookie, json: { batchName: "A private task", requirements: "isolation verification", sourceMode: "upload", transitionMode: "standard" } });
   const aBatch = (await payload(aBatchResponse)).batch;

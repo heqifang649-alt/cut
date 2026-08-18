@@ -2,7 +2,6 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getSharedTemplate } from "@/lib/template-store";
-import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
 import { fileReadStream, parseByteRange } from "@/lib/media-stream";
@@ -21,7 +20,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const user = await currentUser();
   if (!user) return unauthenticated();
   const { id } = await context.params;
-  const template = await getSharedTemplate(id, accessibleOwnerIds(user));
+  const template = await getSharedTemplate(id);
   if (!template?.file) return NextResponse.json({ error: "样片不存在" }, { status: 404 });
   let filePath: string;
   try { filePath = resolveStoredWorkspaceFile(process.cwd(), templateWorkspacePath(process.cwd(), template), template.file.storagePath); }

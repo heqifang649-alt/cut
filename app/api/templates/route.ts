@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createTemplate, listSharedTemplates } from "@/lib/template-store";
-import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -9,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await currentUser();
   if (!user) return unauthenticated();
-  return NextResponse.json({ templates: await listSharedTemplates(accessibleOwnerIds(user)) });
+  return NextResponse.json({ templates: await listSharedTemplates() });
 }
 
 export async function POST(request: Request) {

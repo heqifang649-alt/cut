@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!user) return unauthenticated();
   const input = await request.json();
   if (!input.batchName || !input.requirements) return NextResponse.json({ error: "批次名称和统一要求不能为空" }, { status: 400 });
-  const template = input.templateId ? await getSharedTemplate(String(input.templateId), accessibleOwnerIds(user)) : null;
+  const template = input.templateId ? await getSharedTemplate(String(input.templateId)) : null;
   if (input.templateId && (!template || template.status !== "ready" || !template.profile)) return NextResponse.json({ error: "所选样片母版尚未就绪" }, { status: 400 });
   const colorStrategy = ["none", "sample", "lut"].includes(input.colorStrategy) ? input.colorStrategy : "none";
   const requestedMusicSource = ["template", "library", "upload"].includes(input.musicSource) ? input.musicSource : "template";
