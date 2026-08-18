@@ -42,7 +42,15 @@ $bootstrapCache = Join-Path $workerCacheRoot 'bootstrap'
 New-Item -ItemType Directory -Force -Path $bootstrapTemp, $bootstrapCache | Out-Null
 
 $env:CODEX_HOME = $CodexHome
-$env:CODEX_CLI_PATH = 'C:\Users\尔尔\AppData\Local\OpenAI\Codex\bin\8e8bf206e63ac436\codex.exe'
+$codexCliRoot = Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin'
+$codexCli = Get-ChildItem -LiteralPath $codexCliRoot -Recurse -Filter 'codex.exe' -File -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+if ($codexCli) {
+  $env:CODEX_CLI_PATH = $codexCli.FullName
+} else {
+  $env:CODEX_CLI_PATH = Join-Path $codexCliRoot 'codex.exe'
+}
 $env:XDG_CACHE_HOME = 'D:\codex\cache'
 $env:TEMP = $bootstrapTemp
 $env:TMP = $bootstrapTemp
@@ -160,11 +168,14 @@ if ($SkipAccountCheck) {
     } finally {
       Remove-Item -LiteralPath $probeOutput, $probeError -Force -ErrorAction SilentlyContinue
     }
-    if ($probeExitCode -eq 0 -and $capture) { break }
+    # A healthy probe can emit its JSON result just before the outer process
+    # guard reaps a lingering child. Keep and parse that result even when the
+    # wrapper observes exit code -1.
+    if ($capture) { break }
     if ((Get-Date) -ge $cutoff) { break }
     Start-Sleep -Milliseconds 500
   } while ((Get-Date) -lt $cutoff)
-  if ($probeExitCode -eq 0 -and $capture) {
+  if ($capture) {
     try {
       $check = $capture | ConvertFrom-Json
       $codexReady = [bool]$check.ready

@@ -851,9 +851,12 @@ export default function Home() {
   }, [reviewBatches]);
   const completedCount = reviewBatches.length;
   const activeCount = batches.filter((batch) => ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising", "cancel_requested"].includes(batch.status)).length;
+  const templateReadyCount = templates.filter((item) => item.status === "ready").length;
+  const templateActiveCount = templates.filter((item) => ["queued", "analyzing"].includes(item.status)).length;
+  const templateAttentionCount = templates.filter((item) => item.status === "failed").length;
   const taskNavigationActive = ["batches", "new-batch", "batch-detail"].includes(view);
-  const pageTitle = view === "dashboard" ? "工作台" : view === "batches" ? "任务" : view === "new-batch" ? "新建任务" : view === "batch-detail" ? "任务详情" : view === "templates" ? "样片母版库" : view === "reviews" ? "成片审核" : "设置";
-  const pageDescription = view === "dashboard" ? "先看今天待处理、待审核与异常任务；从这里继续任务或新建批次。" : view === "batches" ? "查看全部剪辑任务；打开一条任务后，只显示该任务的执行信息。" : view === "new-batch" ? "选择母版、接入素材，然后创建一条新的剪辑任务。" : view === "batch-detail" ? "查看当前任务的素材、执行进度、识别结果与后续操作。" : view === "templates" ? "公共样片母版库：所有已登录账号都可查看、预览和选用；上传与重新分析仅由创建者管理。" : view === "reviews" ? "逐条预览成片，确认通过后自动交付到成片目录。" : "管理 AI Provider 的 Pilot 配置与连接状态。";
+  const pageTitle = view === "dashboard" ? "工作台" : view === "batches" ? "批次" : view === "new-batch" ? "新建批次" : view === "batch-detail" ? "批次详情" : view === "templates" ? "样片母版库" : view === "reviews" ? "成片审核" : "设置";
+  const pageDescription = view === "dashboard" ? "先看今天待处理、待审核与异常批次；从这里继续批次或新建批次。" : view === "batches" ? "查看全部剪辑批次；打开一条批次后，只显示该批次的执行信息。" : view === "new-batch" ? "选择母版、接入素材，然后创建一条新的剪辑批次。" : view === "batch-detail" ? "查看当前批次的素材、执行进度、识别结果与后续操作。" : view === "templates" ? "公共样片母版库：所有已登录账号都可查看、预览和选用；上传与重新分析仅由创建者管理。" : view === "reviews" ? "逐条预览成片，确认通过后自动交付到成片目录。" : "管理 AI Provider 的 Pilot 配置与连接状态。";
 
   const displayedPageTitle = view === "users" ? "用户管理" : view === "ai-provider" ? "AI Provider" : pageTitle;
   const displayedPageDescription = view === "users" ? "仅管理员可创建账号并查看工作区用户。" : view === "ai-provider" ? "仅管理员可配置 Provider；API Key 保存后不会再次显示。" : pageDescription;
@@ -1096,6 +1099,15 @@ export default function Home() {
     setSelectedId(null);
     setError("");
     restoreNewBatchDraft();
+    setView("new-batch");
+  }
+
+  function selectTemplateForBatch(template: SampleTemplate) {
+    if (template.status !== "ready") return;
+    setSelectedId(null);
+    setError("");
+    restoreNewBatchDraft();
+    setSelectedTemplateId(template.id);
     setView("new-batch");
   }
 
@@ -1399,7 +1411,7 @@ export default function Home() {
         <div className="brand"><span>GC</span><div><strong>Cutflow</strong><small>统一剪辑工作台</small></div></div>
         <nav aria-label="主要导航">
           <button className={`nav-item ${view === "dashboard" ? "active" : ""}`} onClick={() => navigateTo("dashboard")}><span>◌</span>工作台<i>•</i></button>
-          <button className={`nav-item ${taskNavigationActive ? "active" : ""}`} onClick={() => openBatchWorkspace()}><span>▦</span>任务<i>{batches.length}</i></button>
+          <button className={`nav-item ${taskNavigationActive ? "active" : ""}`} onClick={() => openBatchWorkspace()}><span>▦</span>批次<i>{batches.length}</i></button>
           <button className={`nav-item ${view === "templates" ? "active" : ""}`} onClick={() => navigateTo("templates")}><span>◫</span>样片母版<i>{templates.filter((item) => item.status === "ready").length}</i></button>
           <button className={`nav-item ${view === "reviews" ? "active" : ""}`} onClick={() => navigateTo("reviews")}><span>✓</span>成片审核<i>{completedCount}</i></button>
         </nav>
@@ -1418,7 +1430,7 @@ export default function Home() {
         <header className="topbar">
           <div className="topbar-copy"><span className="eyebrow">广告创意工作台</span><h1>{displayedPageTitle}</h1><p>{displayedPageDescription}</p></div>
           <div className="topbar-actions">
-            {view !== "new-batch" && <button className="primary-button new-task-button" onClick={openNewBatch}>＋ 新建任务</button>}
+            {view !== "new-batch" && <button className="primary-button new-task-button" onClick={openNewBatch}>＋ 新建批次</button>}
             {view !== "dashboard" && <div className="top-stats"><div><strong>{activeCount}</strong><span>处理中</span></div><div><strong>{completedCount}</strong><span>待审核/完成</span></div></div>}
           </div>
         </header>
@@ -1530,11 +1542,11 @@ export default function Home() {
         ) : view === "dashboard" ? <DashboardOverview data={dashboard} loading={loading} onRefresh={loadBatches} onOpenBatch={openBatchWorkspace} onCreateBatch={openNewBatch} /> : view === "batches" ? (
           <section className="task-list-page">
             <div className="task-list-card">
-              <div className="section-head task-list-head"><div><span className="eyebrow">全部任务</span><h2>任务列表</h2></div><button className="icon-button" onClick={loadBatches} aria-label="刷新任务">↻</button></div>
+              <div className="section-head task-list-head"><div><span className="eyebrow">全部批次</span><h2>批次列表</h2></div><button className="icon-button" onClick={loadBatches} aria-label="刷新批次">↻</button></div>
               <div className="task-list-table" role="table">
-                <div className="task-list-row header" role="row"><span>任务名称</span><span>状态</span><span>当前阶段</span><span>素材</span><span>最近更新</span><span>操作</span></div>
+                <div className="task-list-row header" role="row"><span>批次名称</span><span>状态</span><span>当前阶段</span><span>素材</span><span>最近更新</span><span>操作</span></div>
                 {loading && <div className="empty-state">正在读取任务…</div>}
-                {!loading && !batches.length && <div className="empty-state"><strong>还没有任务</strong><span>使用右上角的新建任务开始第一批剪辑。</span></div>}
+                {!loading && !batches.length && <div className="empty-state"><strong>还没有批次</strong><span>使用右上角的新建批次开始第一批剪辑。</span></div>}
                 {!loading && batches.map((batch) => {
                   const meta = statusMeta[batch.status];
                   const current = lifecycleCurrent(batch);
@@ -1662,9 +1674,13 @@ export default function Home() {
         ))}
         </>) : view === "templates" ? (
           <section className="template-library">
-            <div className="template-create">
-              <div className="section-head"><div><span className="step-badge">PREP</span><h2>提前拆解新样片</h2></div><span className="speed-lock">一次分析 · 多批复用</span></div>
-              <p>可一次选择多条已验证的广告样片；每条样片独立生成母版并进入后台队列，不需要等待上一条拆解完成。</p>
+            <header className="template-library-header">
+              <div><span className="eyebrow">VIDEO TEMPLATE ASSETS</span><h2>广告视频母版资产库</h2><p>浏览已拆解样片，快速判断可用性，并直接进入批量生产。</p></div>
+              <button className="primary-button" type="button" onClick={() => document.querySelector<HTMLDetailsElement>(".template-create")?.setAttribute("open", "")}>＋ 创建新母版</button>
+            </header>
+            <div className="template-library-stats" aria-label="母版状态概览"><span><strong>{templates.length}</strong>全部母版</span><span><strong>{templateReadyCount}</strong>可直接使用</span><span><strong>{templateActiveCount}</strong>分析中</span><span className={templateAttentionCount ? "attention" : ""}><strong>{templateAttentionCount}</strong>需要处理</span></div>
+            <details className="template-create" open={templateSubmitting || Boolean(templateUploadState) || Boolean(error)}>
+              <summary><div><span className="step-badge">PREP</span><strong>创建 / 拆解新样片</strong><small>上传已验证的广告成片，一次分析后可在多个批次复用。</small></div><span>展开上传</span></summary>
               <form onSubmit={createSampleTemplate}>
                 <label><span>母版名称前缀</span><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="例如：街头服装 13秒母版" /></label>
                 <FileDrop label="批量上传参考样片" hint="可一次选择多条已确认效果的广告成片，最多20条" files={templateFiles} accept="video/*" multiple onChange={(files) => setTemplateFiles(files.slice(0, 20))} />
@@ -1672,22 +1688,24 @@ export default function Home() {
                 {error && <div className="error-banner">{error}</div>}
                 <button className="primary-button template-submit" disabled={templateSubmitting}>{templateSubmitting ? "正在加入队列…" : templateFiles.length > 1 ? `批量加入拆解队列（${templateFiles.length}条） →` : "上传并开始结构拆解 →"}</button>
               </form>
-            </div>
+            </details>
             <div className="template-list-panel">
-              <div className="section-head"><div><span className="eyebrow">REUSABLE PROFILES</span><h2>可复用母版</h2></div><button className="icon-button" onClick={loadBatches}>↻</button></div>
+              <div className="section-head"><div><span className="eyebrow">REUSABLE PROFILES</span><h2>可复用母版</h2><p>优先展示可直接使用的决策信息，完整分析默认收起。</p></div><button className="icon-button" onClick={loadBatches} aria-label="刷新母版">↻</button></div>
+              <div className="template-list-head" aria-hidden="true"><span>母版</span><span>可用性</span><span>决策特征</span><span>操作</span></div>
               <div className="template-cards">
                 {!templates.length && <div className="empty-state"><strong>还没有母版</strong><span>上传第一条确认过的样片，提前完成结构拆解。</span></div>}
-                {templates.map((item) => <div className={`template-card ${item.status}`} key={item.id}>
-                  <div className="template-card-head"><div><strong>{item.name}</strong><small>{item.file?.name || "等待上传"}</small></div><span>{item.status === "ready" ? "已就绪" : item.status === "analyzing" ? "拆解中" : item.status === "failed" ? "失败" : "排队中"}</span></div>
+                {templates.map((item) => <article className={`template-card ${item.status}`} key={item.id}>
                   <div className="template-card-main">
-                    {item.file && <div className="template-preview"><video controls playsInline preload="metadata" src={`/api/templates/${item.id}/media`} aria-label={`${item.name}样片预览`}>当前浏览器不支持视频预览</video></div>}
+                    {item.file ? <div className="template-preview"><video controls playsInline preload="metadata" src={`/api/templates/${item.id}/media`} aria-label={`${item.name}样片预览`}>当前浏览器不支持视频预览</video></div> : <div className="template-preview empty"><span>等待视频</span></div>}
                     <div className="template-card-copy">
-                      <div className="progress-track"><span style={{ width: `${item.progress}%` }} /></div>
-                      {item.status === "analyzing" && item.lastWorkerActivityAt && <small className="template-activity">活动 {timeAgo(item.lastWorkerActivityAt)}{item.recoveryAttempts ? ` · 已自动重试${item.recoveryAttempts}次` : ""}</small>}
-                      {item.profile ? <><p>{item.profile.summary}</p><div className="template-tags"><span>{item.profile.pace}</span><span>{item.profile.color}</span><span>{item.profile.structure.length}段结构</span><span>{transitionProfileLabel(item.transitionProfile)}</span></div></> : <p>{item.error || "后台会自动提取节奏、色彩、字幕安全区和CVR布局。"}</p>}
+                      <div className="template-card-head"><div><strong>{item.name}</strong><small>{item.file?.name || "等待上传"} · 更新于 {timeAgo(item.updatedAt)}</small></div><span>{item.status === "ready" ? "可直接使用" : item.status === "analyzing" ? "拆解中" : item.status === "failed" ? "需要处理" : "排队中"}</span></div>
+                      {item.status !== "ready" && <div className="progress-track"><span style={{ width: `${item.progress}%` }} /></div>}
+                      {item.status === "analyzing" && item.lastWorkerActivityAt && <small className="template-activity">最近活动 {timeAgo(item.lastWorkerActivityAt)}{item.recoveryAttempts ? ` · 已自动重试 ${item.recoveryAttempts} 次` : ""}</small>}
+                      {item.profile ? <><div className="template-tags"><span>{item.profile.pace}</span><span>{item.profile.color}</span><span>{item.profile.structure.length} 段结构</span><span>{transitionProfileLabel(item.transitionProfile)}</span>{item.bgm && <span>包含 BGM</span>}</div><p className="template-summary">{item.profile.summary}</p><details className="template-analysis"><summary>查看完整分析</summary><p>{item.profile.summary}</p></details></> : <p className={`template-summary ${item.error ? "error" : ""}`}>{item.error || "后台会自动提取节奏、色彩、字幕安全区和 CVR 布局。"}</p>}
                     </div>
+                    <div className="template-card-actions"><button className="primary-button" type="button" disabled={item.status !== "ready"} onClick={() => selectTemplateForBatch(item)}>{item.status === "ready" ? "使用此母版" : item.status === "failed" ? "暂不可用" : "分析完成后可用"}</button></div>
                   </div>
-                </div>)}
+                </article>)}
               </div>
             </div>
           </section>
