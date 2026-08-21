@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { MAX_CODEX_CONCURRENCY_ATTEMPTS, MAX_CODEX_INACTIVITY_ATTEMPTS, MAX_RECOVERY_ATTEMPTS, acquireCodexExecution, appendRecoveryEvent, classifyRecoveryError, codexFailureClassFor, codexInactivityManualMessage, isRetryDue, markRecoveryRetryReady, markRecoverySucceeded, readCodexExecutionState, readRecoveryState, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, releaseCodexExecution, retryDelayFor, scheduleRecovery, tripCodexConcurrencyCircuit } from "../worker/recovery.mjs";
+import { MAX_CODEX_CONCURRENCY_ATTEMPTS, MAX_CODEX_INACTIVITY_ATTEMPTS, MAX_RECOVERY_ATTEMPTS, MAX_SEMANTIC_PROVIDER_ATTEMPTS, acquireCodexExecution, appendRecoveryEvent, classifyRecoveryError, codexFailureClassFor, codexInactivityManualMessage, isRetryDue, markRecoveryRetryReady, markRecoverySucceeded, readCodexExecutionState, readRecoveryState, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, releaseCodexExecution, retryDelayFor, scheduleRecovery, tripCodexConcurrencyCircuit } from "../worker/recovery.mjs";
 
 test("recovery classifies temporary connectivity and ffmpeg errors for retry", () => {
   assert.deepEqual(classifyRecoveryError(new Error("connect ECONNREFUSED 192.168.1.1")).recoverable, true);
@@ -28,6 +28,28 @@ test("recovery classifies temporary connectivity and ffmpeg errors for retry", (
   assert.equal(classifyRecoveryError(new Error("Codex API credential is missing.")).kind, "codex_authentication");
   assert.equal(classifyRecoveryError(new Error("Invalid data found when processing input")).category, "fatal");
   assert.equal(MAX_RECOVERY_ATTEMPTS, 3);
+});
+
+test("semantic provider schedule failures retry twice while ordinary schedule failures stay manual", () => {
+  const temporary = Object.assign(new Error("Schedule Failed: gc1-m1:schedule:outfit_interest"), {
+    code: "SEMANTIC_PROVIDER_SCHEDULE_FAILURE",
+    providerFailures: [
+      { shotId: "shot-1", code: "PROVIDER_TIMEOUT", status: null },
+      { shotId: "shot-2", code: "PROVIDER_CIRCUIT_OPEN", status: null },
+    ],
+  });
+  const classification = classifyRecoveryError(temporary);
+  assert.equal(classification.category, "recoverable");
+  assert.equal(classification.kind, "semantic_provider_schedule");
+  assert.equal(recoveryAttemptLimit(classification), 2);
+  assert.equal(MAX_SEMANTIC_PROVIDER_ATTEMPTS, 2);
+
+  assert.equal(classifyRecoveryError(new Error("Schedule Failed: gc1-m1:schedule:outfit_interest")).category, "business");
+  assert.equal(classifyRecoveryError(Object.assign(new Error("Schedule Failed"), { code: "SEMANTIC_PROVIDER_SCHEDULE_FAILURE", providerFailures: [] })).category, "business");
+  assert.equal(classifyRecoveryError(new Error("Schedule Failed: gc1-m1:schedule:hook"), {
+    semanticSchedule: true,
+    providerFailures: [{ code: "PROVIDER_CIRCUIT_OPEN" }],
+  }).kind, "semantic_provider_schedule");
 });
 
 test("Codex failure taxonomy keeps authentication separate from transient executor failures", () => {

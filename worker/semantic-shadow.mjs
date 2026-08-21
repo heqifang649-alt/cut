@@ -8,6 +8,7 @@ import { resolveProviderConfig, safeProviderError } from "../lib/ai-provider-con
 import { SEMANTIC_SHOT_SCHEMA_VERSION } from "../lib/semantic-shot.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
+import { productReferencesForGroup } from "../lib/product-reference-match.mjs";
 
 export const SEMANTIC_EVIDENCE_FILE = "semantic-evidence.v1.json";
 export const SEMANTIC_CACHE_FILE = "semantic-cache.v1.json";
@@ -101,14 +102,23 @@ function cacheKey({ config, model, shot, frameHashes, productHashes, templateVer
   }));
 }
 
-async function productReferenceInputs(root, batch, batchDir) {
+async function productReferenceInputs(root, batch, batchDir, files) {
   // Keep one input slot reserved for the representative shot frame.
-  const files = batch.files.filter((file) => file.kind === "product_refs").slice(0, 2);
-  const values = await Promise.all(files.map(async (file) => {
+  const values = await Promise.all((files || []).slice(0, 2).map(async (file) => {
     const filePath = sourcePath(root, batch, batchDir, file);
     return { dataUrl: await existingDataUrl(filePath), hash: await hashFile(filePath) };
   }));
   return { images: values.map((item) => item.dataUrl).filter(Boolean), hashes: values.map((item) => item.hash).filter(Boolean) };
+}
+
+const normalizedPath = (value) => String(value || "").replaceAll("/", "\\").toLocaleLowerCase("zh-CN");
+
+function groupForShot(shot, groups) {
+  const source = normalizedPath(shot?.path);
+  return groups.find((group) => Array.isArray(group?.files) && group.files.some((file) => {
+    const relative = normalizedPath(file);
+    return source === relative || source.endsWith(`\\${relative}`);
+  })) || null;
 }
 
 export async function extractRepresentativeFrames({ root = process.cwd(), batch, batchDir, shot, ffmpeg = process.env.FFMPEG_PATH, extract = runFfmpeg } = {}) {
@@ -184,7 +194,18 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   });
   const cacheFile = path.join(batchDir, SEMANTIC_CACHE_FILE);
   const evidenceFile = path.join(batchDir, SEMANTIC_EVIDENCE_FILE);
-  const references = await productReferenceInputs(root, batch, batchDir);
+  const referenceFiles = batch.files.filter((file) => file.kind === "product_refs");
+  const productGroups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
+  const referencesByGroup = new Map();
+  const referencesForShot = async (shot) => {
+    const group = groupForShot(shot, productGroups);
+    const key = group?.id || "__batch__";
+    if (!referencesByGroup.has(key)) {
+      const files = group ? productReferencesForGroup(group, referenceFiles, 2) : referenceFiles.slice(0, 2);
+      referencesByGroup.set(key, productReferenceInputs(root, batch, batchDir, files));
+    }
+    return referencesByGroup.get(key);
+  };
   const version = templateVersion(batch);
   const records = [];
   let cacheReset = false;
@@ -201,6 +222,7 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
       cacheReset = true;
     }
     for (const shot of shotPool.shots) {
+      const references = await referencesForShot(shot);
       const frames = await frameInputs(root, batch, batchDir, shot, { ffmpeg, extractFrames });
       const key = cacheKey({ config: resolved.config, model, shot, frameHashes: frames.hashes, productHashes: references.hashes, templateVersion: version });
       const cached = cache.entries[key];

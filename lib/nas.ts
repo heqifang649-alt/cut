@@ -55,22 +55,29 @@ export function validateNasPath(input: string) {
   }
 
   const relative = path.win32.relative(root, candidate);
-  // A scan starts only from one immediate child (a user-selected batch). This
-  // rejects both the root itself and deeper hand-entered paths.
-  if (!relative || relative === "." || relative === ".." || relative.includes("\\") || path.win32.isAbsolute(relative)) {
-    throw new Error("请从指定 NAS 素材根目录中选择一个一级批次文件夹");
+  // A scan starts only from a folder no deeper than two levels below the
+  // approved root: e.g. `TT\\20260820`. The root itself is never scannable.
+  const segments = relative.split("\\").filter(Boolean);
+  if (!segments.length || segments.length > 2 || relative === ".." || path.win32.isAbsolute(relative)) {
+    throw new Error("请从指定 NAS 素材根目录中选择一级或二级批次文件夹");
   }
   return candidate;
 }
 
-export async function listNasBatchDirectories(): Promise<NasDirectory[]> {
+export async function listNasBatchDirectories(parentPath?: string): Promise<NasDirectory[]> {
   const rootPath = normalizedBatchRoot();
-  const rootInfo = await stat(rootPath).catch(() => null);
+  const directoryPath = parentPath ? path.win32.normalize(parentPath) : rootPath;
+  if (parentPath) {
+    const relative = path.win32.relative(rootPath, directoryPath);
+    const segments = relative.split("\\").filter(Boolean);
+    if (segments.length !== 1) throw new Error("只能读取指定 NAS 根目录下的一级文件夹");
+  }
+  const rootInfo = await stat(directoryPath).catch(() => null);
   if (!rootInfo?.isDirectory()) throw new Error("NAS 素材根目录无法访问，请确认共享权限");
-  const entries = await readdir(rootPath, { withFileTypes: true });
+  const entries = await readdir(directoryPath, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => ({ name: entry.name, path: path.win32.join(rootPath, entry.name) }))
+    .map((entry) => ({ name: entry.name, path: path.win32.join(directoryPath, entry.name) }))
     .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"));
 }
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { isRenderPlan, isScheduleResult } from "../lib/types.ts";
-import { isNewSchedulerEnabled, partitionScheduledProducts, scheduleShotPool } from "../worker/shot-scheduler.mjs";
+import { isNewSchedulerEnabled, partitionScheduledProducts, scheduleProductView, scheduleShotPool } from "../worker/shot-scheduler.mjs";
 
 const shot = (id, overrides = {}) => ({
   id,
@@ -97,6 +97,37 @@ test("does not schedule a Shot carrying a reject reason", () => {
 test("fails rather than reusing one Shot for multiple Slots", () => {
   const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("only")]), scriptTemplate: template([slot("hook"), slot("detail", { requireTags: ["detail"] })]) });
   assert.deepEqual(result, { status: "failed", reason: "no_matching_shot", slotId: "detail" });
+});
+
+test("product scheduling remains strict unless partial output is explicitly enabled", () => {
+  const productView = { product: { id: "p1", label: "p1" }, shots: [shot("hook"), shot("body")] };
+  const scriptTemplate = template([slot("hook"), slot("body"), slot("missing", { requireTags: ["back"] })]);
+  const strict = scheduleProductView({ batchId: "batch-1", productView, scriptTemplate });
+  assert.deepEqual(strict, { status: "failed", reason: "no_matching_shot", slotId: "missing" });
+
+  const partial = scheduleProductView({ batchId: "batch-1", productView, scriptTemplate, allowPartial: true });
+  assert.equal(partial.status, "success");
+  assert.deepEqual(new Set(partial.renderPlan.slots.map((entry) => entry.shot.id)), new Set(["hook", "body"]));
+  assert.equal(new Set(partial.renderPlan.slots.map((entry) => entry.shot.id)).size, 2);
+  assert.equal(partial.renderPlan.slots.reduce((sum, entry) => sum + entry.slot.targetDuration, 0), 4);
+});
+
+test("partial product scheduling still requires a Hook and a minimum useful short cut", () => {
+  const missingHook = scheduleProductView({
+    batchId: "batch-1",
+    productView: { product: { id: "p1", label: "p1" }, shots: [shot("detail", { tags: ["detail"] })] },
+    scriptTemplate: template([slot("hook", { requireTags: ["front"] }), slot("detail", { requireTags: ["detail"] })]),
+    allowPartial: true,
+  });
+  assert.deepEqual(missingHook, { status: "failed", reason: "no_matching_shot", slotId: "hook" });
+
+  const tooShort = scheduleProductView({
+    batchId: "batch-1",
+    productView: { product: { id: "p1", label: "p1" }, shots: [shot("hook"), shot("body")] },
+    scriptTemplate: template([slot("hook", { targetDuration: 1.5 }), slot("body", { targetDuration: 1.5 }), slot("missing", { requireTags: ["back"], targetDuration: 1 })]),
+    allowPartial: true,
+  });
+  assert.deepEqual(tooShort, { status: "failed", reason: "no_matching_shot", slotId: "missing" });
 });
 
 test("returns the first unsatisfied Slot", () => {

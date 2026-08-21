@@ -22,6 +22,13 @@ test("Windows duplicate suffixes are ignored during product and model parsing", 
   assert.deepEqual(result.groups[0].files, ["TT6_M1(1).mp4", "TT6_M1 (2).mp4"]);
 });
 
+test("full-width Windows duplicate suffixes are ignored during parsing", () => {
+  const result = groupProductsByFilename(files("gc1-m1.mp4", "gc1-m1（2）.mp4"));
+  assert.equal(result.unassigned.length, 0);
+  assert.equal(result.groups.length, 1);
+  assert.deepEqual(result.groups[0].files, ["gc1-m1.mp4", "gc1-m1（2）.mp4"]);
+});
+
 test("camera descriptors do not split one product into model Sessions", () => {
   const result = groupProductsByFilename(files("TT3_front.mp4", "TT3_back.mp4", "TT3_detail.mp4"));
   assert.deepEqual(result.groups.map((group) => group.id), ["TT3"]);

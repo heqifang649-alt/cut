@@ -52,3 +52,45 @@ test("visual grouping evidence uses the product image explicitly named in the gr
   );
   assert.deepEqual(snapshot.groups[0].productImage, { relativePath: "look-a.png" });
 });
+
+test("filename sessions match their product reference by product family and prefer the front image", () => {
+  const snapshot = buildGroupEvidenceSnapshot(
+    [
+      { id: "gc1-m1", label: "gc1-m1", files: ["新建文件夹/gc1-m1 (1).mp4"] },
+      { id: "gc1-m2", label: "gc1-m2", files: ["新建文件夹/gc1-m2 (1).mp4"] },
+      { id: "gc2-m1", label: "gc2-m1", files: ["新建文件夹/gc2-m1 (1).mp4"] },
+      { id: "gc3-m1", label: "gc3-m1", files: ["新建文件夹/gc3-m1 (1).mp4"] },
+    ],
+    [
+      { relativePath: "新建文件夹/gc1-m1 (1).mp4" },
+      { relativePath: "新建文件夹/gc1-m2 (1).mp4" },
+      { relativePath: "新建文件夹/gc2-m1 (1).mp4" },
+      { relativePath: "新建文件夹/gc3-m1 (1).mp4" },
+    ],
+    [
+      { relativePath: "新建文件夹/gc1反.jpg" },
+      { relativePath: "新建文件夹/gc1正.jpg" },
+      { relativePath: "新建文件夹/gc2正.jpeg" },
+      { relativePath: "新建文件夹/gc3反.jpg" },
+      { relativePath: "新建文件夹/gc3正.png" },
+    ],
+    "2026-08-17T00:00:00.000Z",
+  );
+
+  assert.deepEqual(snapshot.groups.map((group) => group.productImage?.relativePath), [
+    "新建文件夹/gc1正.jpg",
+    "新建文件夹/gc1正.jpg",
+    "新建文件夹/gc2正.jpeg",
+    "新建文件夹/gc3正.png",
+  ]);
+});
+
+test("a common batch folder does not make unrelated references match", () => {
+  const snapshot = buildGroupEvidenceSnapshot(
+    [{ id: "gc2-m1", label: "gc2-m1", files: ["共享目录/gc2-m1.mp4"] }],
+    [{ relativePath: "共享目录/gc2-m1.mp4" }],
+    [{ relativePath: "共享目录/gc1正.jpg" }, { relativePath: "共享目录/gc3正.jpg" }],
+    "2026-08-17T00:00:00.000Z",
+  );
+  assert.equal(snapshot.groups[0].productImage, null);
+});

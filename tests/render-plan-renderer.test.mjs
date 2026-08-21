@@ -135,7 +135,7 @@ test("RenderPlan master carries frozen timing and confirmed overlay text without
   assert.equal(master.duration_seconds, 10.472);
   assert.deepEqual(master.cuts, [2.3, 4.2, 6.07, 7.6]);
   assert.deepEqual(master.hook, { text: "Confirmed hook" });
-  assert.deepEqual(master.cvr, { text: "Confirmed CTA", center_x_percent: 86, max_width_percent: 24, pointer_center_x_percent: 91 });
+  assert.deepEqual(master.cvr, { text: "Confirmed CTA", center_x_percent: 78, max_width_percent: 24, pointer_center_x_percent: 91 });
   assert.deepEqual([master.width, master.height, master.fps], [1080, 1920, 30]);
 });
 

@@ -197,6 +197,7 @@ export type Batch = {
     renderedProducts: number;
     excludedProducts: Array<{ product_id: string; reason: string }>;
     qualityGates: Record<string, string>;
+    productVisualReview?: { status: "passed" | "failed" | "not_run"; threshold?: number; products?: Array<{ product_id: string; reviewed_segments: number; passed_segments: number; min_product_match?: number | null }>; failures?: Array<{ product_id: string; shot_id?: string | null; reason: string }> };
     transitionProfile?: TransitionProfile;
     transitions?: Array<{ type: StableTransitionType; durationSeconds: number; count: number }>;
   };

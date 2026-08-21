@@ -22,7 +22,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string; a
   if (!isPathInside(evidenceDir, imagePath)) return NextResponse.json({ error: "证据图片不存在" }, { status: 404 });
   try {
     const image = await readFile(imagePath);
-    return new Response(image, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=300" } });
+    return new Response(image, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, no-cache" } });
   } catch {
     return NextResponse.json({ error: "证据图片不存在" }, { status: 404 });
   }

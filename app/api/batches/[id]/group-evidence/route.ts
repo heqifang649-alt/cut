@@ -11,16 +11,17 @@ export const dynamic = "force-dynamic";
 
 type EvidenceAsset = { thumbnailPath?: unknown } | null;
 type EvidenceGroup = { groupId?: unknown; label?: unknown; video?: EvidenceAsset; productImage?: EvidenceAsset };
+type EvidenceSnapshot = { generatedAt?: unknown; groups?: unknown };
 
 function publicThumbnailPath(value: unknown) {
   if (typeof value !== "string" || !/^group-evidence\/group-\d+-(video|product)\.jpg$/.test(value)) return null;
   return path.posix.basename(value);
 }
 
-function publicGroup(group: EvidenceGroup, id: string) {
+function publicGroup(group: EvidenceGroup, id: string, version: string) {
   const assetUrl = (asset: EvidenceAsset | undefined) => {
     const name = publicThumbnailPath(asset?.thumbnailPath);
-    return name ? `/api/batches/${encodeURIComponent(id)}/group-evidence/${encodeURIComponent(name)}` : null;
+    return name ? `/api/batches/${encodeURIComponent(id)}/group-evidence/${encodeURIComponent(name)}?v=${encodeURIComponent(version)}` : null;
   };
   return {
     groupId: typeof group.groupId === "string" ? group.groupId : "",
@@ -39,10 +40,12 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   try {
     const evidencePath = path.join(batchWorkspacePath(process.cwd(), batch), "group-evidence.v1.json");
     const parsed: unknown = JSON.parse(await readFile(evidencePath, "utf8"));
-    if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { groups?: unknown }).groups)) throw new Error("invalid evidence");
+    if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as EvidenceSnapshot).groups)) throw new Error("invalid evidence");
+    const snapshot = parsed as { generatedAt?: unknown; groups: EvidenceGroup[] };
+    const version = typeof snapshot.generatedAt === "string" ? snapshot.generatedAt : "1";
     return NextResponse.json({
       schemaVersion: 1,
-      groups: (parsed as { groups: EvidenceGroup[] }).groups.map((group) => publicGroup(group, id)),
+      groups: snapshot.groups.map((group) => publicGroup(group, id, version)),
     });
   } catch {
     return NextResponse.json({ schemaVersion: 1, groups: [] });

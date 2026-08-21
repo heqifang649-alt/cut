@@ -5,6 +5,8 @@ const EPSILON = 1e-9;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
+const MIN_PARTIAL_SLOTS = 2;
+const MIN_PARTIAL_DURATION_SECONDS = 4;
 
 function isAcceptShot(shot) {
   return isShot(shot) && shot.reject === false && shot.rejectReason === undefined;
@@ -134,21 +136,30 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const semanticByShotId = semanticRecordMap(semanticEvidence);
   const semanticRequired = semanticByShotId !== null;
   const selected = [];
   const usedShotIds = new Set();
+  let firstMissingSlotId = null;
   for (const slot of scriptTemplate.slots) {
     const candidates = shots
       .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
       .sort(compareCandidates);
     const best = candidates[0]?.shot;
-    if (!best) return { status: "failed", reason: "no_matching_shot", slotId: slot.id };
+    if (!best) {
+      firstMissingSlotId ||= slot.id;
+      if (!allowPartial || slot.id === "hook") return { status: "failed", reason: "no_matching_shot", slotId: slot.id };
+      continue;
+    }
     usedShotIds.add(best.id);
     selected.push({ slot, shot: best });
+  }
+  const plannedDuration = selected.reduce((sum, entry) => sum + Number(entry.slot.targetDuration || 0), 0);
+  if (!selected.length || (firstMissingSlotId && (selected.length < MIN_PARTIAL_SLOTS || plannedDuration + EPSILON < MIN_PARTIAL_DURATION_SECONDS))) {
+    return { status: "failed", reason: "no_matching_shot", slotId: firstMissingSlotId || scriptTemplate.slots[0]?.id || "unknown" };
   }
   const renderPlan = {
     id: planIdFor(batchId, scriptTemplate, selected, contextKey, transitionProfile),
@@ -166,11 +177,11 @@ export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt 
   return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile, semanticEvidence });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial });
 }
 
 export function partitionScheduledProducts(scheduledProducts) {

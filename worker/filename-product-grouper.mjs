@@ -6,8 +6,10 @@ function withoutExtension(value) {
   return baseName(value)
     .replace(/\.[^.]+$/, "")
     // Windows duplicates commonly add " (1)", "(2)" and similar suffixes.
+    // Chinese Windows locales may render the marker with full-width
+    // parentheses, e.g. `gc1-m1（2）.mp4`.
     // They are file-copy markers, never product or model identifiers.
-    .replace(/\s*(?:\(\d+\)\s*)+$/, "");
+    .replace(/\s*(?:(?:\(\d+\))|(?:（\d+）))\s*$/, "");
 }
 
 function sourcePath(file) {

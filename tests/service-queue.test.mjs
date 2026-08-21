@@ -110,6 +110,21 @@ test("a newer Batch workflow version fences and replaces an old queued task", as
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("a completed stage is not duplicated by discovery for the same workflow version", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-completed-stage-"));
+  try {
+    const first = await enqueueStage({ root, batchId: "batch-completed", stage: "analyze", operation: "quality", workflowVersion: 3 });
+    const task = await claimStage({ root, stage: "analyze", workerId: "worker-completed" });
+    assert.equal(task.key, first.key);
+    assert.equal(await completeStage({ root, task }), true);
+
+    const rediscovered = await enqueueStage({ root, batchId: "batch-completed", stage: "analyze", operation: "quality", workflowVersion: 3 });
+    const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+    assert.equal(rediscovered.status, "completed");
+    assert.equal(queue.tasks.filter((item) => item.key === first.key).length, 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("global dependency deferrals keep the Batch retry count unchanged", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-defer-"));
   try {

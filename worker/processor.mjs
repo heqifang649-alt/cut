@@ -18,6 +18,7 @@ import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { createCodexClient } from "../lib/codex-client.mjs";
+import { productReferenceForGroup } from "../lib/product-reference-match.mjs";
 
 const ROOT = process.cwd();
 const STORE = path.join(ROOT, "data", "batches.json");
@@ -757,36 +758,32 @@ function runFfmpeg(args, batchId) {
 
 const normalizedRelativePath = (value) => String(value || "").replaceAll("/", "\\").replace(/^\\+/, "").toLocaleLowerCase("zh-CN");
 
-function relativeProductFolder(value) {
-  const parts = String(value || "").replaceAll("\\", "/").split("/").filter(Boolean);
-  return parts.length > 1 ? parts[0] : null;
-}
-
-function productReferenceForGroup(group, productReferenceFiles) {
-  const candidates = Array.isArray(productReferenceFiles) ? productReferenceFiles : [];
-  const declared = Array.isArray(group.productReferenceFiles) ? group.productReferenceFiles : [];
-  for (const source of declared) {
-    const matched = candidates.find((file) => normalizedRelativePath(file.relativePath) === normalizedRelativePath(source));
-    if (matched) return matched;
-  }
-  const notes = normalizedRelativePath(group.notes).replaceAll("\\", "");
-  const noted = candidates.find((file) => {
-    const relativePath = normalizedRelativePath(file.relativePath).replaceAll("\\", "");
-    const fileName = normalizedRelativePath(path.basename(file.relativePath || file.name)).replaceAll("\\", "");
-    return notes.includes(relativePath) || notes.includes(fileName);
-  });
-  if (noted) return noted;
-  const folder = group.sourceFolder || relativeProductFolder(group.files?.[0]);
-  if (folder) {
-    const matched = candidates.find((file) => relativeProductFolder(file.relativePath)?.toLocaleLowerCase("zh-CN") === folder.toLocaleLowerCase("zh-CN"));
-    if (matched) return matched;
-  }
-  const groupId = normalizedRelativePath(group.id).replaceAll("\\", "");
-  const named = candidates.find((file) => {
-    const fileName = normalizedRelativePath(path.basename(file.relativePath || file.name)).replaceAll("\\", "");
-    return fileName === groupId || [".", "_", "-", " "].some((separator) => fileName.startsWith(`${groupId}${separator}`));
-  });
-  return named || (candidates.length === 1 ? candidates[0] : null);
+function transientSemanticProviderFailures(semanticEvidence) {
+  const transientCodes = new Set([
+    "PROVIDER_TIMEOUT",
+    "PROVIDER_CIRCUIT_OPEN",
+    "PROVIDER_RATE_LIMITED",
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "EAI_AGAIN",
+  ]);
+  return (Array.isArray(semanticEvidence?.records) ? semanticEvidence.records : [])
+    .filter((record) => {
+      const code = String(record?.error?.code || "").toUpperCase();
+      const status = Number(record?.error?.status || 0);
+      const message = String(record?.error?.message || "").toLowerCase();
+      return transientCodes.has(code)
+        || ((code === "PROVIDER_HTTP_ERROR" || code === "PROVIDER_REQUEST_FAILED") && (status === 429 || status >= 500))
+        || (code === "PROVIDER_REQUEST_FAILED" && /timeout|timed out|temporar|connection (?:reset|refused)|socket hang up|econnreset|econnrefused|ehostunreach|enetunreach|eai_again/.test(message));
+    })
+    .map((record) => ({
+      shotId: record.shotId,
+      code: String(record.error?.code || "PROVIDER_REQUEST_FAILED"),
+      status: Number(record.error?.status || 0) || null,
+    }));
 }
 
 export function buildGroupEvidenceSnapshot(groups, productFiles, productReferenceFiles, generatedAt = new Date().toISOString()) {
@@ -1223,7 +1220,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     scheduledProducts = productViews.map((productView) => ({
       product: productView.product,
       sourceNamesByShotId: productView.sourceNamesByShotId,
-      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence }),
+      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence, allowPartial: true }),
     }));
     const partitioned = partitionScheduledProducts(scheduledProducts);
     await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), {
@@ -1238,7 +1235,17 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     if (!isNewSchedulerEnabled()) throw new Error("New Renderer requires ENABLE_NEW_SCHEDULER=true");
     if (!scheduledProducts.length) throw new Error("New Renderer requires at least one Product View");
     const { renderable, excludedProducts } = partitionScheduledProducts(scheduledProducts);
-    if (!renderable.length) throw new Error(`Schedule Failed: ${excludedProducts.map((item) => `${item.product_id}:${item.reason}`).join(", ")}`);
+    if (!renderable.length) {
+      const message = `Schedule Failed: ${excludedProducts.map((item) => `${item.product_id}:${item.reason}`).join(", ")}`;
+      const providerFailures = transientSemanticProviderFailures(semanticEvidence);
+      if (providerFailures.length) {
+        const error = new Error(message);
+        error.code = "SEMANTIC_PROVIDER_SCHEDULE_FAILURE";
+        error.providerFailures = providerFailures;
+        throw error;
+      }
+      throw new Error(message);
+    }
     if (!render) {
       await markRenderQueued(batch, "render");
       return { renderReady: true };
@@ -1251,6 +1258,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       ffmpeg: FFMPEG,
       scheduledProducts: renderable,
       excludedProducts,
+      semanticEvidence,
       isCanceled: () => isCanceled(batch.id),
       onProgress: async (done, total, label) => update(batch.id, (item) => {
         item.progress = 50 + Math.round((done / total) * 47);

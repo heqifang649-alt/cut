@@ -109,6 +109,10 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   }
 }
 
+function hasExpired(expiresAt: number) {
+  return expiresAt <= Date.now();
+}
+
 const statusMeta: Record<BatchStatus, { label: string; tone: string }> = {
   uploading: { label: "等待素材上传", tone: "muted" },
   reference_queued: { label: "等待 Worker", tone: "muted" },
@@ -615,6 +619,8 @@ export default function Home() {
   const [scanningNas, setScanningNas] = useState(false);
   const [nasRootPath, setNasRootPath] = useState("");
   const [nasDirectories, setNasDirectories] = useState<NasDirectoryOption[]>([]);
+  const [nasSubdirectories, setNasSubdirectories] = useState<NasDirectoryOption[]>([]);
+  const [nasParentPath, setNasParentPath] = useState("");
   const [nasDirectoriesLoading, setNasDirectoriesLoading] = useState(false);
   const [nasDirectoriesError, setNasDirectoriesError] = useState("");
 
@@ -650,6 +656,20 @@ export default function Home() {
   const [productGroupEvidenceByBatch, setProductGroupEvidenceByBatch] = useState<Record<string, ProductGroupEvidence[]>>({});
   const [artifactReviewPending, setArtifactReviewPending] = useState<string | null>(null);
 
+  const handleUnauthenticated = useCallback(() => {
+    // Clear the previous workspace snapshot before returning to sign-in. This
+    // prevents a stale shell from rendering the dashboard fallback after a
+    // session expires or a browser switches hostnames.
+    setAuthUser(null);
+    setDashboard(null);
+    setBatches([]);
+    setTemplates([]);
+    setAccountState({});
+    setWorkerOnline(false);
+    setLoading(false);
+    setAuthBootstrapError("登录已失效，请重新登录。");
+  }, []);
+
   const loadBatches = useCallback(async () => {
     if (!authUser) {
       setLoading(false);
@@ -663,7 +683,7 @@ export default function Home() {
         fetchWithTimeout("/api/dashboard", { cache: "no-store" }),
       ]);
       if ([batchResponse, healthResponse, templateResponse, dashboardResponse].some((response) => response.status === 401)) {
-        setAuthUser(null);
+        handleUnauthenticated();
         return;
       }
       if (batchResponse.ok) {
@@ -687,7 +707,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [authUser]);
+  }, [authUser, handleUnauthenticated]);
 
   const loadManagedUsers = useCallback(async () => {
     if (authUser?.role !== "admin") {
@@ -699,7 +719,7 @@ export default function Home() {
       const response = await fetch("/api/admin/users", { cache: "no-store" });
       const payload = await response.json().catch(() => ({})) as { users?: ManagedUser[]; error?: string };
       if (response.status === 401) {
-        setAuthUser(null);
+        handleUnauthenticated();
         return;
       }
       if (!response.ok) throw new Error(payload.error || "无法读取用户列表");
@@ -709,7 +729,7 @@ export default function Home() {
     } finally {
       setUsersLoading(false);
     }
-  }, [authUser]);
+  }, [authUser, handleUnauthenticated]);
 
   const loadProvider = useCallback(async () => {
     if (authUser?.role !== "admin") return;
@@ -717,7 +737,7 @@ export default function Home() {
     try {
       const response = await fetchWithTimeout("/api/admin/ai-provider", { cache: "no-store" }, 30_000);
       const payload = await response.json().catch(() => ({})) as { provider?: ProviderConfig; error?: string };
-      if (response.status === 401) { setAuthUser(null); return; }
+      if (response.status === 401) { handleUnauthenticated(); return; }
       if (!response.ok || !payload.provider) throw new Error(payload.error || "无法读取 AI Provider 配置");
       setProvider(payload.provider);
       setProviderDraft({
@@ -736,18 +756,29 @@ export default function Home() {
     } catch (caught) {
       setProviderMessage(caught instanceof Error ? caught.message : "无法读取 AI Provider 配置");
     } finally { setProviderLoading(false); }
-  }, [authUser]);
+  }, [authUser, handleUnauthenticated]);
 
   const loadNasDirectories = useCallback(async () => {
     setNasDirectoriesLoading(true);
     setNasDirectoriesError("");
     try {
-      const response = await fetch("/api/nas/directories", { cache: "no-store" });
+      const response = await fetch(`/api/nas/directories${nasParentPath ? `?parent=${encodeURIComponent(nasParentPath)}` : ""}`, { cache: "no-store" });
       const payload = await response.json() as { rootPath?: string; directories?: NasDirectoryOption[]; error?: string };
+      if (response.status === 401) {
+        handleUnauthenticated();
+        return;
+      }
       if (!response.ok || !payload.rootPath || !Array.isArray(payload.directories)) throw new Error(payload.error || "无法读取 NAS 素材目录");
       setNasRootPath(payload.rootPath);
-      setNasDirectories(payload.directories);
-      setNasPath((current) => payload.directories?.some((directory) => directory.path === current) ? current : "");
+      if (nasParentPath) {
+        setNasSubdirectories(payload.directories);
+        setNasPath((current) => payload.directories?.some((directory) => directory.path === current) ? current : "");
+      } else {
+        setNasDirectories(payload.directories);
+        setNasSubdirectories([]);
+        setNasParentPath("");
+        setNasPath("");
+      }
       setNasScan((current) => current && payload.directories?.some((directory) => directory.path === current.rootPath) ? current : null);
     } catch (caught) {
       setNasDirectories([]);
@@ -756,7 +787,7 @@ export default function Home() {
     } finally {
       setNasDirectoriesLoading(false);
     }
-  }, []);
+  }, [handleUnauthenticated, nasParentPath]);
 
   useEffect(() => {
     if (!authUser) return;
@@ -896,7 +927,7 @@ export default function Home() {
     window.setTimeout(() => {
       try {
         const cached = JSON.parse(window.localStorage.getItem(draftStorageKey) || "null") as Partial<NewBatchDraft> | null;
-        if (cached?.expiresAt && cached.expiresAt <= Date.now()) clearNewBatchDraft();
+        if (cached?.expiresAt && hasExpired(cached.expiresAt)) clearNewBatchDraft();
       } catch {
         clearNewBatchDraft();
       }
@@ -906,7 +937,7 @@ export default function Home() {
   function restoreNewBatchDraft() {
     try {
       const draft = JSON.parse(window.localStorage.getItem(draftStorageKey) || "null") as Partial<NewBatchDraft> | null;
-      if (!draft || typeof draft.expiresAt !== "number" || draft.expiresAt <= Date.now()) {
+      if (!draft || typeof draft.expiresAt !== "number" || hasExpired(draft.expiresAt)) {
         clearNewBatchDraft();
         resetNewBatchForm();
         return;
@@ -1037,7 +1068,7 @@ export default function Home() {
       });
       const payload = await response.json().catch(() => ({})) as { user?: ManagedUser; error?: string };
       if (response.status === 401) {
-        setAuthUser(null);
+        handleUnauthenticated();
         return;
       }
       if (!response.ok || !payload.user) throw new Error(payload.error || "创建账号失败");
@@ -1453,17 +1484,6 @@ export default function Home() {
           </div>
         )}
 
-        {view !== "dashboard" && !loading && workerOnline && accountState.codex && accountState.codex.status !== "normal" && (
-          <div className="safe-mode-banner codex-status-banner">
-            <span className="safe-mode-icon">i</span>
-            <div>
-              <strong>Codex：{accountState.codex.status === "running" ? "正在执行" : accountState.codex.status === "unresponsive" ? "暂时无响应" : accountState.codex.status === "backoff" ? "退避中" : accountState.codex.status === "auth_invalid" ? "认证失效" : "正常"}</strong>
-              <small>{accountState.codex.status === "auth_invalid" ? "Codex账号需要重新连接" : accountState.codex.status === "backoff" ? `429/并发退避中，当前槽位 ${accountState.codex.activeSlotCount || 0}/${accountState.codex.concurrencyLimit || 1}，Codex 队列等待 ${accountState.codex.queue?.waiting || 0}` : accountState.codex.status === "running" ? `当前 ${accountState.codex.currentTurn?.service || "Codex"} Turn 正在执行；最近事件 ${accountState.codex.lastSdkEventAt ? new Date(accountState.codex.lastSdkEventAt).toLocaleTimeString("zh-CN", { hour12: false }) : "暂无"}` : accountState.codex.probe?.response || accountState.codex.response || "Codex 执行器正在恢复，非 Codex 任务继续运行。"}</small>
-            </div>
-            {accountState.codex.status === "auth_invalid" && authUser.role === "admin" && <button className="safe-mode-reconnect" type="button" onClick={() => void reconnectCodex()} disabled={reconnectingCodex}>{reconnectingCodex ? "检测中…" : "重新连接"}</button>}
-          </div>
-        )}
-
         {view !== "dashboard" && !loading && workerOnline && accountState.codex?.ready && !accountState.chatcut?.ready && (
           <div className="safe-mode-banner chatcut-only">
             <span className="safe-mode-icon">i</span>
@@ -1587,8 +1607,8 @@ export default function Home() {
                   {sourceMode === "nas" ? (
                     <div className="nas-source">
                       <p className="nas-root-note">固定素材根目录：<code>{nasRootPath || "正在读取…"}</code></p>
-                      <div className="nas-input"><select value={nasPath} onChange={(event) => { setNasPath(event.target.value); setNasScan(null); }} disabled={nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 批次文件夹"><option value="">{nasDirectoriesLoading ? "正在读取可用文件夹…" : "请选择一个批次文件夹"}</option>{nasDirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><button type="button" onClick={scanNasDirectory} disabled={scanningNas || nasDirectoriesLoading || !nasPath}>{scanningNas ? "检查中…" : "检查并扫描"}</button></div>
-                      {nasDirectoriesError ? <div className="nas-directory-error"><span>!</span><div><strong>无法读取 NAS 文件夹</strong><small>{nasDirectoriesError}</small></div><button type="button" onClick={() => void loadNasDirectories()} disabled={nasDirectoriesLoading}>重试</button></div> : nasScan ? <div className="nas-result"><span>✓</span><div><strong>目录可读 · {nasScan.fileCount} 个视频 · {nasScan.imageCount || 0} 张产品图 · {formatSize(nasScan.totalSize)}</strong><small>{nasScan.speedMBps ? `实测读取约 ${nasScan.speedMBps} MB/s · ` : ""}视频和产品图均留在 NAS，仅在本机建立分析索引</small></div></div> : <p>仅显示固定根目录下的一级批次文件夹；选择后才会扫描该批次的媒体文件。</p>}
+                      <div className="nas-input"><select value={nasParentPath} onChange={(event) => { const parent = event.target.value; setNasParentPath(parent); setNasPath(""); setNasSubdirectories([]); setNasScan(null); }} disabled={nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 一级文件夹"><option value="">{nasDirectoriesLoading ? "正在读取一级文件夹…" : "先选择一级文件夹"}</option>{nasDirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><select value={nasPath} onChange={(event) => { setNasPath(event.target.value); setNasScan(null); }} disabled={!nasParentPath || nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 具体批次文件夹"><option value="">{nasParentPath ? (nasSubdirectories.length ? "再选择具体批次文件夹" : "该目录下没有子文件夹") : "先选择一级文件夹"}</option>{nasSubdirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><button type="button" onClick={scanNasDirectory} disabled={scanningNas || nasDirectoriesLoading || !nasPath}>{scanningNas ? "检查中…" : "检查并扫描"}</button></div>
+                      {nasDirectoriesError ? <div className="nas-directory-error"><span>!</span><div><strong>无法读取 NAS 文件夹</strong><small>{nasDirectoriesError}</small></div><button type="button" onClick={() => void loadNasDirectories()} disabled={nasDirectoriesLoading}>重试</button></div> : nasScan ? <div className="nas-result"><span>✓</span><div><strong>目录可读 · {nasScan.fileCount} 个视频 · {nasScan.imageCount || 0} 张产品图 · {formatSize(nasScan.totalSize)}</strong><small>{nasScan.speedMBps ? `实测读取约 ${nasScan.speedMBps} MB/s · ` : ""}视频和产品图均留在 NAS，仅在本机建立分析索引</small></div></div> : <p>先选择一级目录（例如 TT），再选择其中的具体批次文件夹。</p>}
                     </div>
                   ) : <FileDrop label="选择本次拍摄全部视频" hint="备用方式：视频将逐个上传到剪辑工作机" files={productFiles} accept="video/*" multiple directory onChange={setProductFiles} />}
                 </div>
@@ -1661,7 +1681,7 @@ export default function Home() {
             </section> : null}
             <TransitionSummary batch={selected} />
             {selected.revisionHistory?.length ? <section className="revision-history"><div><span>REVISION HISTORY</span><strong>成片修改记录</strong></div>{[...selected.revisionHistory].reverse().map((revision) => <article key={revision.id}><b>v{revision.version}</b><p>{revision.command}</p><small>{formatTime(revision.submittedAt)} · {revision.status === "queued" ? "等待处理" : revision.status === "processing" ? "处理中" : revision.status === "review" ? "已生成新成片，等待审核" : `失败：${revision.error || "请查看诊断"}`}</small>{revision.previousOutputs?.length ? <small>保留上一版 {revision.previousOutputs.length} 条成片</small> : null}</article>)}</section> : null}
-            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedProducts}款 · 质量门禁全部通过</strong>{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
+            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedProducts}款 · 质量门禁全部通过</strong>{selected.renderSummary.productVisualReview?.status === "passed" && <p>画面审查通过：已逐段核对成片镜头与对应产品图，未发现混款。</p>}{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
             <div className="detail-actions">
               {cancelableStatuses.includes(selected.status) && selected.status !== "cancel_requested" && <button className="cancel-button" onClick={() => cancelBatch(selected)}>取消当前任务</button>}
               {selected.status === "reference_ready" && selected.productDetection && <><input value={groupCommand} onChange={(event) => setGroupCommand(event.target.value)} placeholder="分组有误？例如：第02和03组是同一款，请合并"/><button className="secondary-button" onClick={submitRegroup} disabled={!groupCommand.trim()}>重新分组</button><button className="primary-button" onClick={approveProfile}>确认产品分组与母版，开始剪辑 →</button></>}

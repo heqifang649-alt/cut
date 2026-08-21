@@ -7,6 +7,7 @@ import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertLegacyEditPlanReady } from "./edit-plan-readiness.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
+import { reviewScheduledProductVisualConsistency } from "../lib/product-visual-review.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
 
 const DEFAULT_PYTHON = "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
@@ -416,7 +417,7 @@ export function buildRenderPlanMaster({ batch = {}, legacyMaster = {}, reference
   const legacyCvr = legacyMaster?.cvr && typeof legacyMaster.cvr === "object" ? legacyMaster.cvr : {};
   const legacyHook = legacyMaster?.hook && typeof legacyMaster.hook === "object" ? legacyMaster.hook : {};
   const cvrDefaults = Object.keys(legacyCvr).length ? {} : {
-    center_x_percent: 86,
+    center_x_percent: 78,
     max_width_percent: 24,
     pointer_center_x_percent: 91,
   };
@@ -434,6 +435,7 @@ export function buildRenderPlanMaster({ batch = {}, legacyMaster = {}, reference
       text: cvrText,
       ...(Number.isFinite(Number(cvrLayout.center_x_percent)) ? { center_x_percent: Number(cvrLayout.center_x_percent) } : {}),
       ...(Number.isFinite(Number(cvrLayout.max_width_percent)) ? { max_width_percent: Number(cvrLayout.max_width_percent) } : {}),
+      ...(typeof cvrLayout.pointer_enabled === "boolean" ? { pointer_enabled: cvrLayout.pointer_enabled } : {}),
       ...(Number.isFinite(Number(cvrLayout.pointer_center_x_percent)) ? { pointer_center_x_percent: Number(cvrLayout.pointer_center_x_percent) } : {}),
       ...(Number.isFinite(Number(cvrLayout.top_y_percent)) ? { top_y_percent: Number(cvrLayout.top_y_percent) } : {}),
       ...(Number.isFinite(Number(cvrLayout.pointer_top_y_percent)) ? { pointer_top_y_percent: Number(cvrLayout.pointer_top_y_percent) } : {}),
@@ -760,7 +762,7 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
   return path.relative(root, manifestPath);
 }
 
-export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, excludedProducts = [], onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) {
     throw new Error("Render Plan Not Ready: schedule-result.json has no renderable Product View");
   }
@@ -792,6 +794,12 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg
   const renderPlanEdlPath = path.join(editDir, "render-plan-edl.json");
   await mkdir(editDir, { recursive: true });
   await writeFile(renderPlanEdlPath, JSON.stringify(renderPlanEdl, null, 2), "utf8");
+  const productVisualReview = reviewScheduledProductVisualConsistency({ scheduledProducts, semanticEvidence });
+  if (productVisualReview.status === "failed") {
+    await writeFile(path.join(editDir, "product-visual-review.json"), JSON.stringify(productVisualReview, null, 2), "utf8");
+    throw new Error(`Product visual consistency gate failed: ${productVisualReview.failures.map((item) => `${item.product_id}/${item.shot_id}`).join(", ")}`);
+  }
+  await writeFile(path.join(editDir, "product-visual-review.json"), JSON.stringify(productVisualReview, null, 2), "utf8");
   return renderBatchFromEdl({
     root,
     batch,
@@ -803,10 +811,11 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg
     limit,
     edlPath: renderPlanEdlPath,
     validateLegacyProductConsistency: false,
+    productVisualReview,
   });
 }
 
-export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true }) {
+export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null }) {
   const assertActive = async () => { if (await isCanceled()) throw new Error("任务已取消"); };
   await assertActive();
   const editDir = path.join(batchDir, "edit");
@@ -1019,7 +1028,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
   const summary = {
     renderedProducts: results.length,
     excludedProducts: Array.isArray(edl.excluded_products) ? edl.excluded_products : [],
-    qualityGates: { productConsistency: "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed" },
+    qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed" },
+    ...(productVisualReview ? { productVisualReview } : {}),
     ...transitionSummary,
   };
   const manifest = { batchId: batch.id, renderedAt: new Date().toISOString(), expectedDuration: duration, count: results.length, ...summary, musicAssignments, files: results };

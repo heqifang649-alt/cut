@@ -27,7 +27,6 @@ import {
   isCodexRequiredForBatch,
 } from "./processor.mjs";
 import {
-  MAX_RECOVERY_ATTEMPTS,
   acquireCodexExecution,
   classifyRecoveryError,
   codexFailureClassFor,
@@ -247,7 +246,27 @@ async function runTask(task) {
 
 async function handleFailure(task, error) {
   const message = error instanceof Error ? error.message : String(error);
-  const classification = classifyRecoveryError(error);
+  // Older workers may have emitted a plain Schedule Failed error before the
+  // structured Provider code was added. Recover the sidecar evidence here so
+  // an explicit requeue receives the same bounded two-attempt policy.
+  let providerFailures = error?.providerFailures;
+  if (!Array.isArray(providerFailures) && /schedule failed|排片失败/i.test(message)) {
+    const evidence = await readJson(path.join(batchWorkspacePath(ROOT, task.batchId), "semantic-evidence.v1.json"), null).catch(() => null);
+    providerFailures = (Array.isArray(evidence?.records) ? evidence.records : [])
+      .filter((record) => {
+        const code = String(record?.error?.code || "").toUpperCase();
+        const status = Number(record?.error?.status || 0);
+        const text = String(record?.error?.message || "").toLowerCase();
+        return ["PROVIDER_TIMEOUT", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_RATE_LIMITED", "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EHOSTUNREACH", "ENETUNREACH", "EAI_AGAIN"].includes(code)
+          || (["PROVIDER_HTTP_ERROR", "PROVIDER_REQUEST_FAILED"].includes(code) && (status === 429 || status >= 500))
+          || (code === "PROVIDER_REQUEST_FAILED" && /timeout|timed out|temporar|connection (?:reset|refused)|socket hang up/.test(text));
+      })
+      .map((record) => ({ shotId: record.shotId, code: record.error?.code, status: record.error?.status || null }));
+  }
+  const classification = classifyRecoveryError(error, {
+    semanticSchedule: /schedule failed|排片失败/i.test(message),
+    providerFailures,
+  });
   let codexCircuit = null;
   await recordBatchFailure({
     root: ROOT,
@@ -264,6 +283,7 @@ async function handleFailure(task, error) {
       codexFailureClass: classification.failureClass || codexFailureClassFor(classification),
       ...(error?.codexTurn ? { codexTurn: error.codexTurn } : {}),
       ...(error?.readiness ? { editPlanReadiness: error.readiness } : {}),
+      ...(providerFailures?.length ? { providerFailures } : {}),
     },
   }).catch(() => undefined);
 
@@ -334,7 +354,7 @@ async function handleFailure(task, error) {
     if ((accountBackoff ? attempt > attemptLimit : attempt >= attemptLimit) || circuitManual) {
       if (!(await writeBatchState((item) => {
         item.status = "failed";
-        item.error = `自动恢复连续失败 ${MAX_RECOVERY_ATTEMPTS} 次：${message}`;
+        item.error = `自动恢复连续失败 ${attemptLimit} 次：${message}`;
         if (inactivityTimeout) item.error = codexInactivityManualMessage();
         item.recoveryAttempts = attempt;
         if (classification.kind === "codex_concurrency") item.error = `Codex 账户并发限制已连续触发 ${attemptLimit} 次：${message}`;
@@ -349,7 +369,7 @@ async function handleFailure(task, error) {
       if (!(await writeBatchState((item) => {
         item.recoveryAttempts = attempt;
         item.error = undefined;
-        item.renderingLabel = `自动恢复中：${classification.label}，第 ${attempt} 次尝试`;
+        item.renderingLabel = `自动恢复中：${classification.label}，第 ${attempt}/${attemptLimit} 次尝试`;
         item.lastWorkerActivityAt = new Date().toISOString();
         if (inactivityTimeout) item.codexTurn = { ...item.codexTurn, state: "retrying", turnId: undefined };
       }))) return { state: "lost", lost: true };

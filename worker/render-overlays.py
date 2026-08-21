@@ -133,7 +133,10 @@ def make_cvr(width, height, text, secondary_text, output, bold_font, italic_font
     if secondary_text:
         secondary_face = fit_face(draw, secondary_text, bold_font, preferred - scaled(8, width, 1080), minimum, max_width, stroke_width)
         centered(draw, (center_x, y), secondary_text, secondary_face, spec["secondary_fill"], stroke_width, spec["stroke"])
-    draw_pointer(draw, width, height, spec)
+    # Pointer graphics are opt-in. Existing profiles may still carry legacy
+    # pointer coordinates, but the default Cutflow layout must remain text-only.
+    if spec.get("pointer_enabled", False):
+        draw_pointer(draw, width, height, spec)
     bbox = image.getchannel("A").getbbox()
     bottom_safe_percent = float(layout.get("safe_zone", {}).get("bottom_percent", 8))
     minimum_bottom_clearance = int(round(height * bottom_safe_percent / 100))

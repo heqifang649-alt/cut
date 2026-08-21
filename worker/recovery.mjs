@@ -2,10 +2,12 @@ import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId } from "../lib/tenant-paths.mjs";
+import { readQueue } from "./service-queue.mjs";
 
 export const MAX_RECOVERY_ATTEMPTS = 3;
 export const MAX_CODEX_INACTIVITY_ATTEMPTS = 2;
 export const MAX_CODEX_CONCURRENCY_ATTEMPTS = 5;
+export const MAX_SEMANTIC_PROVIDER_ATTEMPTS = 2;
 
 const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 const CODEX_CONCURRENCY_DELAYS_MS = [60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000, 15 * 60_000];
@@ -117,10 +119,9 @@ export async function readCodexExecutionState(root) {
   };
   const slots = (Array.isArray(control.slots) ? control.slots : []).filter((slot) => parseTime(slot.expiresAt) > Date.now());
   const circuit = control.circuit || { state: "closed", consecutiveFailures: 0 };
-  const queueFile = path.join(root, "data", "service-queue.json");
   let queue = { waiting: 0, running: 0, failed: 0, retry: 0, tasks: [] };
   try {
-    const serviceQueue = await readJson(queueFile, { tasks: [] });
+    const serviceQueue = await readQueue(root);
     for (const task of Array.isArray(serviceQueue.tasks) ? serviceQueue.tasks : []) {
       if (!isCodexServiceTask(task?.stage, task?.operation)) continue;
       if (task.status === "queued") queue.waiting += 1;
@@ -422,12 +423,26 @@ export async function tripCodexConcurrencyCircuit({ root, message, task, service
 export function classifyRecoveryError(error, context = {}) {
   const message = String(error instanceof Error ? error.message : error || "").toLowerCase();
   const errorCode = String(error && typeof error === "object" ? error.code || "" : "").toLowerCase();
+  const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;
   if (context.canceled) return { category: "fatal", kind: "canceled", recoverable: false, label: "任务已取消" };
   if (errorCode === "codex_circuit_manual") {
     return { category: "business", kind: "codex_circuit_manual", recoverable: false, label: "Codex 并发熔断等待人工处理" };
   }
   if (errorCode === "edit_plan_not_ready") {
     return { category: "business", kind: "edit_plan_not_ready", recoverable: false, label: "剪辑计划未生成，等待人工处理" };
+  }
+  if (
+    (errorCode === "semantic_provider_schedule_failure" || context.semanticSchedule === true)
+    && /schedule failed|排片失败/.test(message)
+    && Array.isArray(providerFailures)
+    && providerFailures.length > 0
+  ) {
+    return {
+      category: "recoverable",
+      kind: "semantic_provider_schedule",
+      recoverable: true,
+      label: "语义服务暂时不可用，正在自动重试",
+    };
   }
   if (errorCode === "codex_executor_incomplete" || /(?:executor|codex).*?(?:ended|exited).*?(?:without|missing).*?(?:turn\.)?completed|without a completed turn event/.test(message)) {
     return { category: "recoverable", kind: "codex_executor_stalled", failureClass: "executor_stalled", recoverable: true, label: "Codex executor did not complete its Turn; rebuilding executor" };
@@ -522,6 +537,7 @@ export function classifyRecoveryError(error, context = {}) {
 
 export function recoveryAttemptLimit(classification) {
   if (classification?.kind === "codex_inactivity") return MAX_CODEX_INACTIVITY_ATTEMPTS;
+  if (classification?.kind === "semantic_provider_schedule") return MAX_SEMANTIC_PROVIDER_ATTEMPTS;
   if (["codex_concurrency", "codex_rate_limit"].includes(classification?.kind)) return MAX_CODEX_CONCURRENCY_ATTEMPTS;
   return MAX_RECOVERY_ATTEMPTS;
 }
@@ -572,7 +588,7 @@ export async function scheduleRecovery({ root, batchId, attempt, stage, classifi
     issue: classification.failureClass || codexFailureClassFor(classification) || classification.kind,
     nextRetryAt,
     sourceError: String(message || "").slice(-1200),
-    message: `自动恢复中：${classification.label}，第 ${attempt} 次尝试`,
+    message: `自动恢复中：${classification.label}，第 ${attempt}/${recoveryAttemptLimit(classification)} 次尝试`,
     tone: "active",
   });
 }

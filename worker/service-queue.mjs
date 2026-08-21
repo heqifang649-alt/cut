@@ -1,5 +1,5 @@
 import path from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat } from "node:fs/promises";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
 export const SERVICE_STAGES = ["analyze", "clip", "render"];
@@ -15,6 +15,41 @@ const freshQueue = () => ({ schemaVersion: 1, tasks: [] });
 const taskKey = (batchId, stage, operation = "default") => `${batchId}:${stage}:${operation}`;
 const now = () => new Date().toISOString();
 const latestTaskForKey = (tasks, key) => tasks.findLast((task) => task.key === key);
+
+export async function readQueue(root) {
+  const file = queuePath(root);
+  try {
+    const queue = await readJson(file, freshQueue());
+    if (queue && Array.isArray(queue.tasks)) return queue;
+  } catch {
+    // A Windows in-place replacement can briefly expose a truncated/NUL-filled
+    // queue to lock-free readers. Try the newest valid replacement snapshot.
+  }
+
+  try {
+    const directory = path.dirname(file);
+    const names = (await readdir(directory))
+      .filter((name) => name.startsWith("service-queue.json.replace-fallback."));
+    const candidates = await Promise.all(names.map(async (name) => {
+      const candidate = path.join(directory, name);
+      const info = await stat(candidate).catch(() => null);
+      return info ? { candidate, mtimeMs: info.mtimeMs } : null;
+    }));
+    candidates.sort((a, b) => (b?.mtimeMs || 0) - (a?.mtimeMs || 0));
+    for (const item of candidates.slice(0, 20)) {
+      if (!item) continue;
+      try {
+        const parsed = JSON.parse((await readFile(item.candidate, "utf8")).replace(/^\uFEFF/, ""));
+        if (parsed && Array.isArray(parsed.tasks)) return parsed;
+      } catch {
+        // Replacement markers can also be incomplete; keep looking.
+      }
+    }
+  } catch {
+    // No usable snapshot exists.
+  }
+  return freshQueue();
+}
 
 function normalizePriority(priority) {
   return QUEUE_PRIORITIES.includes(priority) ? priority : "NORMAL";
@@ -32,7 +67,7 @@ async function mutate(root, change) {
   const file = queuePath(root);
   await mkdir(path.dirname(file), { recursive: true });
   return withFileLock(file, async () => {
-    const queue = await readJson(file, freshQueue());
+    const queue = await readQueue(root);
     queue.tasks ??= [];
     const result = await change(queue);
     if (result && result[NO_CHANGE]) return result.value;
@@ -46,19 +81,15 @@ function noChange(value) {
   return { [NO_CHANGE]: true, value };
 }
 
-function activeTaskForKey(tasks, key) {
-  const task = latestTaskForKey(tasks || [], key);
-  return task && !["completed", "canceled"].includes(task.status) ? task : undefined;
-}
-
 function desiredWorkflowVersion(workflowVersion) {
   return Number.isSafeInteger(Number(workflowVersion)) && Number(workflowVersion) > 0 ? Number(workflowVersion) : 1;
 }
 
 function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersion }) {
   if (!task || Number(task.workflowVersion || 1) !== desiredWorkflowVersion(workflowVersion)) return false;
-  // Manual tasks are deliberately terminal until resetBatchStagesForExplicitRetry.
-  if (task.status === "manual") return true;
+  // Manual and completed tasks are terminal for one workflow version. Periodic
+  // discovery must not append another copy while the Batch state catches up.
+  if (["manual", "completed"].includes(task.status)) return true;
   const nextPriority = normalizePriority(priority);
   const nextReason = reason || task.reason;
   const nextNotBefore = task.status === "retry" ? task.notBefore : (notBefore || task.notBefore);
@@ -71,14 +102,14 @@ function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersi
 export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   const key = taskKey(batchId, stage, operation);
-  const snapshot = await readJson(queuePath(root), freshQueue());
-  const snapshotTask = activeTaskForKey(snapshot.tasks, key);
+  const snapshot = await readQueue(root);
+  const snapshotTask = latestTaskForKey(snapshot.tasks || [], key);
   if (canReuseEnqueuedTask(snapshotTask, { priority, reason, notBefore, workflowVersion })) return structuredClone(snapshotTask);
   return mutate(root, (queue) => {
     // A manual task is terminal until an explicit human recovery action
     // changes it. Periodic state discovery must never silently reset its
     // attempt counter by inserting a second task with the same key.
-    let existing = activeTaskForKey(queue.tasks, key);
+    let existing = latestTaskForKey(queue.tasks || [], key);
     if (existing) {
       // A user-created workflow version is a fencing token. Do not let an old
       // reference/clip task survive into a new attempt for the same Batch.
@@ -87,8 +118,12 @@ export async function enqueueStage({ root, batchId, stage, operation = "default"
         existing.canceledAt = now();
         existing.reason = "Superseded by newer Batch workflow version";
         existing.lease = undefined;
+        existing = undefined;
       } else {
         if (canReuseEnqueuedTask(existing, { priority, reason, notBefore, workflowVersion })) return noChange(structuredClone(existing));
+        if (["completed", "canceled"].includes(existing.status)) existing = undefined;
+      }
+      if (existing) {
         existing.priority = normalizePriority(priority);
         existing.reason = reason || existing.reason;
         // A periodic stage scan may rediscover a Batch while it is waiting for
@@ -164,7 +199,7 @@ export async function cancelStage({ root, batchId, stage, operation }) {
 }
 
 export async function manualStageForBatch({ root, batchId, workflowVersion }) {
-  const queue = await readJson(queuePath(root), freshQueue());
+  const queue = await readQueue(root);
   return queue.tasks.find((task) => task.batchId === batchId && task.status === "manual" && (workflowVersion === undefined || Number(task.workflowVersion || 1) === Number(workflowVersion))) || null;
 }
 
@@ -234,7 +269,7 @@ export async function heartbeatLease({ root, task, leaseMs = 90_000 }) {
 }
 
 export async function assertLease({ root, task }) {
-  const queue = await readJson(queuePath(root), freshQueue());
+  const queue = await readQueue(root);
   const current = latestTaskForKey(queue.tasks || [], task.key);
   return Boolean(current && current.status === "leased" && current.lease?.leaseId === task.lease?.leaseId && current.lease?.version === task.lease?.version && new Date(current.lease.expiresAt).getTime() > Date.now());
 }
@@ -333,7 +368,7 @@ export async function promoteRetries({ root, stage }) {
 }
 
 export async function queueOverview(root, allowedBatchIds) {
-  const queue = await readJson(queuePath(root), freshQueue());
+  const queue = await readQueue(root);
   const allowed = allowedBatchIds ? new Set(allowedBatchIds) : null;
   const result = Object.fromEntries(SERVICE_STAGES.map((stage) => [stage, { waiting: 0, running: 0, failed: 0, retry: 0, etaSeconds: null }]));
   const currentTime = Date.now();

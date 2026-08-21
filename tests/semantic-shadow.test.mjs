@@ -63,6 +63,52 @@ test("semantic shadow reserves a shot frame when product references fill the inp
   assert.match(Buffer.from(receivedImages.at(-1).split(",")[1], "base64").toString(), /shot-frame/);
 });
 
+test("semantic shadow sends each product group only its matching references", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-groups-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const batchDir = path.join(root, "storage", "batch-groups");
+  await mkdir(batchDir, { recursive: true });
+  const files = {};
+  for (const [name, content] of [["gc1.jpg", "reference-gc1"], ["gc2.jpg", "reference-gc2"], ["gc1.mp4", "shot-gc1"], ["gc2.mp4", "shot-gc2"]]) {
+    files[name] = path.join(batchDir, name);
+    await writeFile(files[name], content, "utf8");
+  }
+  await writeFile(path.join(batchDir, "product-groups.json"), JSON.stringify({ groups: [
+    { id: "gc1-m1", files: [files["gc1.mp4"]] },
+    { id: "gc2-m1", files: [files["gc2.mp4"]] },
+  ] }), "utf8");
+  const batch = { id: "batch-groups", files: [
+    { kind: "product_refs", relativePath: "refs/gc1正.jpg", storagePath: files["gc1.jpg"], sourceType: "upload" },
+    { kind: "product_refs", relativePath: "refs/gc2正.jpg", storagePath: files["gc2.jpg"], sourceType: "upload" },
+  ] };
+  const shotPool = { shots: [
+    { id: "shot-gc1", path: files["gc1.mp4"], source: "gc1", start: 0, end: 1, duration: 1 },
+    { id: "shot-gc2", path: files["gc2.mp4"], source: "gc2", start: 0, end: 1, duration: 1 },
+  ] };
+  const referencesByShot = new Map();
+  const adapter = { guard: { snapshot: () => ({}) }, scoreShot: async ({ shotId, images }) => {
+    referencesByShot.set(shotId, Buffer.from(images[0].split(",")[1], "base64").toString());
+    return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+  } };
+  await runSemanticShadow({
+    root,
+    batch,
+    batchDir,
+    shotPool,
+    adapter,
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" },
+    ffmpeg: "fixture-ffmpeg",
+    extractFrames: async (_ffmpeg, args) => {
+      const target = args.at(-1);
+      const source = args[args.indexOf("-i") + 1];
+      await writeFile(target, await readFile(source));
+    },
+  });
+  assert.equal(referencesByShot.get("shot-gc1"), "reference-gc1");
+  assert.equal(referencesByShot.get("shot-gc2"), "reference-gc2");
+});
+
 test("semantic shadow rebuilds malformed cache without failing Control A", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-cache-"));
   t.after(() => rm(root, { recursive: true, force: true }));

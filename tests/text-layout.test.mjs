@@ -11,7 +11,7 @@ test("approved 9:16 text layout matches the supplied reference positions", async
   assert.equal(layout.hook.center_x_percent, 50);
   assert.equal(layout.hook.top_y_percent, 12.5);
   assert.equal(layout.cvr.anchor, "lower-right");
-  assert.equal(layout.cvr.center_x_percent, 64);
+  assert.equal(layout.cvr.center_x_percent, 58);
   assert.equal(layout.cvr.top_y_percent, 71.2);
   assert.equal(layout.cvr.pointer_top_y_percent, 77.4);
   assert.ok(layout.cvr.pointer_bottom_y_percent <= 92);
