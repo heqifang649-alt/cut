@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
 const ROOT = process.cwd();
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_FLEET_RESTART_DELAY_MS) || 3_000);
@@ -30,6 +30,11 @@ const children = new Map();
 let stopping = false;
 let heartbeatTimer = null;
 
+function processIsAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
 function truncate(value, limit = 1_000) {
   const text = String(value || "").trim().replace(/\s+/g, " ");
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
@@ -48,6 +53,28 @@ async function writeHeartbeat() {
     at: new Date().toISOString(),
     members: FLEET_MEMBERS.map((member) => ({ name: member.name, pid: children.get(member.name)?.pid || null })),
   });
+}
+
+async function adoptLiveMembers() {
+  const prior = await readJson(runtimeFile, null);
+  const recent = Number.isFinite(new Date(prior?.at || 0).getTime()) && Date.now() - new Date(prior.at).getTime() < 60_000;
+  if (!recent) return;
+  const priorMembers = new Map((Array.isArray(prior?.members) ? prior.members : []).map((member) => [member.name, member]));
+  for (const member of FLEET_MEMBERS) {
+    const existing = priorMembers.get(member.name);
+    if (processIsAlive(Number(existing?.pid))) {
+      children.set(member.name, { pid: Number(existing.pid), adopted: true });
+      await log(`${member.name} supervisor adopted (pid ${existing.pid}).`);
+    }
+  }
+}
+
+async function repairAdoptedMembers() {
+  for (const member of FLEET_MEMBERS) {
+    const current = children.get(member.name);
+    if (current?.adopted && !processIsAlive(current.pid)) children.delete(member.name);
+    if (!children.has(member.name)) await launchMember(member);
+  }
 }
 
 function memberEnvironment(member) {
@@ -95,7 +122,7 @@ async function stop() {
   stopping = true;
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   for (const child of children.values()) {
-    if (!child.killed) child.kill();
+    if (!child.adopted && !child.killed) child.kill();
   }
   await writeHeartbeat();
 }
@@ -103,11 +130,16 @@ async function stop() {
 async function main() {
   process.once("SIGINT", () => { stop().catch(() => undefined); });
   process.once("SIGTERM", () => { stop().catch(() => undefined); });
-  for (const member of FLEET_MEMBERS) {
+  await adoptLiveMembers();
+  for (const member of FLEET_MEMBERS.filter((candidate) => !children.has(candidate.name))) {
     await launchMember(member);
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  heartbeatTimer = setInterval(() => writeHeartbeat().catch((error) => log(`Heartbeat failed: ${truncate(error.message)}`)), HEARTBEAT_MS);
+  heartbeatTimer = setInterval(() => {
+    repairAdoptedMembers()
+      .then(() => writeHeartbeat())
+      .catch((error) => log(`Heartbeat failed: ${truncate(error.message)}`));
+  }, HEARTBEAT_MS);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

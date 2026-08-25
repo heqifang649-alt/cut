@@ -141,6 +141,23 @@ test("a completed stage is not duplicated by discovery for the same workflow ver
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("derived discovery can reopen an old completed stage when the Batch never advanced", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-reopen-completed-stage-"));
+  try {
+    const first = await enqueueStage({ root, batchId: "batch-stuck", stage: "analyze", operation: "quality", workflowVersion: 2 });
+    const task = await claimStage({ root, stage: "analyze", workerId: "worker-stuck" });
+    assert.equal(await completeStage({ root, task }), true);
+    const queueFile = path.join(root, "data", "service-queue.json");
+    const queue = await readJson(queueFile, { tasks: [] });
+    queue.tasks.find((item) => item.key === first.key).completedAt = new Date(0).toISOString();
+    await writeJsonAtomic(queueFile, queue);
+
+    const reopened = await enqueueStage({ root, batchId: "batch-stuck", stage: "analyze", operation: "quality", workflowVersion: 2, reopenCompletedAfterMs: 30_000 });
+    assert.equal(reopened.status, "queued");
+    assert.equal((await readJson(queueFile, { tasks: [] })).tasks.filter((item) => item.key === first.key).length, 2);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("global dependency deferrals keep the Batch retry count unchanged", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-defer-"));
   try {

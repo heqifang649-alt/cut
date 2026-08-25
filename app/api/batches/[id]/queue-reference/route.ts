@@ -10,6 +10,7 @@ import { readJson, writeJsonAtomic } from "../../../../../lib/atomic-json.mjs";
 import { enqueueStage, manualStageForBatch, resetBatchStagesForExplicitRetry } from "../../../../../worker/service-queue.mjs";
 import { readRecoveryState } from "../../../../../worker/recovery.mjs";
 import { taskNumberForBatch } from "@/lib/task-number.mjs";
+import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   try {
     const root = process.cwd();
+    await ensureFleetAvailable({ root });
     const batchDir = batchWorkspacePath(root, existing);
     await unlink(path.join(batchDir, "cancel.request")).catch(() => undefined);
     const [marker, recovery, manualTask] = await Promise.all([

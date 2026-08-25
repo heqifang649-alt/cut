@@ -5,6 +5,7 @@ import { enqueueStage } from "../../../../../worker/service-queue.mjs";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 import { batchWorkspacePath } from "@/lib/tenant-paths.mjs";
+import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!sourceKey) throw new Error("缺少素材标识");
     const evidence = await setArtifactReviewDecision({ batchDir: batchDir(existing), sourceKey, decision, note: input.note });
     const requeue = existing.status === "failed" && existing.renderingLabel === "等待人工处理";
+    if (requeue) await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {
       if (requeue) {
         item.workflowVersion = Math.max(1, Number(item.workflowVersion) || 1) + 1;

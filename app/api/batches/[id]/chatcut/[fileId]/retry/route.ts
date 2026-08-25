@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getBatchForOwners, mutateBatch } from "@/lib/store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
+import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string; 
   const { id, fileId } = await context.params;
   try {
     if (!(await getBatchForOwners(id, accessibleOwnerIds(user)))) return NextResponse.json({ error: "成片不存在" }, { status: 404 });
+    await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {
       const file = item.files.find((candidate) => candidate.id === fileId && candidate.kind === "output");
       if (!file?.chatcut?.manifestPath) throw new Error("该成片没有可同步的剪辑清单");

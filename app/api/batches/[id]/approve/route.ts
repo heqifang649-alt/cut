@@ -4,6 +4,7 @@ import { getBatchForOwners, mutateBatch } from "@/lib/store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 import { batchWorkspacePath, resolveStoredWorkspaceFile } from "@/lib/tenant-paths.mjs";
+import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     if (outputs.some((file) => file.qualityStatus !== "passed")) throw new Error("存在未通过自动质检的成片");
     if (!existing.renderSummary || existing.renderSummary.renderedProducts !== outputs.length) throw new Error("成片质检摘要不完整，请重新渲染后再交付");
     if (Object.values(existing.renderSummary.qualityGates).some((value) => value !== "passed")) throw new Error("仍有质量门禁未通过，禁止交付");
+    await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {
       item.status = "completed";
       item.progress = 100;

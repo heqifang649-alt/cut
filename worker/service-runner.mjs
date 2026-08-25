@@ -3,13 +3,14 @@ import { access, mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   assertLease,
+  cancelBatchStages,
   claimStage,
   completeStage,
   deferStage,
   enqueueStage,
   heartbeatLease,
-  manualStageForBatch,
   promoteRetries,
+  readQueue,
   retryStage,
 } from "./service-queue.mjs";
 import {
@@ -63,6 +64,7 @@ const DERIVED_ACTIVE_BATCH_STATUSES = new Set([
   "reference_queued", "analyzing_reference", "creating_proxies", "detecting_products",
   "regroup_queued", "batch_queued", "editing", "revision_queued", "revising",
 ]);
+const DERIVED_STAGE_REOPEN_MS = 30_000;
 
 if (!STAGE) throw new Error(`Unsupported service: ${SERVICE}`);
 
@@ -81,6 +83,10 @@ async function writeServiceHeartbeat() {
 
 async function markStage(root, batch, next, operation) {
   await writeJsonAtomic(stageFile(batch), { schemaVersion: 1, next, operation, workflowVersion: workflowVersionOf(batch), updatedAt: new Date().toISOString() });
+}
+
+function enqueueDerivedStage(options) {
+  return enqueueStage({ ...options, reopenCompletedAfterMs: DERIVED_STAGE_REOPEN_MS });
 }
 
 async function taskStillCurrent(task) {
@@ -112,11 +118,26 @@ async function taskCanFinalize(task) {
 }
 
 async function syncDerivedTasks() {
-  const batches = await readBatches();
+  const [batches, queue] = await Promise.all([readBatches(), readQueue(ROOT)]);
+  const manualTasks = new Map();
+  for (const task of queue.tasks || []) {
+    if (task.status === "manual") manualTasks.set(`${task.batchId}:${workflowVersionOf(task)}`, task);
+  }
   for (const batch of batches) {
-    if (await fileExists(cancelFile(batch))) continue;
+    if (await fileExists(cancelFile(batch))) {
+      if (batch.status === "cancel_requested") {
+        await cancelBatchStages({ root: ROOT, batchId: batch.id });
+        await update(batch.id, (item) => {
+          item.status = "canceled";
+          item.error = undefined;
+          item.renderingLabel = "任务已取消";
+          item.lastWorkerActivityAt = new Date().toISOString();
+        });
+      }
+      continue;
+    }
     const version = workflowVersionOf(batch);
-    const manualTask = await manualStageForBatch({ root: ROOT, batchId: batch.id, workflowVersion: version });
+    const manualTask = manualTasks.get(`${batch.id}:${version}`) || null;
     if (manualTask) {
       // A lease can expire while the child process is partitioned rather than
       // crashed. The queue has already exhausted its bounded retry policy;
@@ -133,26 +154,26 @@ async function syncDerivedTasks() {
     }
     if (STAGE === "analyze") {
       if (["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products"].includes(batch.status)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "regroup_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "batch_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "quality", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "quality", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
     if (STAGE === "clip") {
       if (batch.status === "revision_queued") {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
       const marker = await readJson(stageFile(batch), null);
       if (batch.status === "editing" && marker?.next === "clip" && marker.operation === "edit" && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
     if (STAGE === "render") {
       const marker = await readJson(stageFile(batch), null);
       if (["editing", "revising"].includes(batch.status) && marker?.next === "render" && ["render", "revision"].includes(marker.operation) && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
-        await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
   }

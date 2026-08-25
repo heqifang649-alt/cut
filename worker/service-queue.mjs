@@ -85,11 +85,16 @@ function desiredWorkflowVersion(workflowVersion) {
   return Number.isSafeInteger(Number(workflowVersion)) && Number(workflowVersion) > 0 ? Number(workflowVersion) : 1;
 }
 
-function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersion }) {
+function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersion, reopenCompletedAfterMs }) {
   if (!task || Number(task.workflowVersion || 1) !== desiredWorkflowVersion(workflowVersion)) return false;
   // Manual and completed tasks are terminal for one workflow version. Periodic
   // discovery must not append another copy while the Batch state catches up.
-  if (["manual", "completed"].includes(task.status)) return true;
+  if (task.status === "manual") return true;
+  if (task.status === "completed") {
+    const threshold = Number(reopenCompletedAfterMs);
+    if (!Number.isFinite(threshold) || threshold < 0 || !task.completedAt) return true;
+    return Date.now() - new Date(task.completedAt).getTime() < threshold;
+  }
   const nextPriority = normalizePriority(priority);
   const nextReason = reason || task.reason;
   const nextNotBefore = task.status === "retry" ? task.notBefore : (notBefore || task.notBefore);
@@ -97,14 +102,14 @@ function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersi
 }
 
 /**
- * @param {{ root: any, batchId: any, stage: any, operation?: string, priority?: string, reason?: any, notBefore?: any, workflowVersion?: any, taskNumber?: any }} options
+ * @param {{ root: any, batchId: any, stage: any, operation?: string, priority?: string, reason?: any, notBefore?: any, workflowVersion?: any, taskNumber?: any, reopenCompletedAfterMs?: number }} options
  */
-export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber }) {
+export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber, reopenCompletedAfterMs }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   const key = taskKey(batchId, stage, operation);
   const snapshot = await readQueue(root);
   const snapshotTask = latestTaskForKey(snapshot.tasks || [], key);
-  if (canReuseEnqueuedTask(snapshotTask, { priority, reason, notBefore, workflowVersion })) return structuredClone(snapshotTask);
+  if (canReuseEnqueuedTask(snapshotTask, { priority, reason, notBefore, workflowVersion, reopenCompletedAfterMs })) return structuredClone(snapshotTask);
   return mutate(root, (queue) => {
     // A manual task is terminal until an explicit human recovery action
     // changes it. Periodic state discovery must never silently reset its
@@ -120,7 +125,7 @@ export async function enqueueStage({ root, batchId, stage, operation = "default"
         existing.lease = undefined;
         existing = undefined;
       } else {
-        if (canReuseEnqueuedTask(existing, { priority, reason, notBefore, workflowVersion })) return noChange(structuredClone(existing));
+        if (canReuseEnqueuedTask(existing, { priority, reason, notBefore, workflowVersion, reopenCompletedAfterMs })) return noChange(structuredClone(existing));
         if (["completed", "canceled"].includes(existing.status)) existing = undefined;
       }
       if (existing) {

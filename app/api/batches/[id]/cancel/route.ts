@@ -2,15 +2,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getBatchForOwners, mutateBatch } from "@/lib/store";
-import type { BatchStatus } from "@/lib/types";
 import { cancelBatchStages } from "../../../../../worker/service-queue.mjs";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 import { batchWorkspacePath } from "@/lib/tenant-paths.mjs";
 
 export const runtime = "nodejs";
-
-const active = new Set<BatchStatus>(["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"]);
 
 export async function POST(_: Request, context: { params: Promise<{ id: string }> }) {
   const request = _;
@@ -27,8 +24,10 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     await writeFile(path.join(batchDir, "cancel.request"), new Date().toISOString(), "utf8");
     await cancelBatchStages({ root: process.cwd(), batchId: id });
     const batch = await mutateBatch(id, (item) => {
-      item.status = active.has(item.status) ? "cancel_requested" : "canceled";
+      item.status = "canceled";
       item.error = undefined;
+      item.renderingLabel = "任务已取消";
+      item.lastWorkerActivityAt = new Date().toISOString();
     });
     return NextResponse.json({ batch });
   } catch (error) {

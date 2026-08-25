@@ -12,13 +12,19 @@ const ROOT = process.cwd();
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "render";
 const INSTANCE = process.argv.find((arg) => arg.startsWith("--instance="))?.slice("--instance=".length) || process.env.CUTFLOW_SERVICE_INSTANCE || `${SERVICE}-${process.pid}`;
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_SERVICE_RESTART_DELAY_MS) || 3_000);
+const HEARTBEAT_TIMEOUT_MS = Math.max(15_000, Number(process.env.CUTFLOW_SERVICE_HEARTBEAT_TIMEOUT_MS) || 20_000);
+const HEARTBEAT_CHECK_MS = Math.max(3_000, Math.min(5_000, Math.floor(HEARTBEAT_TIMEOUT_MS / 3)));
 const runnerPath = path.join(ROOT, "worker", "service-runner.mjs");
 const runtimeFile = path.join(ROOT, "data", "service-runtime", `${SERVICE}-${INSTANCE}.json`);
 const logFile = path.join(ROOT, "logs", `${INSTANCE}.supervisor.log`);
+const heartbeatFile = path.join(ROOT, "data", "service-heartbeats", `${SERVICE}-${INSTANCE}.json`);
 
 let child = null;
 let stopping = false;
 let lastChildOutput = "";
+let childStartedAt = 0;
+let heartbeatTimer = null;
+let heartbeatStopRequested = false;
 
 function truncate(value, limit = 1_000) {
   const text = String(value || "").trim().replace(/\s+/g, " ");
@@ -98,6 +104,27 @@ function capture(stream) {
   });
 }
 
+export function heartbeatFailure({ heartbeat, childPid, childStartedAt: startedAt, now = Date.now(), timeoutMs = HEARTBEAT_TIMEOUT_MS }) {
+  if (!childPid || now - startedAt <= timeoutMs) return null;
+  if (Number(heartbeat?.pid) !== Number(childPid)) return "worker heartbeat pid mismatch";
+  const heartbeatAt = new Date(heartbeat?.at || 0).getTime();
+  if (!Number.isFinite(heartbeatAt) || now - heartbeatAt > timeoutMs) return "worker heartbeat stopped";
+  return null;
+}
+
+async function checkHeartbeat() {
+  if (!child || stopping || heartbeatStopRequested) return;
+  const reason = heartbeatFailure({
+    heartbeat: await readJson(heartbeatFile, null),
+    childPid: child.pid,
+    childStartedAt,
+  });
+  if (!reason) return;
+  heartbeatStopRequested = true;
+  await writeLog(`${reason}; stopping child pid ${child.pid}.`);
+  if (!child.killed) child.kill();
+}
+
 async function restartAfterCrash(reason) {
   await releaseCrashedLeases(reason).catch((error) => writeLog(`Could not release crashed leases: ${truncate(error instanceof Error ? error.message : String(error))}`));
   const current = await readRuntime();
@@ -133,6 +160,8 @@ async function launch() {
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
+  childStartedAt = Date.now();
+  heartbeatStopRequested = false;
   capture(child.stdout);
   capture(child.stderr);
   // A spawned child is now live. Keeping it in "starting" forever made the
@@ -145,6 +174,7 @@ async function launch() {
   });
   child.once("exit", (code, signal) => {
     child = null;
+    heartbeatStopRequested = false;
     if (stopping) {
       writeRuntime({ status: "offline", pid: undefined, nextRestartAt: undefined }).catch(() => undefined);
       return;
@@ -156,6 +186,7 @@ async function launch() {
 
 async function stop() {
   stopping = true;
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
   if (child && !child.killed) child.kill();
   await writeRuntime({ status: "offline", pid: undefined, nextRestartAt: undefined });
 }
@@ -164,6 +195,7 @@ async function main() {
   process.once("SIGINT", () => { stop().catch(() => undefined); });
   process.once("SIGTERM", () => { stop().catch(() => undefined); });
   await launch();
+  heartbeatTimer = setInterval(() => checkHeartbeat().catch((error) => writeLog(`Heartbeat check failed: ${truncate(error.message)}`)), HEARTBEAT_CHECK_MS);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

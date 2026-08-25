@@ -28,6 +28,10 @@ test("supervisor bounds recovery after a child worker crash", async () => {
   assert.match(source, /releaseWorkerLeases/);
   assert.match(source, /maxAttempts: MAX_RECOVERY_ATTEMPTS/);
   assert.match(source, /自动恢复连续失败/);
+  assert.match(source, /HEARTBEAT_TIMEOUT_MS/);
+  assert.match(source, /worker heartbeat stopped/);
+  assert.match(source, /checkHeartbeat/);
+  assert.match(source, /releaseCrashedLeases/);
 });
 
 test("production launcher uses a persistent fleet supervisor", async () => {
@@ -45,6 +49,30 @@ test("production launcher uses a persistent fleet supervisor", async () => {
   assert.match(fleet, /service-supervisor\.mjs/);
   assert.match(fleet, /auxiliary-supervisor\.mjs/);
   assert.match(fleet, /restarting/);
+  assert.match(fleet, /adoptLiveMembers/);
+  assert.match(fleet, /repairAdoptedMembers/);
+});
+
+test("every task-producing route checks the fleet and directly queues service stages", async () => {
+  const taskRoutes = [
+    "app/api/batches/[id]/queue-reference/route.ts",
+    "app/api/batches/[id]/approve-profile/route.ts",
+    "app/api/batches/[id]/command/route.ts",
+    "app/api/batches/[id]/regroup/route.ts",
+    "app/api/batches/[id]/artifact-review/route.ts",
+  ];
+  for (const route of taskRoutes) {
+    const source = await readFile(new URL(route, root), "utf8");
+    assert.match(source, /ensureFleetAvailable/);
+    assert.match(source, /enqueueStage/);
+  }
+  for (const route of [
+    "app/api/templates/[id]/queue/route.ts",
+    "app/api/batches/[id]/approve/route.ts",
+    "app/api/batches/[id]/chatcut/[fileId]/retry/route.ts",
+  ]) {
+    assert.match(await readFile(new URL(route, root), "utf8"), /ensureFleetAvailable/);
+  }
 });
 
 test("deterministic filename grouping does not wait for Codex authentication", async () => {

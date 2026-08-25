@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { readCodexExecutionState } from "../../../worker/recovery.mjs";
+import { fleetRuntimeIsHealthy } from "../../../worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,14 +48,18 @@ export async function GET() {
   const legacyHeartbeat = await readState("worker-heartbeat.json") as { at?: string; pid?: number } | null;
   const legacyOnline = Boolean(legacyHeartbeat?.at && Date.now() - new Date(legacyHeartbeat.at).getTime() < 15000 && processIsAlive(legacyHeartbeat.pid));
   const services = await liveServiceHeartbeats();
+  const fleetRuntime = await readState("fleet-runtime.json") as { status?: string; at?: string; pid?: number; members?: Array<{ name?: string; pid?: number }> } | null;
+  const byStage = Object.fromEntries(["analyze", "clip", "render"].map((stage) => [stage, services.filter((heartbeat) => heartbeat?.service === stage).length]));
+  const servicesOnline = Object.values(byStage).every((count) => count >= 3);
+  const fleetOnline = fleetRuntimeIsHealthy(fleetRuntime);
   const codexState = await readState("codex-account-state.json");
   const codexRuntime = await readCodexExecutionState(process.cwd());
   const chatcutState = await readState("chatcut-account-state.json");
   return NextResponse.json({
-    workerOnline: legacyOnline || services.length > 0,
+    workerOnline: fleetRuntime ? fleetOnline && servicesOnline : legacyOnline,
     workerBusy: false,
     heartbeat: legacyHeartbeat || services[0] || null,
-    services: { online: services.length > 0, instances: services.length },
+    services: { online: servicesOnline, fleetOnline, instances: services.length, requiredInstances: 9, byStage },
     codex: {
       ready: codexState?.ready === true,
       apiReady: codexRuntime.modelServiceReachable === true,

@@ -3,6 +3,7 @@ import { mutateTemplate } from "@/lib/template-store";
 import { getTemplateForOwners } from "@/lib/template-store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
+import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
   if (!user) return unauthenticated();
   const { id } = await context.params;
   try {
+    await ensureFleetAvailable({ root: process.cwd() });
     if (!(await getTemplateForOwners(id, accessibleOwnerIds(user)))) return NextResponse.json({ error: "模板不存在" }, { status: 404 });
     const template = await mutateTemplate(id, (item) => {
       if (!item.file) throw new Error("请先上传样片");

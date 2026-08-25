@@ -17,3 +17,10 @@ test("a stale render marker cannot be consumed by a later workflow version", () 
   assert.equal(taskMayOperate(task, { status: "editing", workflowVersion: 5 }, { next: "render", workflowVersion: 4 }), false);
   assert.equal(taskMayOperate(task, { status: "review", workflowVersion: 5 }, { next: "render", workflowVersion: 5 }), false);
 });
+
+test("a stale downstream marker cannot block quality work for a newer workflow", () => {
+  const task = { stage: "analyze", operation: "quality", workflowVersion: 6 };
+  const batch = { status: "batch_queued", workflowVersion: 6 };
+  assert.equal(taskMayOperate(task, batch, { next: "clip", workflowVersion: 5 }), true);
+  assert.equal(taskMayOperate(task, batch, { next: "clip", workflowVersion: 6 }), false);
+});

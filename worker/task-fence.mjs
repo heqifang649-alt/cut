@@ -20,7 +20,7 @@ export function taskMayOperate(task, batch, marker = null) {
   if (!taskMatchesBatchVersion(task, batch)) return false;
   const statuses = OPERATION_STATUSES[task.operation];
   if (!statuses?.has(batch?.status)) return false;
-  if (task.operation === "quality" && (marker?.next === "clip" || marker?.next === "render")) return false;
+  if (task.operation === "quality" && (marker?.next === "clip" || marker?.next === "render") && workflowVersionOf(marker) === workflowVersionOf(task)) return false;
   if (task.operation === "render" && (marker?.next !== "render" || (marker.workflowVersion && workflowVersionOf(marker) !== workflowVersionOf(task)))) return false;
   return true;
 }
