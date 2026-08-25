@@ -151,7 +151,11 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.status === "review") return { label: "等待审核", detail: "成片已生成，等待人工确认。" };
   if (batch.status === "completed") return { label: "已完成", detail: "成片已通过并完成交付。" };
   if (batch.status === "reference_ready") return { label: "等待确认", detail: "产品分组与样片母版等待确认。" };
-  if (["reference_queued", "regroup_queued", "batch_queued", "revision_queued"].includes(batch.status)) return { label: "等待 Worker", detail: "任务已进入队列，等待工作机接手。" };
+  if (["reference_queued", "regroup_queued", "batch_queued", "revision_queued"].includes(batch.status)) {
+    if (batch.renderingLabel?.includes("Codex 认证")) return { label: "等待模型认证", detail: batch.renderingLabel };
+    if (batch.renderingLabel?.includes("自动恢复")) return { label: "自动恢复中", detail: batch.renderingLabel };
+    return { label: "等待 Worker", detail: batch.renderingLabel || "任务已进入队列，等待工作机接手。" };
+  }
   if (batch.status === "uploading") return { label: "等待素材上传", detail: "正在接入本批素材。" };
   return { label: statusMeta[batch.status].label, detail: batch.renderingLabel || `已接入 ${batch.files.filter((file) => file.kind === "products").length} 个素材，正在处理。` };
 }

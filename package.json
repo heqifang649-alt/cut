@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -p 3001",
     "worker": "node worker/processor.mjs",
+    "worker:fleet": "node worker/fleet-supervisor.mjs",
     "service:analyze": "node worker/service-runner.mjs --service=analyze",
     "service:clip": "node worker/service-runner.mjs --service=clip",
     "service:render": "node worker/service-runner.mjs --service=render",

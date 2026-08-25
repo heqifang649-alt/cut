@@ -55,6 +55,22 @@ test("one worker id cannot hold multiple live leases", async () => {
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("one Batch cannot be claimed by two stage operations at the same time", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-queue-batch-lease-"));
+  try {
+    await enqueueStage({ root, batchId: "batch-one", stage: "analyze", operation: "regroup" });
+    await enqueueStage({ root, batchId: "batch-one", stage: "analyze", operation: "reference" });
+    const first = await claimStage({ root, stage: "analyze", workerId: "analyze-1" });
+    const blocked = await claimStage({ root, stage: "analyze", workerId: "analyze-2" });
+    assert.equal(first.batchId, "batch-one");
+    assert.equal(blocked, null);
+    assert.equal(await completeStage({ root, task: first }), true);
+    const second = await claimStage({ root, stage: "analyze", workerId: "analyze-2" });
+    assert.equal(second.batchId, "batch-one");
+    assert.notEqual(second.operation, first.operation);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test("stage queue supports retry, cancel and dashboard overview", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-queue-"));
   try {

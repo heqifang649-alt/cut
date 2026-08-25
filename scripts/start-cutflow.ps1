@@ -37,6 +37,8 @@ New-Item -ItemType Directory -Force -Path 'D:\codex\tmp', 'D:\codex\cache' | Out
 $workerTempRoot = 'D:\codex\tmp\cutflow-workers'
 $workerCacheRoot = 'D:\codex\cache\cutflow-workers'
 New-Item -ItemType Directory -Force -Path $workerTempRoot, $workerCacheRoot | Out-Null
+$env:CUTFLOW_WORKER_TEMP_ROOT = $workerTempRoot
+$env:CUTFLOW_WORKER_CACHE_ROOT = $workerCacheRoot
 $bootstrapTemp = Join-Path $workerTempRoot 'bootstrap'
 $bootstrapCache = Join-Path $workerCacheRoot 'bootstrap'
 New-Item -ItemType Directory -Force -Path $bootstrapTemp, $bootstrapCache | Out-Null
@@ -293,24 +295,10 @@ if (-not $listener) {
   if ($webProcess.CommandLine -notlike '*next*start*-p*3001*') { throw "Port 3001 is occupied by PID $($listener.OwningProcess)" }
 }
 
-# Each stage has three independently supervised workers. Queue leases keep
-# a Batch Stage exclusive while allowing different Batches to run in parallel.
-foreach ($service in @('analyze', 'clip', 'render')) {
-  foreach ($index in 1..3) {
-    $instance = "$service-$index"
-    Start-Worker "$instance-supervisor" @('worker\service-supervisor.mjs', "--service=$service", "--instance=$instance") `
-      (Join-Path $dataRoot "service-heartbeats\$service-$instance.json") `
-      "worker\service-supervisor.mjs*--service=$service*--instance=$instance" `
-      $instance
-    # Stagger process creation to avoid the Windows Node entropy-startup issue.
-    Start-Sleep -Seconds 2
-  }
-}
-Start-Worker 'template-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=template') (Join-Path $dataRoot 'auxiliary-runtime\template.json') 'worker\auxiliary-supervisor.mjs*--worker=template'
-Start-Sleep -Seconds 2
-Start-Worker 'delivery-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=delivery') (Join-Path $dataRoot 'auxiliary-runtime\delivery.json') 'worker\auxiliary-supervisor.mjs*--worker=delivery'
-Start-Sleep -Seconds 2
-Start-Worker 'chatcut-supervisor' @('worker\auxiliary-supervisor.mjs', '--worker=chatcut') (Join-Path $dataRoot 'auxiliary-runtime\chatcut.json') 'worker\auxiliary-supervisor.mjs*--worker=chatcut'
+# The fleet supervisor is the persistent parent of every stage/auxiliary
+# supervisor. If any supervisor exits, it is recreated without requiring the
+# launcher or a user session to remain open.
+Start-Worker 'fleet-supervisor' @('worker\fleet-supervisor.mjs') (Join-Path $dataRoot 'fleet-runtime.json') 'worker\fleet-supervisor.mjs'
 
 $webReady = $false
 $servicesReady = $false
@@ -327,7 +315,7 @@ do {
     try { $statusCode = [int]$_.Exception.Response.StatusCode } catch {}
     if ($statusCode -eq 401) { $webReady = $true }
   }
-  $servicesReady = $true
+  $servicesReady = Test-TrackedProcess (Join-Path $dataRoot 'fleet-runtime.json') 'worker\fleet-supervisor.mjs'
   foreach ($service in @('analyze', 'clip', 'render')) {
     foreach ($index in 1..3) {
       $instance = "$service-$index"

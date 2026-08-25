@@ -18,6 +18,7 @@ test("service runner isolates task and failure-handler exceptions", async () => 
   assert.match(source, /taskMayOperate\(task, batch, marker\)/);
   assert.match(source, /taskStillCurrent\(task\)/);
   assert.match(source, /Codex authentication requires reconnect/);
+  assert.match(source, /Codex 认证未连接；任务已保留/);
   assert.doesNotMatch(source, /account\?\.apiReady === true && account\?\.executorReady === false/);
   assert.ok(source.indexOf("setLeaseGuard(async () => (await assertLease({ root: ROOT, task }))") < source.indexOf("await markServiceRecoveryReady(task)"));
 });
@@ -29,17 +30,26 @@ test("supervisor bounds recovery after a child worker crash", async () => {
   assert.match(source, /自动恢复连续失败/);
 });
 
-test("production launcher starts three stable Supervisor instances for every service", async () => {
-  const source = await readFile(new URL("scripts/start-cutflow.ps1", root), "utf8");
-  assert.match(source, /foreach \(\$service in @\('analyze', 'clip', 'render'\)\)/);
-  assert.match(source, /foreach \(\$index in 1\.\.3\)/);
-  assert.match(source, /\$instance = "\$service-\$index"/);
-  assert.match(source, /service-heartbeats\\\$service-\$instance\.json/);
-  assert.match(source, /worker\\service-supervisor\.mjs\*--service=\$service\*--instance=\$instance/);
+test("production launcher uses a persistent fleet supervisor", async () => {
+  const [source, fleet] = await Promise.all([
+    readFile(new URL("scripts/start-cutflow.ps1", root), "utf8"),
+    readFile(new URL("worker/fleet-supervisor.mjs", root), "utf8"),
+  ]);
+  assert.match(source, /worker\\fleet-supervisor\.mjs/);
+  assert.match(source, /fleet-runtime\.json/);
   assert.match(source, /AddSeconds\(180\)/);
   assert.match(source, /Test-TrackedProcess/);
-  assert.match(source, /service-heartbeats\\\$service-\$instance\.json/);
   assert.match(source, /\$servicesReady = \$false/);
+  assert.match(fleet, /\["analyze", "clip", "render"\]/);
+  assert.match(fleet, /\[1, 2, 3\]/);
+  assert.match(fleet, /service-supervisor\.mjs/);
+  assert.match(fleet, /auxiliary-supervisor\.mjs/);
+  assert.match(fleet, /restarting/);
+});
+
+test("deterministic filename grouping does not wait for Codex authentication", async () => {
+  const source = await readFile(new URL("worker/processor.mjs", root), "utf8");
+  assert.match(source, /groupProductsByFilename\(productFiles\)\.groups\.length > 0\) return false/);
 });
 
 test("production launcher defaults to Hybrid and preserves a one-switch Control A rollback", async () => {

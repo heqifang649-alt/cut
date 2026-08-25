@@ -144,6 +144,7 @@ test("workspace availability guards keep authentication off the global Batch loc
   const auth = await readFile(path.join(process.cwd(), "lib", "auth.ts"), "utf8");
   const page = await readFile(path.join(process.cwd(), "app", "page.tsx"), "utf8");
   const launcher = await readFile(path.join(process.cwd(), "scripts", "start-cutflow.ps1"), "utf8");
+  const fleet = await readFile(path.join(process.cwd(), "worker", "fleet-supervisor.mjs"), "utf8");
   const supervisor = await readFile(path.join(process.cwd(), "worker", "auxiliary-supervisor.mjs"), "utf8");
 
   assert.doesNotMatch(auth, /if \(user\) await archiveLegacyResources\(root\)/);
@@ -151,7 +152,9 @@ test("workspace availability guards keep authentication off the global Batch loc
   assert.match(page, /fetchWithTimeout\("\/api\/auth\/me"/);
   assert.match(page, /登录状态检查超时，请重试/);
   assert.match(page, /fetchWithTimeout\("\/api\/batches"/);
-  assert.match(launcher, /auxiliary-supervisor\.mjs.*--worker=chatcut/);
+  assert.match(launcher, /fleet-supervisor\.mjs/);
+  assert.match(fleet, /auxiliary-supervisor\.mjs/);
+  assert.match(fleet, /\["template", "delivery", "chatcut"\]/);
   assert.match(launcher, /auxiliary-runtime/);
   assert.match(supervisor, /worker heartbeat stopped/);
   assert.match(supervisor, /held \$\{config\.guardedLock\} for over/);

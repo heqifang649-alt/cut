@@ -10,7 +10,7 @@ $nodeProcesses = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'nod
 $projectWorkers = $nodeProcesses | Where-Object {
   $normalizedCommand = if ($_.CommandLine) { $_.CommandLine.Replace('/', '\') } else { '' }
   $normalizedCommand -match [regex]::Escape($portalRoot) -and
-  $normalizedCommand -match 'worker\\(processor|service-runner|service-supervisor|auxiliary-supervisor|template-processor|delivery-watcher|chatcut-sync)\.mjs'
+  $normalizedCommand -match 'worker\\(processor|service-runner|service-supervisor|fleet-supervisor|auxiliary-supervisor|template-processor|delivery-watcher|chatcut-sync)\.mjs'
 }
 # A launcher can start Supervisor with a relative script path, which does not
 # include $portalRoot in CommandLine. Include only a Supervisor whose direct

@@ -142,6 +142,15 @@ function hasConfirmedDeterministicInputs(batch) {
 
 function isCodexRequiredForBatch(batch) {
   if (!CODEX_DEPENDENT_BATCH_STATUSES.has(batch?.status)) return false;
+  // Product IDs in filenames are already deterministic evidence. Let the
+  // grouping worker execute that path even when Codex is unavailable; only
+  // the visual fallback needs a model session.
+  if (["detecting_products", "regroup_queued"].includes(batch?.status)) {
+    const productFiles = Array.isArray(batch?.files)
+      ? batch.files.filter((file) => file.kind === "products")
+      : [];
+    if (groupProductsByFilename(productFiles).groups.length > 0) return false;
+  }
   return !hasConfirmedDeterministicInputs(batch);
 }
 

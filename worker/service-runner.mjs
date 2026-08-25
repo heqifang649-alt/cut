@@ -175,6 +175,11 @@ async function runTask(task) {
   if (codexRequired) {
     const account = await readJson(path.join(ROOT, "data", "codex-account-state.json"), null);
     if (account?.authenticationValid === false) {
+      await update(batch.id, (item) => {
+        item.error = undefined;
+        item.renderingLabel = "Codex 认证未连接；任务已保留，将在认证恢复后自动继续";
+        item.lastWorkerActivityAt = new Date().toISOString();
+      });
       return {
         deferred: true,
         retryAt: new Date(Date.now() + 5 * 60_000).toISOString(),

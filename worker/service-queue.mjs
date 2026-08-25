@@ -240,7 +240,15 @@ export async function claimStage({ root, stage, workerId, leaseMs = 90_000 }) {
       new Date(item.lease.expiresAt).getTime() > currentTime,
     );
     if (workerBusy) return changed ? null : noChange(null);
-    const task = ordered(queue.tasks.filter((item) => item.stage === stage && item.status === "queued" && (!item.notBefore || new Date(item.notBefore).getTime() <= currentTime)))[0];
+    const busyBatchIds = new Set(queue.tasks
+      .filter((item) => item.status === "leased" && item.lease && new Date(item.lease.expiresAt).getTime() > currentTime)
+      .map((item) => item.batchId));
+    const task = ordered(queue.tasks.filter((item) =>
+      item.stage === stage &&
+      item.status === "queued" &&
+      !busyBatchIds.has(item.batchId) &&
+      (!item.notBefore || new Date(item.notBefore).getTime() <= currentTime),
+    ))[0];
     if (!task) return changed ? null : noChange(null);
     const version = Number(task.leaseVersion || 0) + 1;
     task.leaseVersion = version;
