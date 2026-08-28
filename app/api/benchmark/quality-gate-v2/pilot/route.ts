@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "@/lib/atomic-json.mjs";
 import { currentUser, forbidden, isAdmin, requireSameOrigin, unauthenticated } from "@/lib/auth";
-import { pilotProgress, pilotSamples, validatePilotLabel } from "@/lib/quality-gate-v2-labeling.mjs";
+import { pilotProgress, labelingSamples, validatePilotLabel } from "@/lib/quality-gate-v2-labeling.mjs";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -40,10 +40,10 @@ async function stateFor(userId: string, manifestVersion: string): Promise<Annota
 }
 
 function responsePayload(data: PilotManifest, state: AnnotationState) {
-  const samples = pilotSamples(data) as PilotSample[];
+  const samples = labelingSamples(data) as PilotSample[];
   return {
     manifestVersion: data.manifestVersion,
-    pilotLimit: samples.length,
+    labelingLimit: samples.length,
     currentIndex: Math.max(0, Math.min(samples.length - 1, Number(state.lastIndex) || 0)),
     progress: pilotProgress(samples, state.labels),
     samples: samples.map((sample) => ({ id: sample.id, name: sample.source?.name || sample.id, batchId: sample.batchId, fileId: sample.fileId, label: state.labels[sample.id]?.label || null })),
@@ -75,10 +75,10 @@ export async function POST(request: Request) {
   try {
     const input = await request.json();
     const data = await manifest();
-    const samples = pilotSamples(data) as PilotSample[];
+    const samples = labelingSamples(data) as PilotSample[];
     const sampleId = typeof input.sampleId === "string" ? input.sampleId : "";
     const index = samples.findIndex((sample) => sample.id === sampleId);
-    if (index < 0) throw new Error("该素材不在 30 条 Pilot 标注范围内");
+    if (index < 0) throw new Error("该素材不在冻结的 200 条标注范围内");
     const file = labelPath(auth.user.id);
     const updated = await withFileLock(file, async () => {
       const state = await stateFor(auth.user.id, data.manifestVersion!);

@@ -6,6 +6,7 @@ import { currentUser, isAdmin, unauthenticated, forbidden } from "@/lib/auth";
 import { batchWorkspacePath, resolveStoredWorkspaceFile } from "@/lib/tenant-paths.mjs";
 import { fileReadStream, parseByteRange } from "@/lib/media-stream";
 import { readJson } from "@/lib/atomic-json.mjs";
+import { labelingSamples } from "@/lib/quality-gate-v2-labeling.mjs";
 import type { Batch, BatchFile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!isAdmin(user)) return forbidden();
   const { id } = await context.params;
   const manifest = await readJson(MANIFEST, null) as { samples?: Array<{ id: string; batchId: string; fileId: string }> } | null;
-  const sample = manifest?.samples?.slice(0, 30).find((item) => item.id === id);
+  const sample = manifest ? (labelingSamples(manifest) as Array<{ id: string; batchId: string; fileId: string }>).find((item) => item.id === id) : null;
   if (!sample) return NextResponse.json({ error: "Pilot 素材不存在" }, { status: 404 });
   const batch = await getBatch(sample.batchId);
   const file = batch?.files.find((item) => item.id === sample.fileId && item.kind === "products");
