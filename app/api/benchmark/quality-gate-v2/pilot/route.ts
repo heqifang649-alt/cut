@@ -11,8 +11,9 @@ const ROOT = process.cwd();
 const MANIFEST = path.join(ROOT, "benchmarks", "quality-gate-v2", "v1", "ground-truth-manifest.v1.json");
 const labelPath = (userId: string) => path.join(ROOT, "data", "quality-gate-v2-labels", userId, "pilot-v1.json");
 
-type StoredLabel = { label: { expectedVerdict: "accept" | "reject"; wrongSku: boolean; handArtifact: boolean; productError: boolean }; savedAt: string };
-type AnnotationState = { schemaVersion: "quality-gate-v2-pilot-labels.v1"; manifestVersion: string; lastIndex: number; updatedAt: string; labels: Record<string, StoredLabel> };
+type GroundTruthLabel = { expectedVerdict: "accept" | "reject"; wrongSku: boolean; handArtifact: boolean; productError: boolean; bodyArtifact: boolean; objectArtifact: boolean; temporalArtifact: boolean };
+type StoredLabel = { label: GroundTruthLabel; savedAt: string };
+type AnnotationState = { schemaVersion: "quality-gate-v2-pilot-labels.v2"; manifestVersion: string; lastIndex: number; updatedAt: string; labels: Record<string, StoredLabel> };
 type PilotSample = { id: string; batchId: string; fileId: string; source?: { name?: string } };
 type PilotManifest = { manifestVersion?: string; samples?: PilotSample[] };
 
@@ -23,12 +24,19 @@ async function manifest() {
 }
 
 function emptyState(manifestVersion: string): AnnotationState {
-  return { schemaVersion: "quality-gate-v2-pilot-labels.v1", manifestVersion, lastIndex: 0, updatedAt: new Date().toISOString(), labels: {} };
+  return { schemaVersion: "quality-gate-v2-pilot-labels.v2", manifestVersion, lastIndex: 0, updatedAt: new Date().toISOString(), labels: {} };
 }
 
-async function stateFor(userId: string, manifestVersion: string) {
+async function stateFor(userId: string, manifestVersion: string): Promise<AnnotationState> {
   const state = await readJson(labelPath(userId), emptyState(manifestVersion)) as AnnotationState;
-  return state?.manifestVersion === manifestVersion && state.labels ? state : emptyState(manifestVersion);
+  if (state?.manifestVersion !== manifestVersion || !state.labels) return emptyState(manifestVersion);
+  return {
+    schemaVersion: "quality-gate-v2-pilot-labels.v2",
+    manifestVersion,
+    lastIndex: Number(state.lastIndex) || 0,
+    updatedAt: state.updatedAt || new Date().toISOString(),
+    labels: state.labels,
+  };
 }
 
 function responsePayload(data: PilotManifest, state: AnnotationState) {
