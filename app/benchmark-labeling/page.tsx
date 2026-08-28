@@ -9,13 +9,13 @@ type DraftLabel = { expectedVerdict: Label["expectedVerdict"] | null } & Record<
 type Sample = { id: string; name: string; batchId: string; fileId: string; label: Label | null };
 type Snapshot = { currentIndex: number; pilotLimit: number; progress: { total: number; completed: number; remaining: number }; samples: Sample[] };
 
-const artifactFields: Array<{ field: ArtifactField; label: string }> = [
+const artifactFields: Array<{ field: ArtifactField; label: string; guidance?: string }> = [
   { field: "wrongSku", label: "wrongSku" },
   { field: "handArtifact", label: "handArtifact" },
   { field: "productError", label: "productError" },
-  { field: "bodyArtifact", label: "bodyArtifact · 人体是否穿帮" },
-  { field: "objectArtifact", label: "objectArtifact · 物体/环境是否穿帮" },
-  { field: "temporalArtifact", label: "temporalArtifact · 是否存在时序异常" },
+  { field: "bodyArtifact", label: "bodyArtifact · 人体是否穿帮", guidance: "脸部、四肢、身体比例、穿模，或身体与衣物异常融合。" },
+  { field: "objectArtifact", label: "objectArtifact · 物体/环境是否穿帮", guidance: "物品凭空出现或消失、物体变形、人和物体融合，或背景元素异常变化。" },
+  { field: "temporalArtifact", label: "temporalArtifact · 是否存在时序异常", guidance: "闪烁、跳变、主体瞬移，或人脸、衣服、物体在连续帧中突然变化。" },
 ];
 const initialLabel: DraftLabel = { expectedVerdict: null, wrongSku: null, handArtifact: null, productError: null, bodyArtifact: null, objectArtifact: null, temporalArtifact: null };
 
@@ -79,7 +79,7 @@ export default function BenchmarkLabelingPage() {
       <div className="labeling-video"><video key={sample.id} controls playsInline preload="metadata" src={`/api/benchmark/quality-gate-v2/pilot/${sample.id}/media`}>当前浏览器不支持视频预览</video><small>{index + 1} / {snapshot.pilotLimit} · {sample.name}</small></div>
       <form className="labeling-form" onSubmit={(event) => { event.preventDefault(); void persist("save"); }}>
         <fieldset><legend>expectedVerdict</legend><div className="choice-row"><button type="button" disabled={artifactFields.some(({ field }) => label[field] === true)} className={label.expectedVerdict === "accept" ? "selected accept" : ""} onClick={() => { setLabel({ ...label, expectedVerdict: "accept" }); setSaved(false); }}>ACCEPT</button><button type="button" className={label.expectedVerdict === "reject" ? "selected reject" : ""} onClick={() => { setLabel({ ...label, expectedVerdict: "reject" }); setSaved(false); }}>REJECT</button></div></fieldset>
-        {artifactFields.map(({ field, label: fieldLabel }) => <fieldset key={field}><legend>{fieldLabel}</legend><div className="choice-row"><button type="button" className={label[field] === false ? "selected" : ""} onClick={() => { setLabel({ ...label, [field]: false }); setSaved(false); }}>否</button><button type="button" className={label[field] === true ? "selected reject" : ""} onClick={() => { setLabel({ ...label, [field]: true, expectedVerdict: "reject" }); setSaved(false); }}>是</button></div></fieldset>)}
+        {artifactFields.map(({ field, label: fieldLabel, guidance }) => <fieldset key={field}><legend>{fieldLabel}</legend>{guidance && <p className="field-guidance">{guidance}</p>}<div className="choice-row"><button type="button" className={label[field] === false ? "selected" : ""} onClick={() => { setLabel({ ...label, [field]: false }); setSaved(false); }}>否</button><button type="button" className={label[field] === true ? "selected reject" : ""} onClick={() => { setLabel({ ...label, [field]: true, expectedVerdict: "reject" }); setSaved(false); }}>是</button></div></fieldset>)}
         {error && <p className="labeling-error">{error}</p>}
         <div className="labeling-actions"><button type="button" onClick={() => void move(index - 1)} disabled={busy || !saved || index === 0}>上一条</button><button type="submit" className="label-save" disabled={busy || saved || !completeLabel(label)}>{busy ? "保存中" : "保存"}</button><button type="button" onClick={() => void move(index + 1)} disabled={busy || !saved || index === snapshot.samples.length - 1}>下一条</button></div>
       </form>
