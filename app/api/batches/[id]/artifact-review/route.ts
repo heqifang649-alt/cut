@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBatchForOwners, mutateBatch } from "@/lib/store";
 import { readArtifactEvidence, setArtifactReviewDecision } from "../../../../../worker/artifact-gate.mjs";
+import { readQualityEvidenceV2, setQualityEvidenceV2ReviewDecision } from "../../../../../worker/quality-gate-v2.mjs";
 import { enqueueStage } from "../../../../../worker/service-queue.mjs";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
@@ -10,8 +11,37 @@ import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type QualityGateReviewSource = {
+  sourceId: string;
+  source?: unknown;
+  analysisStatus?: string;
+  decision?: { verdict?: string; reason?: string };
+  manualReview?: unknown;
+};
+
+type QualityGateReviewEvidence = {
+  schemaVersion?: string;
+  sources?: QualityGateReviewSource[];
+};
+
 function batchDir(batch: { id: string; ownerId?: string; storageVersion?: number }) {
   return batchWorkspacePath(process.cwd(), batch);
+}
+
+function reviewEvidenceFromQualityV2(evidence: QualityGateReviewEvidence | null) {
+  if (!evidence?.sources?.length) return null;
+  return {
+    schemaVersion: evidence.schemaVersion,
+    sources: evidence.sources.map((source) => ({
+      sourceKey: source.sourceId,
+      source: source.source,
+      analyzer: { status: source.analysisStatus === "complete" ? "ready" : "unavailable", error: source.analysisStatus === "complete" ? undefined : source.decision?.reason },
+      evidence: [],
+      gate: source.decision,
+      review: source.manualReview,
+      qualityV2: true,
+    })),
+  };
 }
 
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -20,7 +50,9 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   const { id } = await context.params;
   const batch = await getBatchForOwners(id, accessibleOwnerIds(user));
   if (!batch) return NextResponse.json({ error: "任务不存在" }, { status: 404 });
-  return NextResponse.json({ evidence: await readArtifactEvidence(batchDir(batch)) });
+  const directory = batchDir(batch);
+  const artifactEvidence = await readArtifactEvidence(directory);
+  return NextResponse.json({ evidence: artifactEvidence || reviewEvidenceFromQualityV2(await readQualityEvidenceV2(directory)) });
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -35,7 +67,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const sourceKey = typeof input.sourceKey === "string" ? input.sourceKey : "";
     const decision = input.decision;
     if (!sourceKey) throw new Error("缺少素材标识");
-    const evidence = await setArtifactReviewDecision({ batchDir: batchDir(existing), sourceKey, decision, note: input.note });
+    const directory = batchDir(existing);
+    const artifactEvidence = await readArtifactEvidence(directory);
+    const artifactSources = artifactEvidence?.sources as Array<{ sourceKey?: string }> | undefined;
+    const evidence = artifactSources?.some((source) => source.sourceKey === sourceKey)
+      ? await setArtifactReviewDecision({ batchDir: directory, sourceKey, decision, note: input.note })
+      : await setQualityEvidenceV2ReviewDecision({ batchDir: directory, sourceId: sourceKey, decision, note: input.note });
     const requeue = existing.status === "failed" && existing.renderingLabel === "等待人工处理";
     if (requeue) await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {
@@ -46,8 +83,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         item.error = undefined;
       }
       item.renderingLabel = decision === "accept"
-        ? "Artifact 人工审核：已批准素材，等待重新导入 ShotPool"
-        : "Artifact 人工审核：已确认穿帮，素材将继续被 ShotPool 拦截";
+        ? "Quality Gate 人工审核：已批准素材，等待重新导入 ShotPool"
+        : "Quality Gate 人工审核：已拒绝素材，素材将继续被 ShotPool 拦截";
       item.lastWorkerActivityAt = new Date().toISOString();
     });
     // This is a user-requested re-check, not recovery. It runs once after an

@@ -7,6 +7,7 @@ import { isNewRendererEnabled, renderBatchFromEdl, renderBatchFromRenderPlans } 
 import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool, prepareDeterministicInputs } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
+import { isQualityGateV2Enabled, validateWithQualityGateV2 } from "./quality-gate-v2.mjs";
 import { createProductViews, isNewSchedulerEnabled, partitionScheduledProducts, scheduleProductView } from "./shot-scheduler.mjs";
 import { isSemanticShadowEnabled, runSemanticShadow } from "./semantic-shadow.mjs";
 import { groupProductsByFilename, groupProductsByProductDirectory } from "./filename-product-grouper.mjs";
@@ -156,6 +157,9 @@ function isCodexRequiredForBatch(batch) {
 
 async function validateProductSource(batch, batchDir, file) {
   const videoPath = resolveFilePath(batch, file);
+  if (isQualityGateV2Enabled()) {
+    return validateWithQualityGateV2({ root: ROOT, batch, batchDir, file, ffmpeg: FFMPEG });
+  }
   // This flag is deliberately off by default. When explicitly enabled it uses
   // the existing Validator entry point; ShotPool remains separately gated.
   if (!isArtifactGateEnabled()) return validateVideo(videoPath, { ffmpeg: FFMPEG });
@@ -173,15 +177,21 @@ function productFileForVideo(batch, videoPath) {
     || { id: videoPath, name: path.basename(videoPath), storagePath: videoPath, absolutePath: videoPath };
 }
 
-async function pauseForArtifactReview(batch, reviews) {
+async function pauseForQualityReview(batch, reviews) {
   await update(batch.id, (item) => {
     item.status = "failed";
     item.progress = 40;
-    item.error = `Artifact Gate 有 ${reviews.length} 条素材需要人工审核；未审核素材不会进入 ShotPool。`;
+    item.error = `Quality Gate 有 ${reviews.length} 条素材需要人工审核；未审核素材不会进入 ShotPool。`;
     item.renderingLabel = "等待人工处理";
     item.lastWorkerActivityAt = new Date().toISOString();
   });
-  return { artifactReviewRequired: true, reviews: reviews.length };
+  return { qualityReviewRequired: true, reviews: reviews.length };
+}
+
+// Kept as a compatibility entry point for the existing Artifact Gate review
+// route; Quality Gate V2 uses the same manual hold semantics.
+async function pauseForArtifactReview(batch, artifactReviews) {
+  return pauseForQualityReview(batch, artifactReviews);
 }
 
 async function validateBatchProductFiles(batch, batchDir, labelFor) {
@@ -1115,6 +1125,8 @@ async function runAnalyzeQuality(batch) {
   }
   const artifactReviews = isArtifactGateEnabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
   if (artifactReviews.length) return pauseForArtifactReview(batch, artifactReviews);
+  const qualityReviews = isQualityGateV2Enabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
+  if (qualityReviews.length) return pauseForQualityReview(batch, qualityReviews);
   if (isNewShotPoolEnabled()) {
     await prepareDeterministicInputs({ batch, batchDir, ffmpeg: FFMPEG });
     await update(batch.id, (item) => { item.renderingLabel = "分析服务：写入完整 ShotPool"; item.lastWorkerActivityAt = new Date().toISOString(); });
@@ -1122,7 +1134,7 @@ async function runAnalyzeQuality(batch) {
       batch,
       batchDir,
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
-      admissionPolicy: isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator",
+      admissionPolicy: isQualityGateV2Enabled() ? "full_validator" : (isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator"),
     });
   }
   if (isSemanticShadowEnabled()) {
@@ -1195,6 +1207,8 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
   }
   const artifactReviews = isArtifactGateEnabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
   if (artifactReviews.length) return pauseForArtifactReview(batch, artifactReviews);
+  const qualityReviews = isQualityGateV2Enabled() ? validationResults.filter((item) => item.result?.verdict === "review") : [];
+  if (qualityReviews.length) return pauseForQualityReview(batch, qualityReviews);
   if (includeAnalyze && isNewShotPoolEnabled()) {
     await prepareDeterministicInputs({ batch, batchDir, ffmpeg: FFMPEG });
     await update(batch.id, (item) => {
@@ -1205,7 +1219,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       batch,
       batchDir,
       validate: (videoPath) => validateProductSource(batch, batchDir, productFileForVideo(batch, videoPath)),
-      admissionPolicy: isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator",
+      admissionPolicy: isQualityGateV2Enabled() ? "full_validator" : (isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator"),
     });
   }
   if (includeAnalyze && isSemanticShadowEnabled()) {

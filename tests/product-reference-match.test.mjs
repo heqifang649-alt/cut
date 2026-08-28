@@ -27,3 +27,9 @@ test("honors explicitly declared product references before filename inference", 
   const result = productReferencesForGroup({ id: "gc1-m1", productReferenceFiles: ["shared/gc1反.jpg"] }, references, 2);
   assert.equal(result[0].relativePath, "shared/gc1反.jpg");
 });
+
+test("matches numeric product sessions to imported sample-photo suffixes without using a shared folder", () => {
+  const samples = [{ relativePath: "refs/样衣1.jpg" }, { relativePath: "refs/样衣2.jpg" }];
+  assert.equal(productReferenceForGroup({ id: "1", files: ["1.mp4"] }, samples)?.relativePath, "refs/样衣1.jpg");
+  assert.equal(productReferenceForGroup({ id: "2", files: ["2.mp4"] }, samples)?.relativePath, "refs/样衣2.jpg");
+});

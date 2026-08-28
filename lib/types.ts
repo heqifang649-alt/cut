@@ -251,6 +251,8 @@ export const REJECT_REASONS = [
   "scene:lighting_shift",
   "scene:text_artifact",
   "review:low_confidence",
+  "quality_v2:review",
+  "quality_v2:reject",
 ] as const;
 
 export type RejectReason = (typeof REJECT_REASONS)[number];
