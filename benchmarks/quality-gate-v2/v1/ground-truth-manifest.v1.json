@@ -1,0 +1,4357 @@
+{
+  "schemaVersion": "quality-gate-v2-benchmark.v1",
+  "manifestVersion": "quality-gate-v2-ground-truth.v1",
+  "status": "FROZEN_CANDIDATES_PENDING_HUMAN_GROUND_TRUTH",
+  "frozenAt": "2026-08-28T06:09:26.186Z",
+  "immutableRule": "Ground truth may only be written by an independent human annotator. Benchmark results must never modify this file.",
+  "policyBaseline": {
+    "policyVersion": "quality-gate-v2-policy.v1",
+    "sha256": "32c55598a670c1318eaeb0daafee25acc5d50471bb19f242c0ccc60c26140c75"
+  },
+  "samples": [
+    {
+      "id": "qgv2-001",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "40aa23dc-2c06-4ab1-9e6c-518d37a35139",
+      "source": {
+        "name": "gc1-m1 (2).mp4",
+        "sha256": "9f1097fe8e0ae18c06cfb251a807e8bd701c3b81cce3e4c49f2ba3f746dc3080",
+        "bytes": 42960360
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-002",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "615afbb0-4761-45af-a60c-1ea8f044bf15",
+      "source": {
+        "name": "C4461.MP4",
+        "sha256": "6012adf16872d0bd830c688010eb58c3f65f426828cec254c56f40a091743d94",
+        "bytes": 268726395
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-003",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "1ac1fa6c-4bce-4708-aa8d-308557c1b32f",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-004",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "fed1b263-7f26-4e81-8c07-96315b34100b",
+      "source": {
+        "name": "TT6-M1 (3).mp4",
+        "sha256": "f8fc8bee9b7c62134e384c3d4447f372161e3dcdfc96cec941945a53ad02ed9f",
+        "bytes": 2561969
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-005",
+      "batchId": "c60f7f3b-3755-4013-a418-0872253308e0",
+      "fileId": "d531c837-1c40-430f-b8e8-dddcdea2c94e",
+      "source": {
+        "name": "TT1_M1 (1).mp4",
+        "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6",
+        "bytes": 11583548
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-006",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "dac76f8c-dd10-407c-bf11-6fe556a8beb3",
+      "source": {
+        "name": "gc3-m1 (5).mp4",
+        "sha256": "c4556b93ffa3c7640eb047affb34e258c37b9a6691bd3a19c64abba30a04bf44",
+        "bytes": 46210368
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-007",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "d1a636c1-7673-485a-9b4f-c6927e3945e6",
+      "source": {
+        "name": "TT6-M1 (4).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-008",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "de5718fe-a17b-4f06-8c9f-34cf016150b1",
+      "source": {
+        "name": "TT5_M1  (2).mp4",
+        "sha256": "a1930ad09e7412e65d421a08edad91c16ef1eed3cbfa4f7a96c0c98fef9170a6",
+        "bytes": 46496704
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-009",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "c7df7f20-81f2-497d-8002-ca2da13bcd56",
+      "source": {
+        "name": "TT6-M1 (4).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-010",
+      "batchId": "db39206a-10fb-4525-9379-affd412d5fec",
+      "fileId": "206ed257-1938-4a71-b2a9-471683f43962",
+      "source": {
+        "name": "TT1_M1 (2).mp4",
+        "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298",
+        "bytes": 20714797
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-011",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "839622e3-b0f2-4b69-8f76-e7f9b7540d5d",
+      "source": {
+        "name": "IMG_4578.MOV",
+        "sha256": "c5aa21d463e565c720dda1f803e4c06c421b2423fb61b2d65769927fce3a6233",
+        "bytes": 36534790
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-012",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "3fb461d5-38fc-4088-b4bb-992e2d76baf4",
+      "source": {
+        "name": "TT4_M1 (3).mp4",
+        "sha256": "53fff24c32791884ad5dc7ff8c7d4da9f9560b9e233ea7ec431b7d3469687a86",
+        "bytes": 47845751
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-013",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "5922c1f1-e880-4751-82f0-87c3fc5b0df2",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-014",
+      "batchId": "1fab1a7f-8d67-415f-8f9f-9b27d584db88",
+      "fileId": "f8413a4c-dfd7-44cd-8491-e79debbe1ef7",
+      "source": {
+        "name": "TT1-M1 (1).mp4",
+        "sha256": "98f55c7bfb39c0e4c3af5f5890facda5e047eb811ec05032013e1e9f319fda9a",
+        "bytes": 15876825
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-015",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "7b4ced68-2c3f-4b4f-9fe5-64b9336ed9ea",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-016",
+      "batchId": "d737c0af-b50d-4e99-bdd6-e231cf2bab66",
+      "fileId": "f8dc18c5-e41d-40ba-afef-7de8ba58dfd5",
+      "source": {
+        "name": "C4176.MP4",
+        "sha256": "94892c8613d717770cecebc68f1119f115ec3be88e1019c79d47a38180b9f913",
+        "bytes": 268725840
+      },
+      "referenceFileIds": [
+        "1e2998d8-200a-4f15-8151-e3ed7a6bca4f"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-017",
+      "batchId": "c60f7f3b-3755-4013-a418-0872253308e0",
+      "fileId": "87d50da6-a2e1-4dd4-927c-d15df893152e",
+      "source": {
+        "name": "TT2_M1 (1).mp4",
+        "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432",
+        "bytes": 9160449
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-018",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "a175fa20-ec0b-46d2-8b44-020709641f00",
+      "source": {
+        "name": "C4470.MP4",
+        "sha256": "35e1b2c7727b240f78e5e82446e2db41f76014dccf2522dd26ccdac8dcb18932",
+        "bytes": 201616063
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-019",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "00971085-f475-44cb-960f-162eaeedaf10",
+      "source": {
+        "name": "gc3-m1 (1).mp4",
+        "sha256": "c2f5e9aab5adc7f6d73c2bda0e2a7a11083f45e190f2c5b2a2ac0c757169ce5d",
+        "bytes": 46173801
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-020",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "916cf554-a0f4-49fe-b015-043472393c46",
+      "source": {
+        "name": "C4462.MP4",
+        "sha256": "6f09f411c29bb9a936a696fc2ce887edf0427986e4bc9b217d40f5378ab524a1",
+        "bytes": 268727529
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-021",
+      "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+      "fileId": "9cbfb7eb-71fa-4437-9479-fd470c9119e5",
+      "source": {
+        "name": "ah1_M1 (5).mp4",
+        "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f",
+        "bytes": 18693081
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-022",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "d1c73eac-9edc-4335-8684-6c059b2c91f8",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-023",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "d6188b20-6a21-4414-a183-9debbe046862",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-024",
+      "batchId": "ec03254f-dd84-43cd-9615-30040f1ae6ba",
+      "fileId": "65c6473b-a3ce-4323-975c-6901fdc391d5",
+      "source": {
+        "name": "ah1_M1 (1).mp4",
+        "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec",
+        "bytes": 15094041
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-025",
+      "batchId": "5bb69aa8-a69e-4831-a9bb-21ecdafecce5",
+      "fileId": "2c1642af-8804-4598-a8ec-191039b46d7b",
+      "source": {
+        "name": "TT1-M1  (1).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "c4a1716b-489b-421c-99c1-cc5e22bb4419",
+        "8ab8c66d-a52f-4e60-8291-235c68c02493"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-026",
+      "batchId": "e88a0a99-5003-46c6-ab10-28d771652ea5",
+      "fileId": "0da33b51-99f2-4050-857d-17f895dcea02",
+      "source": {
+        "name": "ah1_M1 (4).mp4",
+        "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802",
+        "bytes": 16007312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-027",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "5b58118f-3797-4977-90a5-47a8ae3bbb74",
+      "source": {
+        "name": "TT1_M1 (2).mp4",
+        "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298",
+        "bytes": 20714797
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-028",
+      "batchId": "f12ed1e7-0e33-4973-a1c0-6368095f6286",
+      "fileId": "aefdcf22-6b35-441c-af1d-f694bd1d58c8",
+      "source": {
+        "name": "ah1_M1 (6).mp4",
+        "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e",
+        "bytes": 16525497
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-029",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "2f89053b-0a8c-42aa-8b9e-ef59fdd8e5a8",
+      "source": {
+        "name": "TT6_M1  (1).mp4",
+        "sha256": "f94194c463ae79480125611b89a107339810973da6d2192f521196b9b0291072",
+        "bytes": 39915147
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-030",
+      "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+      "fileId": "c2fb8725-95e8-40b7-9bf6-907940d3021a",
+      "source": {
+        "name": "ah1_M1 (6).mp4",
+        "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e",
+        "bytes": 16525497
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-031",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "20b69700-a365-4815-8cc2-9686c60e5108",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-032",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "444974c0-c2b4-47da-b04e-79af4ec081b9",
+      "source": {
+        "name": "TT5_M1  (3).mp4",
+        "sha256": "9d1a4c7626e6b24f44e77c4acfea6a4d1e4545afcd62534e7ce2534690645330",
+        "bytes": 44211318
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-033",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "b619ed21-83d1-4b56-ad01-7b3023750d84",
+      "source": {
+        "name": "TT1-M1 (3).mp4",
+        "sha256": "873b2b013a865e6477ae604802c7cd109922bc492fd9fcfb64053e8c99c2e286",
+        "bytes": 2619062
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-034",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "16762109-4d69-4e02-84e8-590436702b17",
+      "source": {
+        "name": "TT3_M1 (2).mp4",
+        "sha256": "f11aff0321a9bd45b329d9e01d47d0fc9761535dbadd33393409ea4f9d476c45",
+        "bytes": 2674289
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-035",
+      "batchId": "71eeff5a-41b2-4bd6-a18f-060d128c2757",
+      "fileId": "f7efe05a-f9b0-496f-bcfe-19740feb2e65",
+      "source": {
+        "name": "gc1-m1.mp4",
+        "sha256": "94fc4a0f0c0cee85bb9f832327d4353f494363161ee0a350230389fbcef2fb67",
+        "bytes": 11663379
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-036",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "f803f29f-b0f0-4ba2-af88-472dac0218ca",
+      "source": {
+        "name": "TT5-M1 (2).mp4",
+        "sha256": "db05d87813666b12f8ab5407e3fb3ec46dc9adfeb6e72fee85ddc8861802a15c",
+        "bytes": 1581207
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-037",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "3bd39569-e89d-4012-a78e-25a633ace94e",
+      "source": {
+        "name": "TT5-M1 (2).mp4",
+        "sha256": "db05d87813666b12f8ab5407e3fb3ec46dc9adfeb6e72fee85ddc8861802a15c",
+        "bytes": 1581207
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-038",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "f615c97c-21c1-4072-aeae-ce410fc71f7f",
+      "source": {
+        "name": "C4468.MP4",
+        "sha256": "cd33f603fa2659c4eb0df4dd0870aedbd95a8038574e229c1648ea5a1e0d0bd3",
+        "bytes": 268726353
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-039",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "2e2a4754-db1c-48b5-892a-56900d5663ee",
+      "source": {
+        "name": "TT1_M1.mp4",
+        "sha256": "ad15180b2aad6f10638381272626513e3e2a59b1b410145e50d9a6138b85e9c1",
+        "bytes": 2548116
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-040",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "bab6074c-1aec-4208-a592-a8be0cef4f2a",
+      "source": {
+        "name": "TT4_M1 (1).mp4",
+        "sha256": "0a7c3b3d5c87b124c64d11a63221cc6088fa7bfa2e63a439653d94545f1f4729",
+        "bytes": 41167039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-041",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "e76d1e67-4e5a-4b05-b9de-8c9c50ac02ae",
+      "source": {
+        "name": "TT1_M1_ (4).mp4",
+        "sha256": "2e01156a49c3a0f104f7ee248a823387004288bc8dad0fc3de58aa2551172ba1",
+        "bytes": 2497273
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-042",
+      "batchId": "b3225c54-c577-46d5-bc02-61cb924193b4",
+      "fileId": "2480dd1a-fa00-45bc-843e-a0d7912d315f",
+      "source": {
+        "name": "TT1_M1 (1).mp4",
+        "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6",
+        "bytes": 11583548
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-043",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "c36a9f14-c453-4410-a2a7-656e034fb30e",
+      "source": {
+        "name": "TT2-M1 (2).mp4",
+        "sha256": "fa3c7ca5bab0bf35f614433102a471c826c31bcbebf6887265853a733c44e7bc",
+        "bytes": 2053012
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-044",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "65800c4e-1db5-456e-9998-2a23169f3c42",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-045",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "6c4291ea-c472-4534-b5df-d273ccc82e05",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-046",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "c8ef365a-68f3-4f5b-bdfc-d6c1ca598e0d",
+      "source": {
+        "name": "TT2_M1 (2).mp4",
+        "sha256": "64f41707bfa0628feb27b7e5d6695dc6bf1244dd5a00aa0f7218eee5fe3b63a3",
+        "bytes": 43388460
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-047",
+      "batchId": "6190e1a3-da7d-401b-b1ff-c4049752029c",
+      "fileId": "797d1b23-f383-4efe-a0a6-b951ed7b7685",
+      "source": {
+        "name": "FDS1_M1 (4).mp4",
+        "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6",
+        "bytes": 20868312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-048",
+      "batchId": "db39206a-10fb-4525-9379-affd412d5fec",
+      "fileId": "b3151f95-5a1c-486e-b84b-8b9654b296dd",
+      "source": {
+        "name": "TT2_M1 (3).mp4",
+        "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8",
+        "bytes": 19435652
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-049",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "834db489-d183-4ac7-ae10-3a5abc106f3d",
+      "source": {
+        "name": "TT5-M2 (2).mp4",
+        "sha256": "5358d7eef8c86bce34618fad8421951b9579f525fcfac1baf994224218798344",
+        "bytes": 2655555
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-050",
+      "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+      "fileId": "53b4b488-d5c0-412f-ad34-f945feaa3f45",
+      "source": {
+        "name": "ah1_M1 (1).mp4",
+        "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec",
+        "bytes": 15094041
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-051",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "6f836e12-2688-4e11-a8d3-80017b398441",
+      "source": {
+        "name": "TT5-M1 (2).mp4",
+        "sha256": "db05d87813666b12f8ab5407e3fb3ec46dc9adfeb6e72fee85ddc8861802a15c",
+        "bytes": 1581207
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-052",
+      "batchId": "f12ed1e7-0e33-4973-a1c0-6368095f6286",
+      "fileId": "8d1c4947-da11-42d6-9d7d-b50d9dde5b43",
+      "source": {
+        "name": "ah1_M1 (1).mp4",
+        "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec",
+        "bytes": 15094041
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-053",
+      "batchId": "618f9d09-7294-450e-869f-9fc7afbc1f28",
+      "fileId": "40ad0bbe-c887-4ce1-901e-4c75307fe553",
+      "source": {
+        "name": "FDS1_M1 (1).mp4",
+        "sha256": "1686351624da25cfb03d405397d924f5e6c0e4c87f50f7e3f15f871a48f47186",
+        "bytes": 19605354
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-054",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "de420511-1edb-487b-9e0a-4b0b775354b7",
+      "source": {
+        "name": "TT4-M1 (6).mp4",
+        "sha256": "70ef93872fd83b2acddac980ed5961e8f39aedfd9cf07bef6b916c51e084add5",
+        "bytes": 2658778
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-055",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "041b9b8f-4c6e-41f9-9e08-91fcfbf646a7",
+      "source": {
+        "name": "TT3-M1 (4).mp4",
+        "sha256": "1e7947c465dfbf28a2beaf96d15b77aedafe518c726f7338dc9166b9d32cf7d0",
+        "bytes": 2065979
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-056",
+      "batchId": "21121f9e-a578-4222-9218-307653432103",
+      "fileId": "12b35ede-6dc4-4425-baa4-636f0e9c2104",
+      "source": {
+        "name": "ah1_M1 (6).mp4",
+        "sha256": "49e9790d3147adb1d41b5469e2d6663b9c16f2fff6fb0625cda3d613f550ea9e",
+        "bytes": 16525497
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-057",
+      "batchId": "ec03254f-dd84-43cd-9615-30040f1ae6ba",
+      "fileId": "eb118a40-297c-4d24-8f43-f0ac5dd4def3",
+      "source": {
+        "name": "ah1_M1 (2).mp4",
+        "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd",
+        "bytes": 18269720
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-058",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "301c162c-aee4-45cf-b039-dedf8368865a",
+      "source": {
+        "name": "gc3-m1 (4).mp4",
+        "sha256": "2ba4d8b610e4664dc4124f96ec56e5509e2cb4f74f38ec1e02ccaf2e1f6ecac6",
+        "bytes": 47122534
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-059",
+      "batchId": "6190e1a3-da7d-401b-b1ff-c4049752029c",
+      "fileId": "14c4c202-af0d-4a9c-b712-0e6e3fdeafcd",
+      "source": {
+        "name": "FDS1_M1 (3).mp4",
+        "sha256": "be87f42a185fe2638ced32b472adebf7efab79ce2f6c31f672275a8c7b2b0af2",
+        "bytes": 23935458
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-060",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "13d89582-7fc9-49f5-938c-f497d59fa184",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-061",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "836a4dfe-b833-4603-bd59-0553436e7c3f",
+      "source": {
+        "name": "TT5-M1 (1).mp4",
+        "sha256": "2822b4d2e7cf734aefbb24f4173c45296935db1a66654837a00548b6accf2c6f",
+        "bytes": 2671418
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-062",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "1c0fea89-d2fb-4321-8f25-91fab09a69f3",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-063",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "4a897d67-b217-4f19-b9d8-f5cb26ec8f0d",
+      "source": {
+        "name": "TT4-M1 (6).mp4",
+        "sha256": "70ef93872fd83b2acddac980ed5961e8f39aedfd9cf07bef6b916c51e084add5",
+        "bytes": 2658778
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-064",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "f91669e9-bae7-4cf8-be0f-8abbce10ef79",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-065",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "c3882f2b-47ac-4402-9470-29136152f784",
+      "source": {
+        "name": "TT1_M2 (3).mp4",
+        "sha256": "dd612c3d59cb283bf48d1c609062fdbb14e2e977e3f5ac9bde25fca6cff332ae",
+        "bytes": 2559955
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-066",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "60e748a0-8530-4338-b021-d0a7c05540f6",
+      "source": {
+        "name": "gc1-m2 (2).mp4",
+        "sha256": "7542f5e5a197672cf72e3cd7b37c46f9985ff4ddb1fa6f477cc8f0bb53b7f6da",
+        "bytes": 62718518
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-067",
+      "batchId": "c7e255a0-871d-4a1e-8614-4dd8cfbcf068",
+      "fileId": "b2cc0e6e-1b0c-4ebc-a69a-bb08cb2fccf0",
+      "source": {
+        "name": "FDS1_M1 (4).mp4",
+        "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6",
+        "bytes": 20868312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-068",
+      "batchId": "6945d810-80df-4cd5-888f-92c886433644",
+      "fileId": "ac829e47-e9c3-4aad-b21c-8a1312a6c997",
+      "source": {
+        "name": "FDS1_M1 (6).mp4",
+        "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce",
+        "bytes": 22286557
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-069",
+      "batchId": "f2ba3e1a-018f-4b54-9b47-32846980f8d7",
+      "fileId": "71a11a1c-baa6-4279-9c50-c6548e57cc89",
+      "source": {
+        "name": "FDS1_M1 (2).mp4",
+        "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0",
+        "bytes": 21550492
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-070",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "f5cb96f8-b60e-499e-96b9-0b0ae9a9d806",
+      "source": {
+        "name": "TT1_M1 (3).mp4",
+        "sha256": "d885158a99862a6313e8a43ca01636677612304ddc56a338438d656da04f53a2",
+        "bytes": 21149313
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-071",
+      "batchId": "71eeff5a-41b2-4bd6-a18f-060d128c2757",
+      "fileId": "2f6e401f-f57c-44c8-901e-d204175773c0",
+      "source": {
+        "name": "gc1-m1 (1).mp4",
+        "sha256": "2d9f53cd82c1a401a03deecd0c3922f96f323fcc5af508ea6a09dc1a30628588",
+        "bytes": 17877789
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-072",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "71b03b35-adf7-498c-88e4-28563ce5b6a3",
+      "source": {
+        "name": "TT6-M1 (3).mp4",
+        "sha256": "f8fc8bee9b7c62134e384c3d4447f372161e3dcdfc96cec941945a53ad02ed9f",
+        "bytes": 2561969
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-073",
+      "batchId": "c60f7f3b-3755-4013-a418-0872253308e0",
+      "fileId": "be38e404-6a37-4c63-b2cf-55ac34d1390c",
+      "source": {
+        "name": "TT2_M2 (1).mp4",
+        "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e",
+        "bytes": 1567039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-074",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "6f624637-eeb4-40f5-881e-64426fdaf5fc",
+      "source": {
+        "name": "C4501.MP4",
+        "sha256": "3502f828153c7e37c7e9ce0e8a7cfb363e6dd3b421f8d74444fb060df8e027dc",
+        "bytes": 134498039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-075",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "89b1d4c5-0aee-4347-b0bc-d62a9a847067",
+      "source": {
+        "name": "IMG_4565.MOV",
+        "sha256": "12cfe26711c5601034b7c50c55efcd11e0039f733937d8e6f98bc634880623f0",
+        "bytes": 37058610
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-076",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "8f96a1d1-7366-47e5-92e0-7f42e272560b",
+      "source": {
+        "name": "TT5-M1 (1).mp4",
+        "sha256": "2822b4d2e7cf734aefbb24f4173c45296935db1a66654837a00548b6accf2c6f",
+        "bytes": 2671418
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-077",
+      "batchId": "f2ba3e1a-018f-4b54-9b47-32846980f8d7",
+      "fileId": "4402c89d-a177-4e40-b6a7-0969cbba46e2",
+      "source": {
+        "name": "FDS1_M1 (5).mp4",
+        "sha256": "7257d8f4f68d56a1bbe6e265907d96c9283a6cb9d943ab92f000ff1cd8d2f7cf",
+        "bytes": 17765056
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-078",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "cc21c044-58a8-4c99-a321-e36cbf4ffb94",
+      "source": {
+        "name": "TT3-M1 (2).mp4",
+        "sha256": "7dbaf0b0ccb27e101d515399291ff00a697bfe688dcc2c7ef544c7a3bbc7bfd0",
+        "bytes": 2403234
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-079",
+      "batchId": "21121f9e-a578-4222-9218-307653432103",
+      "fileId": "255f18e7-208a-4837-ae1c-6cbf3d007488",
+      "source": {
+        "name": "ah1_M1 (1).mp4",
+        "sha256": "e1244b1d1a94fad0219bc77377600453570063ec7b11681f8f748d482ef4f0ec",
+        "bytes": 15094041
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-080",
+      "batchId": "db39206a-10fb-4525-9379-affd412d5fec",
+      "fileId": "5501fef2-ce9e-4cb6-ad1c-6e7a8a2d18f5",
+      "source": {
+        "name": "TT2_M1 (2).mp4",
+        "sha256": "88249af3ebe9191bc8cff8ba0770d84944d26b346ba20ccd7f7de4fc647ea808",
+        "bytes": 20685193
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-081",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "56e78030-452a-4703-ba2e-6176ce88242f",
+      "source": {
+        "name": "gc3-m1 (3).mp4",
+        "sha256": "8d5a2cd725d4ddf2b6f82b471fa75e16bc22ab97fab60384aeb77c998126a980",
+        "bytes": 40615039
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-082",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "804c9f3a-ed1a-43a0-8936-c3f37e26d1e1",
+      "source": {
+        "name": "C4479.MP4",
+        "sha256": "4273e9347ca75585efd281473b2c520012ec2ab8b1eb2ff98886bccda0739dd8",
+        "bytes": 67387707
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-083",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "2561d771-f665-49e4-9a4c-218fa8281bac",
+      "source": {
+        "name": "TT5-M1 (4).mp4",
+        "sha256": "5d1051dc691aee934cafe77f252ad3c17f2dfb9caf0c5dcad8d29d5463c44f90",
+        "bytes": 2670120
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-084",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "ed5c8df1-1313-48eb-9e9d-3f4a9b28afee",
+      "source": {
+        "name": "C4484.MP4",
+        "sha256": "0464630900c307c1973726446213a931401bc44bf4598b2234a11645784a8718",
+        "bytes": 67387411
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-085",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "389892d1-37c7-4d0e-9ace-e6220731000b",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-086",
+      "batchId": "b3225c54-c577-46d5-bc02-61cb924193b4",
+      "fileId": "eb071478-b491-47fc-80f8-f6a08002fbd8",
+      "source": {
+        "name": "TT2_M1 (1).mp4",
+        "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432",
+        "bytes": 9160449
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-087",
+      "batchId": "c7e255a0-871d-4a1e-8614-4dd8cfbcf068",
+      "fileId": "40fe8027-d904-4def-a579-2c24346b8e7b",
+      "source": {
+        "name": "FDS1_M1 (6).mp4",
+        "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce",
+        "bytes": 22286557
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-088",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "97a7022f-12b5-48dc-8b3b-a223dd6df1b8",
+      "source": {
+        "name": "TT2_M2 (2).mp4",
+        "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708",
+        "bytes": 2610158
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-089",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "7424aea0-fd88-48b1-bd70-5dc56a6f69c6",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-090",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "21dc5619-df00-4a96-99f2-a9ce2bdc3fec",
+      "source": {
+        "name": "TT2-M1 (2).mp4",
+        "sha256": "fa3c7ca5bab0bf35f614433102a471c826c31bcbebf6887265853a733c44e7bc",
+        "bytes": 2053012
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-091",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "c7146fe1-205b-4eca-9db0-b21df0b0efa6",
+      "source": {
+        "name": "TT4-M1 (3).mp4",
+        "sha256": "c4fa2ba36224791a8bbdb45a33545a7b3c092f5001c47308e84f2d1b42147309",
+        "bytes": 2691175
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-092",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "00c7cb77-70ae-42b2-b4d1-73e43419282b",
+      "source": {
+        "name": "TT5-M2 (1).mp4",
+        "sha256": "a8a43981a63a32cb7f2e4c94f6c4e4bd53b804f266dd5b9b737df95d98ca7162",
+        "bytes": 2713024
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-093",
+      "batchId": "b3225c54-c577-46d5-bc02-61cb924193b4",
+      "fileId": "253c8d59-6e40-4372-ba9b-c6aab10c9d42",
+      "source": {
+        "name": "TT2_M2 (4).mp4",
+        "sha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6",
+        "bytes": 2516332
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-094",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "13d26561-80bd-40fe-9de2-35b4a43f84f2",
+      "source": {
+        "name": "C4458.MP4",
+        "sha256": "3d01974ccce44f707a352999382bd0ae0de40949ca91f43f3e72ea323242814a",
+        "bytes": 268730469
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-095",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "3fd05635-bd84-46da-99f8-9b7bbb67b8fd",
+      "source": {
+        "name": "TT1-M1 (3).mp4",
+        "sha256": "873b2b013a865e6477ae604802c7cd109922bc492fd9fcfb64053e8c99c2e286",
+        "bytes": 2619062
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-096",
+      "batchId": "1fab1a7f-8d67-415f-8f9f-9b27d584db88",
+      "fileId": "d01e057a-d54a-4936-8987-7ce094c7bc09",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "8012cfa95c69ca944b7cdc5769c2b585dd7c674bb7c985560e555e9c755c597c",
+        "bytes": 13439090
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-097",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "99909d8c-aec2-4c43-9ba0-aeb5bfda38c4",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-098",
+      "batchId": "db39206a-10fb-4525-9379-affd412d5fec",
+      "fileId": "d59f940b-73ec-4907-8d67-164a2fafd2e0",
+      "source": {
+        "name": "TT2_M2 (1).mp4",
+        "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e",
+        "bytes": 1567039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-099",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "d9747d8c-1705-4394-b1ff-547c49d8ca46",
+      "source": {
+        "name": "TT4-M1 (3).mp4",
+        "sha256": "c4fa2ba36224791a8bbdb45a33545a7b3c092f5001c47308e84f2d1b42147309",
+        "bytes": 2691175
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-100",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "a4c321e5-d460-41a7-908b-f33a2e8db959",
+      "source": {
+        "name": "gc3-m1 (5).mp4",
+        "sha256": "c4556b93ffa3c7640eb047affb34e258c37b9a6691bd3a19c64abba30a04bf44",
+        "bytes": 46210368
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-101",
+      "batchId": "c1dddcf3-a31c-4fdf-8b2c-a2b9c95ac088",
+      "fileId": "afcf9ddc-c49e-430f-90cb-724340c90696",
+      "source": {
+        "name": "TT1_M1 (2).mp4",
+        "sha256": "9aaf83b50a0c4689de504d8acb3d94d5f537739eae8900c1b02cd288e6b07298",
+        "bytes": 20714797
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-102",
+      "batchId": "21121f9e-a578-4222-9218-307653432103",
+      "fileId": "a4d73ecf-47ae-40f8-a836-2c7e8ff44759",
+      "source": {
+        "name": "ah1_M1 (4).mp4",
+        "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802",
+        "bytes": 16007312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-103",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "e07ec8ad-cc44-4fe4-90cd-22f651b73ebf",
+      "source": {
+        "name": "C4504.MP4",
+        "sha256": "b42a1a44356c7635eeccb71fc780d4e4c05792fdbcc0b3d7b5a6df413a44f492",
+        "bytes": 537185037
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-104",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "5f836c3c-3d6a-4509-8ab1-6a19b2993cb1",
+      "source": {
+        "name": "TT6_M1  (2).mp4",
+        "sha256": "be3ce8b9e0a72f5bf9dc5c75f73fd740df7ef5a55cc9579858981ae2e86a4667",
+        "bytes": 21287788
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-105",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "a300821f-5018-4f40-88ee-ae96b4275dc5",
+      "source": {
+        "name": "TT6-M1 (3).mp4",
+        "sha256": "f8fc8bee9b7c62134e384c3d4447f372161e3dcdfc96cec941945a53ad02ed9f",
+        "bytes": 2561969
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-106",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "4eac64d8-9fac-491d-894a-02f4067f75e3",
+      "source": {
+        "name": "gc2-m1 (1).mp4",
+        "sha256": "4567815432efe751ab65b6f936250cb200f17202d99ec5fdc7f5388973665d30",
+        "bytes": 36061317
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-107",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "4353fb3e-58d1-496c-9bbb-d1dc5691f3ef",
+      "source": {
+        "name": "gc3-m1 (1).mp4",
+        "sha256": "c2f5e9aab5adc7f6d73c2bda0e2a7a11083f45e190f2c5b2a2ac0c757169ce5d",
+        "bytes": 46173801
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-108",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "b728c6d9-e43c-4db2-af47-4246b824aba2",
+      "source": {
+        "name": "TT4-M1 (5).mp4",
+        "sha256": "9b26bd9e19cf63157c2dac676449d23d6dac1e36cc3c16e93e5ad39ec94b272d",
+        "bytes": 2601978
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-109",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "c03614b7-65e6-4f2e-877f-7235c14a6e68",
+      "source": {
+        "name": "TT1-M1 (3).mp4",
+        "sha256": "873b2b013a865e6477ae604802c7cd109922bc492fd9fcfb64053e8c99c2e286",
+        "bytes": 2619062
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-110",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "b488cacb-647c-462a-b58b-a8f3d8a6be30",
+      "source": {
+        "name": "TT1_M1_ (4).mp4",
+        "sha256": "2e01156a49c3a0f104f7ee248a823387004288bc8dad0fc3de58aa2551172ba1",
+        "bytes": 2497273
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-111",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "27433168-06a4-4a14-8b99-bed768350959",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-112",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3cca71c5-8f30-4e75-815f-699b7f8e1d38",
+      "source": {
+        "name": "TT5-M2 (4).mp4",
+        "sha256": "5b8166bf12399db27da6ea4704a7ba1296dc424d35dd8b81a91f95130edcb67a",
+        "bytes": 2664183
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-113",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "1e0379f0-8f85-4301-b625-b6774b8c575e",
+      "source": {
+        "name": "TT3_M1 (3).mp4",
+        "sha256": "5972dd0016f797344e648597ff923af21909d0549025924c11629a819d3f80de",
+        "bytes": 2595669
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-114",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "8e2450c5-a076-41a3-a3ef-8e5046576b6a",
+      "source": {
+        "name": "gc1-m1 (1).mp4",
+        "sha256": "6a1ea8579f4295a4f8d9564cbeaab7e7fca8c7593ed84cefdbab8de1c81cacf5",
+        "bytes": 46051066
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-115",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "bdabcbee-48b1-4fe8-97de-ddc152bcf6bf",
+      "source": {
+        "name": "TT1_M1_ (2).mp4",
+        "sha256": "855bfdfe704d986d87128ac81c8a4b0e86835d373dfb115cc8a3d7c53dda61aa",
+        "bytes": 2478842
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-116",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "602cb1f5-51b1-4cb8-8248-6a90a93f2fd3",
+      "source": {
+        "name": "gc2-m1 (1).mp4",
+        "sha256": "4567815432efe751ab65b6f936250cb200f17202d99ec5fdc7f5388973665d30",
+        "bytes": 36061317
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-117",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "ac8b7823-a554-4366-9505-6aa89ba8b69f",
+      "source": {
+        "name": "TT5-M1 (1).mp4",
+        "sha256": "2822b4d2e7cf734aefbb24f4173c45296935db1a66654837a00548b6accf2c6f",
+        "bytes": 2671418
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-118",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3c7f0942-1a5a-457e-94f2-3e9acaccd86e",
+      "source": {
+        "name": "TT4-M1 (4).mp4",
+        "sha256": "19853200a3515b58258926c6e74a5f3c3c2facb14d7b1cbff7b4e596a469a989",
+        "bytes": 2655505
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-119",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "bd3c4b25-d8c1-4633-891a-75807264242a",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-120",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "30e10108-8a71-4932-98cd-9f767d48654d",
+      "source": {
+        "name": "TT2_M1 (4).mp4",
+        "sha256": "c3bb31ad5b287f13e775dd1ae7e4513a55dd2966178eb8b08f7a5b8490eb0571",
+        "bytes": 42195182
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-121",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "056e2025-7266-46bf-91d8-3c0ea3199bd0",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-122",
+      "batchId": "e88a0a99-5003-46c6-ab10-28d771652ea5",
+      "fileId": "1e426720-62db-437b-935d-8a3f3c87be8a",
+      "source": {
+        "name": "ah1_M1 (5).mp4",
+        "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f",
+        "bytes": 18693081
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-123",
+      "batchId": "5bb69aa8-a69e-4831-a9bb-21ecdafecce5",
+      "fileId": "1bde84e2-b44a-4ad6-81cb-9f7ae396ac5b",
+      "source": {
+        "name": "TT1-M1  (3).mp4",
+        "sha256": "12c281cc6a60173f5bb41a4ad92d4751deb8d185fbcfeca3384c30d34efab15d",
+        "bytes": 2570591
+      },
+      "referenceFileIds": [
+        "c4a1716b-489b-421c-99c1-cc5e22bb4419",
+        "8ab8c66d-a52f-4e60-8291-235c68c02493"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-124",
+      "batchId": "c60f7f3b-3755-4013-a418-0872253308e0",
+      "fileId": "4345b097-241b-47e6-b11f-e37b903b02ee",
+      "source": {
+        "name": "TT2_M2 (4).mp4",
+        "sha256": "f6c566d99b9c231370f8aac56bb6401dad27f1b142132843da32d9eea874e7f6",
+        "bytes": 2516332
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-125",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "ac9391f7-a76a-42aa-a122-57882f92dd1e",
+      "source": {
+        "name": "C4493.MP4",
+        "sha256": "edefc0f2d427e49725b5c7ca0a433c9c81e1f5785c4ef5cf7c4e615dc520748f",
+        "bytes": 67388587
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-126",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "783b6d70-8be5-46e5-b1ce-4548b26af5fb",
+      "source": {
+        "name": "TT1_M2 (2).mp4",
+        "sha256": "c783fc7c96cca00bab892990e57f31085af7ebdceba85d666ceb87550ffd9364",
+        "bytes": 2595375
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-127",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "809a9f17-cbfa-4ecd-b646-73eb31366a1d",
+      "source": {
+        "name": "TT2_M2 (1).mp4",
+        "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e",
+        "bytes": 1567039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-128",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "364c7162-e79d-4464-8aab-a6f86a7a515c",
+      "source": {
+        "name": "TT5-M2 (2).mp4",
+        "sha256": "5358d7eef8c86bce34618fad8421951b9579f525fcfac1baf994224218798344",
+        "bytes": 2655555
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-129",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "9a88e7a3-d6aa-40a4-a265-e99df8a51641",
+      "source": {
+        "name": "TT4_M1 (2).mp4",
+        "sha256": "e7324d4a5e43610790e27b1e240d105d448ece967c049759f972a5328d362ea8",
+        "bytes": 39887852
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-130",
+      "batchId": "d737c0af-b50d-4e99-bdd6-e231cf2bab66",
+      "fileId": "9742e318-c6eb-4480-9a32-c097cf7e25ab",
+      "source": {
+        "name": "C4173.MP4",
+        "sha256": "be49c37fc44a1c7c6f066614f7b39b530e6e6ac0b8d16d456c35e1eefeac1e5e",
+        "bytes": 470068616
+      },
+      "referenceFileIds": [
+        "1e2998d8-200a-4f15-8151-e3ed7a6bca4f"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-131",
+      "batchId": "28ccad48-5440-4b0e-90d6-99288eeedd69",
+      "fileId": "c7322254-fed6-4ef9-a2a5-5264240b4809",
+      "source": {
+        "name": "TT2_M2 (1).mp4",
+        "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e",
+        "bytes": 1567039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-132",
+      "batchId": "b3225c54-c577-46d5-bc02-61cb924193b4",
+      "fileId": "c676cc51-2282-456e-8df9-9b00d0b8140b",
+      "source": {
+        "name": "TT2_M1 (4).mp4",
+        "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a",
+        "bytes": 19313887
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-133",
+      "batchId": "c7e255a0-871d-4a1e-8614-4dd8cfbcf068",
+      "fileId": "8b9e5d92-657f-47b2-8071-4b5ec21d7727",
+      "source": {
+        "name": "FDS1_M1 (2).mp4",
+        "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0",
+        "bytes": 21550492
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-134",
+      "batchId": "28ccad48-5440-4b0e-90d6-99288eeedd69",
+      "fileId": "2f4481e8-3644-4636-b009-47a29b3c0e58",
+      "source": {
+        "name": "TT2_M1 (4).mp4",
+        "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a",
+        "bytes": 19313887
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-135",
+      "batchId": "c1dddcf3-a31c-4fdf-8b2c-a2b9c95ac088",
+      "fileId": "69c57e46-85c3-436a-a616-971df39b1bee",
+      "source": {
+        "name": "TT2_M2 (1).mp4",
+        "sha256": "306aea72e7e4867860a28d0bb590b9e2892fdd25a42c663e3a1d61bab492df8e",
+        "bytes": 1567039
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-136",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "79b61fb8-eab6-4ab9-a5d1-40069b127918",
+      "source": {
+        "name": "IMG_4577.MOV",
+        "sha256": "b63a0057dee42c39e1ea8346afa38586640d27666ced65f5d8b9ada21c6f968b",
+        "bytes": 110619084
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-137",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "817a6088-c821-44d5-a6a8-23e1d07c3696",
+      "source": {
+        "name": "IMG_4569.MOV",
+        "sha256": "b93cdd5a1517e04e5355d545efe989fb0ab41fb1b57cf24f6a047492f2689147",
+        "bytes": 24572732
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-138",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "6fb8a764-7504-48a5-bff2-4387b2e135ab",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-139",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "0d6e937b-5912-4e45-aab7-2d7ca313d52c",
+      "source": {
+        "name": "C4489.MP4",
+        "sha256": "36502643ce4f64d327dae1f9384d38a543cb95fb536e63e620b04f9c3af3ee9f",
+        "bytes": 67387999
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-140",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "ce741571-f72d-49d2-b578-bf2d58b0023b",
+      "source": {
+        "name": "TT5-M1 (4).mp4",
+        "sha256": "5d1051dc691aee934cafe77f252ad3c17f2dfb9caf0c5dcad8d29d5463c44f90",
+        "bytes": 2670120
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-141",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "4b849829-445d-48a9-ac48-255e051b34bb",
+      "source": {
+        "name": "TT3-M1 (2).mp4",
+        "sha256": "7dbaf0b0ccb27e101d515399291ff00a697bfe688dcc2c7ef544c7a3bbc7bfd0",
+        "bytes": 2403234
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-142",
+      "batchId": "28ccad48-5440-4b0e-90d6-99288eeedd69",
+      "fileId": "e85ede47-51c7-4b29-94d7-e4d61c5964f3",
+      "source": {
+        "name": "TT2_M2 (2).mp4",
+        "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708",
+        "bytes": 2610158
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-143",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "72b7300f-c941-49af-90a8-5ee0c01478e0",
+      "source": {
+        "name": "IMG_4571.MOV",
+        "sha256": "f2d0f227bbbbd9c7e9d3928c07f4f0e87508ee35b152e06ed0ded6b2512cce8c",
+        "bytes": 25698933
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-144",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "c41d2512-9828-4968-bb2c-ccf03eb05687",
+      "source": {
+        "name": "IMG_4570.MOV",
+        "sha256": "6571c02a905d050fefb75aa46731a8a89ed454ec025ba67076d7f3e9eab41fee",
+        "bytes": 30139990
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-145",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "f0a6d227-db23-44f2-aa08-6bbfbca43b4b",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-146",
+      "batchId": "28ccad48-5440-4b0e-90d6-99288eeedd69",
+      "fileId": "b9160a71-36dd-44b8-88f8-550233a7e881",
+      "source": {
+        "name": "TT2_M1 (3).mp4",
+        "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8",
+        "bytes": 19435652
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-147",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "d160cc55-8ec3-492a-b082-bd25ccdafb04",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-148",
+      "batchId": "2674ccd8-cdd2-435d-844e-59a5b241e92f",
+      "fileId": "2ca26719-82e8-4eec-ba1b-4efaf0571cb6",
+      "source": {
+        "name": "ah1_M1 (2).mp4",
+        "sha256": "1dcfd43d817130c8db4b9b494cdb579ad12d74ec6e6499201df34bb3e1c5dedd",
+        "bytes": 18269720
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-149",
+      "batchId": "e88a0a99-5003-46c6-ab10-28d771652ea5",
+      "fileId": "67b658fd-c06d-4952-af7e-8f925e41d44e",
+      "source": {
+        "name": "ah1_M1 (3).mp4",
+        "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6",
+        "bytes": 17358559
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-150",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "62ef6998-502d-4b14-b4d6-d819c63d80c3",
+      "source": {
+        "name": "TT2-M1 (1).mp4",
+        "sha256": "87adfdf1640e3a83c2f364e45cb01d25dcd68eb2939567427e682f04941ccc17",
+        "bytes": 2093901
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-151",
+      "batchId": "1315a6e8-d78a-4c79-904b-731c42b59c1c",
+      "fileId": "362cd27a-7607-46d8-ae59-d947ea101446",
+      "source": {
+        "name": "1.mp4",
+        "sha256": "2d9f53cd82c1a401a03deecd0c3922f96f323fcc5af508ea6a09dc1a30628588",
+        "bytes": 17877789
+      },
+      "referenceFileIds": [
+        "b2421f6a-69df-453d-ba03-588c2ce69b6c",
+        "e822cd15-91da-416d-a1e9-4a1672717363"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-152",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "b8500198-5b63-4e76-8e83-17dec009ace2",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-153",
+      "batchId": "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3",
+      "fileId": "630309c5-abbc-4d01-8e12-edb054abde9c",
+      "source": {
+        "name": "ah1_M1 (3).mp4",
+        "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6",
+        "bytes": 17358559
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-154",
+      "batchId": "94f77d98-d2fd-4f9d-b596-d4dd9bb7b132",
+      "fileId": "c8143570-a0fb-466d-a70e-f8dfe02586d7",
+      "source": {
+        "name": "FDS1_M1 (1).mp4",
+        "sha256": "1686351624da25cfb03d405397d924f5e6c0e4c87f50f7e3f15f871a48f47186",
+        "bytes": 19605354
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-155",
+      "batchId": "db39206a-10fb-4525-9379-affd412d5fec",
+      "fileId": "0b65355b-fdb8-45a0-890a-08c28857e53a",
+      "source": {
+        "name": "TT1_M1 (1).mp4",
+        "sha256": "47a410a5f6116fd63813510ad130942d1ce4861ad561a498578fd17ead34d6d6",
+        "bytes": 11583548
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-156",
+      "batchId": "d493c143-83f6-4424-b87b-08af45332e33",
+      "fileId": "12c6ab09-317e-4c13-bce3-9b5c28e0c998",
+      "source": {
+        "name": "TT2-M1 (1).mp4",
+        "sha256": "def98cef68bcb23c5f58c05c73f24e9eddc6175608c762e84e6bf6bc7093755f",
+        "bytes": 23936843
+      },
+      "referenceFileIds": [
+        "c1c547a1-e821-41df-8d26-dd18b8aa0fd3",
+        "5287b3c6-21b8-4cf4-93da-f263aa85c737",
+        "1b60a268-2f82-438d-b044-4d25d0f2e708",
+        "8ecb274a-33e8-415f-ab04-bc1b00950c17"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-157",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "f3840472-bdbe-4efb-85c2-821b1373e426",
+      "source": {
+        "name": "TT5_M1  (2).mp4",
+        "sha256": "a1930ad09e7412e65d421a08edad91c16ef1eed3cbfa4f7a96c0c98fef9170a6",
+        "bytes": 46496704
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-158",
+      "batchId": "28ccad48-5440-4b0e-90d6-99288eeedd69",
+      "fileId": "e94dbdaf-0669-4af3-ad34-0bfd7b7c58f6",
+      "source": {
+        "name": "TT2_M1 (1).mp4",
+        "sha256": "28820069daad372043aeecc380c5f6771a3df5d8244e084894eef492bca0d432",
+        "bytes": 9160449
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-159",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "0c7aaf60-097d-4376-a112-969d474d1c38",
+      "source": {
+        "name": "TT1_M1 (4).mp4",
+        "sha256": "d2741b35e594d24b8edc68641462526916358773acfdc7979f062f1497f32c49",
+        "bytes": 13181522
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-160",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "252adb1f-8b40-481a-b72a-636d5c528c1f",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-161",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "06680604-4cf7-447a-95ca-2f2d3d436907",
+      "source": {
+        "name": "TT1_M2 (2).mp4",
+        "sha256": "c783fc7c96cca00bab892990e57f31085af7ebdceba85d666ceb87550ffd9364",
+        "bytes": 2595375
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-162",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "a16e5ee2-52bc-4745-bd11-a79707366e1f",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-163",
+      "batchId": "f12ed1e7-0e33-4973-a1c0-6368095f6286",
+      "fileId": "b184d956-2f21-43ec-a9e8-bab4bfef539b",
+      "source": {
+        "name": "ah1_M1 (4).mp4",
+        "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802",
+        "bytes": 16007312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-164",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "39864b65-8518-4579-b525-140cf51ca160",
+      "source": {
+        "name": "TT6-M1 (4).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-165",
+      "batchId": "6190e1a3-da7d-401b-b1ff-c4049752029c",
+      "fileId": "d7347328-04dd-451d-bd70-6457810b4c4f",
+      "source": {
+        "name": "FDS1_M1 (2).mp4",
+        "sha256": "91aff4cfd517e7b781cae67b27f4e7877999b5fc94bb7f0b58d9d1a0f481beb0",
+        "bytes": 21550492
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-166",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "433ae3b4-90be-4bbb-a63d-b8ea11362b37",
+      "source": {
+        "name": "TT6-M1 (1).mp4",
+        "sha256": "ce855da7d1006e9009c136e583b2769834478d95eb0ccecdd188a83bd2b268e5",
+        "bytes": 2669246
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-167",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "e131b10d-afc0-4cf5-b7c7-c2039513b7c4",
+      "source": {
+        "name": "TT3-M1 (4).mp4",
+        "sha256": "1e7947c465dfbf28a2beaf96d15b77aedafe518c726f7338dc9166b9d32cf7d0",
+        "bytes": 2065979
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-168",
+      "batchId": "ec03254f-dd84-43cd-9615-30040f1ae6ba",
+      "fileId": "892d0da0-1d4f-4376-9824-46cff3af086f",
+      "source": {
+        "name": "ah1_M1 (4).mp4",
+        "sha256": "50678b18d03b0ff1546af258e56479917898833f8e230b3a29fca523a73de802",
+        "bytes": 16007312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-169",
+      "batchId": "21121f9e-a578-4222-9218-307653432103",
+      "fileId": "091f83fc-1d89-4be7-9639-6aba7b15c278",
+      "source": {
+        "name": "ah1_M1 (3).mp4",
+        "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6",
+        "bytes": 17358559
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-170",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "910492ca-784c-49e4-aeea-1b8f4c07d419",
+      "source": {
+        "name": "TT2_M1 (3).mp4",
+        "sha256": "726636a7b284b11d16a9ffcb840fbf3a9fca73ee567f3c88f7bfec4d74dec2c8",
+        "bytes": 19435652
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-171",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3f86f631-9587-45e2-81b0-b118f300094f",
+      "source": {
+        "name": "TT4-M1 (6).mp4",
+        "sha256": "70ef93872fd83b2acddac980ed5961e8f39aedfd9cf07bef6b916c51e084add5",
+        "bytes": 2658778
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-172",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "62d4e8f5-533c-4390-912c-ecb6d6e5cbeb",
+      "source": {
+        "name": "TT6_M1  (3).mp4",
+        "sha256": "7001d9012616cf78611b31074d694ed3052add6178b3fa2af5d7b188772ef68c",
+        "bytes": 42244296
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-173",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "68b3fe40-f1d6-4337-9171-9e8723a83d92",
+      "source": {
+        "name": "TT3-M1 (2).mp4",
+        "sha256": "7dbaf0b0ccb27e101d515399291ff00a697bfe688dcc2c7ef544c7a3bbc7bfd0",
+        "bytes": 2403234
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-174",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "129caa84-568b-4a76-ac5a-b9b4b956b3da",
+      "source": {
+        "name": "C4486.MP4",
+        "sha256": "590aa772fb59fcf7c8d1f34549485d6671f0c4454d982ee3553505b9fff60a44",
+        "bytes": 67387637
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-175",
+      "batchId": "2674ccd8-cdd2-435d-844e-59a5b241e92f",
+      "fileId": "88cbe988-74b0-43b4-8376-1eb59b64349b",
+      "source": {
+        "name": "ah1_M1 (5).mp4",
+        "sha256": "b632bac8ffd53c86b15c0cde1b7ca2d956db61407fcbfa1bc8363f5de54bb45f",
+        "bytes": 18693081
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-176",
+      "batchId": "96b02983-8895-4961-ae1b-5228ef8ddd6a",
+      "fileId": "5e3db3e8-ac89-45b8-b9d3-098b79b1435e",
+      "source": {
+        "name": "TT6_M1  (3).mp4",
+        "sha256": "7001d9012616cf78611b31074d694ed3052add6178b3fa2af5d7b188772ef68c",
+        "bytes": 42244296
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-177",
+      "batchId": "ec03254f-dd84-43cd-9615-30040f1ae6ba",
+      "fileId": "ff971f14-bf97-4fa0-bd64-87f137e50a6e",
+      "source": {
+        "name": "ah1_M1 (3).mp4",
+        "sha256": "916eea14c96890f9f6a1b3f7ff65109937fb61c18412f30f3f319e3026e0bdc6",
+        "bytes": 17358559
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-178",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "0ed6269e-ba16-44c5-b09f-4636e1d1b2a1",
+      "source": {
+        "name": "TT2-M1 (4).mp4",
+        "sha256": "ed40a628d4bb6f48fed10cf80a966e7d984510ffebb0d0fe15b2b2facc734ca1",
+        "bytes": 2059816
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-179",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "316fe0b8-4e13-47af-adcd-9ad58fbcf856",
+      "source": {
+        "name": "TT2_M2 (3).mp4",
+        "sha256": "dcacaa32ab9d978470e15490ce1f1d13c2bbfb59bd2d655d4638d8de952d14cd",
+        "bytes": 2704469
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-180",
+      "batchId": "027c67d9-6796-4c5d-8842-8ed5612dd705",
+      "fileId": "c2eeb2c2-304c-4901-8fb0-7f7a0578369d",
+      "source": {
+        "name": "IMG_4576.MOV",
+        "sha256": "1376f9b51db54efcf6c72fa4d9e018a8940a374576222db323de28e8b24fd263",
+        "bytes": 223421632
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-181",
+      "batchId": "92b750d2-54c0-4329-859d-e178b8759d5a",
+      "fileId": "184b3579-10c4-40a0-895d-d0b2ec7763dd",
+      "source": {
+        "name": "TT2_M1 (2).mp4",
+        "sha256": "88249af3ebe9191bc8cff8ba0770d84944d26b346ba20ccd7f7de4fc647ea808",
+        "bytes": 20685193
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-182",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "0a943549-3aaf-4919-b0fb-3827cc85ca9d",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-183",
+      "batchId": "618f9d09-7294-450e-869f-9fc7afbc1f28",
+      "fileId": "ccdf1171-a5cf-470b-bc56-9526a5084933",
+      "source": {
+        "name": "FDS1_M1 (4).mp4",
+        "sha256": "9a27c7c644861e4853e102d4ba893736856a5c9a46b6d71de83cdfa0ab2b12e6",
+        "bytes": 20868312
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-184",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "362ba964-173a-45b2-84b1-8cc1ab84a210",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-185",
+      "batchId": "6945d810-80df-4cd5-888f-92c886433644",
+      "fileId": "23d2bf89-c80a-4957-a68a-547e051fa168",
+      "source": {
+        "name": "FDS1_M1 (3).mp4",
+        "sha256": "be87f42a185fe2638ced32b472adebf7efab79ce2f6c31f672275a8c7b2b0af2",
+        "bytes": 23935458
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-186",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "50abca13-599f-4352-bd89-1fd2aba75eb7",
+      "source": {
+        "name": "TT6_M1  (1).mp4",
+        "sha256": "f94194c463ae79480125611b89a107339810973da6d2192f521196b9b0291072",
+        "bytes": 39915147
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-187",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "738d4612-3361-42c1-8d78-53e5681b0f73",
+      "source": {
+        "name": "TT1_M2 (1).mp4",
+        "sha256": "1ecf5d6e64d460b9732339084ca6dd82bac53143d36fbb57b3a2d4f1f54f5766",
+        "bytes": 2641622
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-188",
+      "batchId": "94f77d98-d2fd-4f9d-b596-d4dd9bb7b132",
+      "fileId": "f923d403-dfb6-4af6-8e0c-a1017ab1aca5",
+      "source": {
+        "name": "FDS1_M1 (6).mp4",
+        "sha256": "1747654d7a03223fbb6c43db9277ad529d69ca982b1bece95fc8bcad31ee36ce",
+        "bytes": 22286557
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-189",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "2da64f91-7b6f-4491-a2ea-7236ccb8fe11",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-190",
+      "batchId": "c1dddcf3-a31c-4fdf-8b2c-a2b9c95ac088",
+      "fileId": "51d9469c-c423-4487-9873-8d2dce9ef357",
+      "source": {
+        "name": "TT2_M2 (2).mp4",
+        "sha256": "1d64812a4b2ff26f9d4ba3be47f7dd3bf4a58802e872ab0e748d57da2bce6708",
+        "bytes": 2610158
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-191",
+      "batchId": "21cede03-4279-47f4-b2d4-0c7c26fbbc40",
+      "fileId": "db174684-3a62-4920-9d1a-a7664203673e",
+      "source": {
+        "name": "TT3_M1 (1).mp4",
+        "sha256": "a19a7d50872633b16952d5532f6c1aef89d15356dd22d9874f2dfc6ff92dbaaf",
+        "bytes": 2553395
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-192",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "0ca6110d-7f71-481e-81cf-4ca995e30743",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-193",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "e5de1823-065e-48f1-aa3d-437ab07dbaa2",
+      "source": {
+        "name": "TT6-M1 (2).mp4",
+        "sha256": "12c281cc6a60173f5bb41a4ad92d4751deb8d185fbcfeca3384c30d34efab15d",
+        "bytes": 2570591
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-194",
+      "batchId": "dd50a327-693a-489c-a245-7d281c5568b6",
+      "fileId": "6be5bfe9-635e-4594-a81b-3bde03fb5efc",
+      "source": {
+        "name": "gc1-m1 (1).mp4",
+        "sha256": "2d9f53cd82c1a401a03deecd0c3922f96f323fcc5af508ea6a09dc1a30628588",
+        "bytes": 17877789
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-195",
+      "batchId": "878b707d-26ea-4397-89df-7818da4b2b01",
+      "fileId": "84deb9c9-c4f8-4f89-b127-35c8e572f77b",
+      "source": {
+        "name": "TT4-M1 (5).mp4",
+        "sha256": "9b26bd9e19cf63157c2dac676449d23d6dac1e36cc3c16e93e5ad39ec94b272d",
+        "bytes": 2601978
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-196",
+      "batchId": "c60f7f3b-3755-4013-a418-0872253308e0",
+      "fileId": "fdaefbd1-73ff-44af-b012-3f35e218c997",
+      "source": {
+        "name": "TT2_M1 (4).mp4",
+        "sha256": "56515d2e9681715e86411056f224916bcdf671a5629336209db09744aa1b707a",
+        "bytes": 19313887
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-197",
+      "batchId": "143400f6-3049-4d4f-bbb9-684d7e24bf28",
+      "fileId": "b9917439-9ec8-483f-8d09-9786120d4154",
+      "source": {
+        "name": "C4478.MP4",
+        "sha256": "871f4172d8cca3e90b734dec7611263c57262445895bf8a9a9bbd67ef49bd1d4",
+        "bytes": 67388587
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-198",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "bb2342a4-8248-4d4f-bd9b-0a2d99bc9759",
+      "source": {
+        "name": "TT4-M1 (4).mp4",
+        "sha256": "19853200a3515b58258926c6e74a5f3c3c2facb14d7b1cbff7b4e596a469a989",
+        "bytes": 2655505
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-199",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "462483e6-080f-4e79-8ad3-90bfa9617ff8",
+      "source": {
+        "name": "TT2-M1 (1).mp4",
+        "sha256": "87adfdf1640e3a83c2f364e45cb01d25dcd68eb2939567427e682f04941ccc17",
+        "bytes": 2093901
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    },
+    {
+      "id": "qgv2-200",
+      "batchId": "2d5a6197-e885-4ccb-b313-812e2b26b2fe",
+      "fileId": "fbe6f99b-3a53-43cc-8f81-5d0ed693f2b6",
+      "source": {
+        "name": "TT5-M2 (4).mp4",
+        "sha256": "5b8166bf12399db27da6ea4704a7ba1296dc424d35dd8b81a91f95130edcb67a",
+        "bytes": 2664183
+      },
+      "referenceFileIds": [],
+      "groundTruth": {
+        "status": "pending_human",
+        "annotatedFrom": null,
+        "expectedVerdict": null,
+        "wrongSku": null,
+        "handArtifact": null,
+        "productError": null
+      }
+    }
+  ]
+}

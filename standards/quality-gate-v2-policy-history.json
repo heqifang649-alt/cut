@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "quality-gate-v2-policy-history.v1",
+  "entries": [
+    {
+      "policyVersion": "quality-gate-v2-policy.v1",
+      "sha256": "32c55598a670c1318eaeb0daafee25acc5d50471bb19f242c0ccc60c26140c75",
+      "status": "baseline"
+    }
+  ],
+  "rule": "A threshold or decision-policy change must use a new policyVersion and create a new benchmark manifest before it can be compared."
+}

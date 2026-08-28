@@ -149,12 +149,12 @@ export async function setQualityEvidenceV2ReviewDecision({ batchDir, sourceId, d
   });
 }
 
-export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames } = {}) {
+export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames } = {}) {
   const sourceId = String(file?.id || file?.storagePath || file?.absolutePath || "");
   const videoPath = sourcePath(root, batch, batchDir, file || {});
   const policy = await loadPolicy(policyPath);
   const sourceHash = await fileHash(videoPath);
-  const evidenceFile = path.join(batchDir, QUALITY_EVIDENCE_V2_FILE);
+  const evidenceFile = path.join(artifactDir, QUALITY_EVIDENCE_V2_FILE);
   const existing = await readJson(evidenceFile, null);
   const previous = existing?.sources?.find((entry) => entry.sourceId === sourceId && entry.sourceHash === sourceHash && entry.policyVersion === policy.policyVersion);
   if (previous?.decision?.verdict) return toValidationResult(previous);
@@ -165,7 +165,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
   catch { technical = null; }
   const technicalResult = technical ? (evaluateTechnical(technical) || { verdict: "accept", artifacts: [] }) : { verdict: "review", rejectReason: "technical_probe_failed", artifacts: [] };
   const frames = technical?.duration
-    ? await extractQualityEvidenceFrames({ videoPath, sourceId, batchDir, duration: technical.duration, policy, ffmpeg, extract: extractFrames }).catch(() => [])
+    ? await extractQualityEvidenceFrames({ videoPath, sourceId, batchDir: artifactDir, duration: technical.duration, policy, ffmpeg, extract: extractFrames }).catch(() => [])
     : [];
   const record = {
     schemaVersion: QUALITY_EVIDENCE_V2_SCHEMA_VERSION,
@@ -188,7 +188,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
     const model = resolved.config.strongModel || resolved.config.fastModel || resolved.config.candidateModels?.[0];
     if (!resolved.config.baseUrl || !resolved.config.apiKey || !model) record.analysisStatus = "not_run";
     else {
-      const groups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
+      const groups = (await readJson(path.join(sourceBatchDir, "product-groups.json"), null))?.groups || [];
       const group = groupForFile(file, groups);
       const refs = productReferencesForGroup(group || {}, (batch.files || []).filter((item) => item.kind === "product_refs"), 2);
       const referenceImages = (await Promise.all(refs.map((reference) => imageDataUrl(sourcePath(root, batch, batchDir, reference))))).filter(Boolean);
