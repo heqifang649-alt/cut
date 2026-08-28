@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "quality-gate-v2-baseline-status.v1",
+  "manifest": "ground-truth-manifest.v1.json",
+  "manifestVersion": "quality-gate-v2-ground-truth.v1",
+  "policyVersion": "quality-gate-v2-policy.v1",
+  "generatedAt": "2026-08-28T06:09:26.000Z",
+  "status": "BLOCKED_GROUND_TRUTH_INCOMPLETE",
+  "frozenSamples": 200,
+  "confirmedHumanLabels": 0,
+  "reason": "No P0/P1 metric, false-positive list, false-negative list, critical-miss list, or repeatability result is valid until all frozen samples have independent human Ground Truth.",
+  "productionGate": "ENABLE_QUALITY_GATE_V2=false"
+}
