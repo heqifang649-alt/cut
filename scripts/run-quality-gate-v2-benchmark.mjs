@@ -30,11 +30,11 @@ async function assertPolicyBaseline(manifest) {
   }
 }
 
-async function runOnce({ manifest, runId }) {
+async function runOnce({ manifest, runId, samples = manifest.samples }) {
   const batches = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"));
   const runDir = path.join(path.dirname(manifestPath), "runs", runId);
   const results = [];
-  for (const sample of manifest.samples) {
+  for (const sample of samples) {
     const batch = batches.find((item) => item.id === sample.batchId);
     const file = batch?.files?.find((item) => item.id === sample.fileId && item.kind === "products");
     if (!batch || !file) {
@@ -48,7 +48,7 @@ async function runOnce({ manifest, runId }) {
     const sourceEvidence = evidence?.sources?.find((item) => item.sourceId === file.id) || null;
     results.push({ id: sample.id, verdict: result.verdict, reason: sourceEvidence?.decision?.reason || result.rejectReason || null, evidence: sourceEvidence });
   }
-  const run = { schemaVersion: "quality-gate-v2-benchmark-run.v1", runId, createdAt: new Date().toISOString(), manifest: path.relative(root, manifestPath).replaceAll("\\", "/"), results };
+  const run = { schemaVersion: "quality-gate-v2-benchmark-run.v1", runId, createdAt: new Date().toISOString(), manifest: path.relative(root, manifestPath).replaceAll("\\", "/"), sampleCount: samples.length, results };
   await writeJson(path.join(runDir, "run.json"), run);
   return { run, runDir };
 }
@@ -64,7 +64,8 @@ if (repeatability) {
     throw new Error("Repeatability requires 30 independently human-labelled samples.");
   }
   const runs = [];
-  for (let index = 1; index <= 3; index += 1) runs.push((await runOnce({ manifest, runId: `${new Date().toISOString().replaceAll(/[:.]/g, "-")}-repeat-${index}` })).run);
+  const repeatabilitySamples = manifest.samples.filter((sample) => sample.groundTruth.status === "confirmed").slice(0, 30);
+  for (let index = 1; index <= 3; index += 1) runs.push((await runOnce({ manifest, samples: repeatabilitySamples, runId: `${new Date().toISOString().replaceAll(/[:.]/g, "-")}-repeat-${index}` })).run);
   const report = evaluateVerdictRepeatability(manifest, runs);
   const reportPath = path.join(path.dirname(manifestPath), "runs", `repeatability-${new Date().toISOString().replaceAll(/[:.]/g, "-")}.json`);
   await writeJson(reportPath, report);

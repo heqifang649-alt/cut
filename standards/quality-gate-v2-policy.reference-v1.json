@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "quality-gate-v2-policy.v1",
+  "policyVersion": "quality-gate-v2-policy.reference-v1",
+  "sampleFrameRatios": [0, 0.25, 0.5, 0.75, 0.99],
+  "provider": { "minimumConfidence": 0.7 },
+  "severity": { "reject": ["critical"], "review": ["suspected", "unknown"] },
+  "product": { "reject": ["mismatch"], "review": ["uncertain"] },
+  "usability": { "reject": ["unusable"], "review": ["uncertain"] }
+}

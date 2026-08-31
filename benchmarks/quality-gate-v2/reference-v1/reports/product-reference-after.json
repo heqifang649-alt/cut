@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-08-31T04:06:43.581Z",
+  "sourceBaselineRunId": "2026-08-28T10-43-53-501Z",
+  "track": "product-reference",
+  "status": "COMPLETE",
+  "samples": 74,
+  "metrics": {
+    "wrongSkuRecall": 0.3333,
+    "productErrorRecall": 0.25,
+    "referenceMatchFailure": 2,
+    "productCriticalMiss": 3,
+    "verdicts": {
+      "accept": 33,
+      "review": 32,
+      "reject": 9
+    },
+    "productCriticalMissRate": 0.25
+  },
+  "cases": {
+    "referenceMatchFailure": [
+      "qgv2-036",
+      "qgv2-037"
+    ],
+    "productCriticalMiss": [
+      "qgv2-001",
+      "qgv2-003",
+      "qgv2-151"
+    ]
+  },
+  "runId": "2026-08-31T02-53-19-059Z",
+  "gate": "FAIL",
+  "beforeAfter": {
+    "referenceCoverage": {
+      "before": {
+        "referencedSamples": 63,
+        "totalFrozenSamples": 200,
+        "rate": 0.315
+      },
+      "after": {
+        "referencedSamples": 74,
+        "totalFrozenSamples": 200,
+        "rate": 0.37
+      }
+    },
+    "wrongSkuRecall": {
+      "before": 0.3333,
+      "after": 0.3333
+    },
+    "productErrorRecall": {
+      "before": 0.375,
+      "after": 0.25
+    }
+  }
+}

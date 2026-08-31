@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-08-31T04:06:43.581Z",
+  "sourceBaselineRunId": "2026-08-28T10-43-53-501Z",
+  "track": "missing-reference-safety",
+  "status": "PASS",
+  "samples": 126,
+  "metrics": {
+    "evidenceInsufficientRate": 0.7381,
+    "reviewRate": 0.7381,
+    "accidentalAcceptRate": 0,
+    "accidentalAccept": 0
+  }
+}

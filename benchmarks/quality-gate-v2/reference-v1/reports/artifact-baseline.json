@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-08-31T04:06:43.581Z",
+  "sourceBaselineRunId": "2026-08-28T10-43-53-501Z",
+  "track": "artifact",
+  "status": "COMPLETE",
+  "samples": 200,
+  "metrics": {
+    "handArtifact": {
+      "positives": 11,
+      "recall": 0
+    },
+    "bodyArtifact": {
+      "positives": 8,
+      "recall": 0
+    },
+    "temporalArtifact": {
+      "positives": 27,
+      "recall": 0
+    },
+    "artifactCriticalMiss": 4,
+    "falseRejectRate": 0.227,
+    "verdictRepeatability": 0.8667,
+    "artifactCriticalMissRate": 0.1481
+  },
+  "cases": {
+    "artifactCriticalMiss": [
+      "qgv2-097",
+      "qgv2-106",
+      "qgv2-116",
+      "qgv2-121"
+    ]
+  },
+  "scope": "Baseline evidence only; no specialized hand/body/temporal detector has been added in this run.",
+  "gate": "FAIL"
+}

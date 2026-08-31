@@ -7,7 +7,7 @@ import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { resolveProviderConfig, safeProviderError } from "../lib/ai-provider-config.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
-import { productReferencesForGroup } from "../lib/product-reference-match.mjs";
+import { productReferenceType, representativeProductReferencesForGroup } from "../lib/product-reference-match.mjs";
 import { QUALITY_EVIDENCE_V2_PROMPT_VERSION, QUALITY_EVIDENCE_V2_SCHEMA_VERSION, decideQualityGateV2, parseQualityEvidenceProvider, qualityEvidenceProviderJsonSchema, toValidationResult } from "../lib/quality-evidence-v2.mjs";
 import { evaluateTechnical, probeTechnical } from "./ai-video-validator.mjs";
 
@@ -114,14 +114,14 @@ function providerRunner(config, root) {
   });
 }
 
-async function requestProviderEvidence({ runner, model, sourceId, prompt, images }) {
+async function requestProviderEvidence({ runner, model, sourceId, prompt, images, signal }) {
   const parse = (response) => parseQualityEvidenceProvider(response.text, { expectedSourceId: sourceId });
   try {
-    const response = await runner.complete({ model, prompt, images, jsonSchema: qualityEvidenceProviderJsonSchema(), capability: "structured" });
+    const response = await runner.complete({ model, prompt, images, jsonSchema: qualityEvidenceProviderJsonSchema(), capability: "structured", signal });
     return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null } };
   } catch (nativeError) {
     try {
-      const response = await runner.complete({ model, prompt: `${prompt}\nNative schema was unavailable. Return only valid JSON matching the required schema.`, images, capability: "structured" });
+      const response = await runner.complete({ model, prompt: `${prompt}\nNative schema was unavailable. Return only valid JSON matching the required schema.`, images, capability: "structured", signal });
       return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null, jsonFallback: true } };
     } catch (fallbackError) {
       const error = fallbackError instanceof ProviderAdapterError ? fallbackError : nativeError;
@@ -149,7 +149,7 @@ export async function setQualityEvidenceV2ReviewDecision({ batchDir, sourceId, d
   });
 }
 
-export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames } = {}) {
+export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides } = {}) {
   const sourceId = String(file?.id || file?.storagePath || file?.absolutePath || "");
   const videoPath = sourcePath(root, batch, batchDir, file || {});
   const policy = await loadPolicy(policyPath);
@@ -182,6 +182,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
     technical: { verdict: technicalResult.verdict, rejectReason: technicalResult.rejectReason || null, details: technical },
     analysisStatus: "not_run",
     providerEvidence: null,
+    referenceCoverage: { complete: false, references: [] },
   };
   if (technicalResult.verdict === "accept" && frames.length === 5) {
     const resolved = await resolveProviderConfig(root, env);
@@ -190,14 +191,24 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
     else {
       const groups = (await readJson(path.join(sourceBatchDir, "product-groups.json"), null))?.groups || [];
       const group = groupForFile(file, groups);
-      const refs = productReferencesForGroup(group || {}, (batch.files || []).filter((item) => item.kind === "product_refs"), 2);
+      const refs = (Array.isArray(referenceOverrides) && referenceOverrides.length
+        ? referenceOverrides
+        : representativeProductReferencesForGroup(group || {}, (batch.files || []).filter((item) => item.kind === "product_refs"), 5)).slice(0, 5);
       const referenceImages = (await Promise.all(refs.map((reference) => imageDataUrl(sourcePath(root, batch, batchDir, reference))))).filter(Boolean);
+      record.referenceCoverage = { complete: referenceImages.length > 0, references: refs.map((reference) => ({ sourcePath: reference.absolutePath || reference.storagePath || null, mappedFilename: reference.mappedFilename || reference.name || null, sha256: reference.sha256 || null, referenceType: reference.referenceType || productReferenceType(reference) })) };
       const frameImages = (await Promise.all(frames.map((frame) => imageDataUrl(frame.absolutePath)))).filter(Boolean);
       if (!referenceImages.length || frameImages.length !== 5) record.analysisStatus = "evidence_insufficient";
       else {
         record.provider = resolved.config.providerName || "configured_provider";
         record.model = model;
-        const result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements }), images: [...referenceImages, ...frameImages] });
+        const timeout = new AbortController();
+        const timer = setTimeout(() => timeout.abort(new ProviderAdapterError("Quality Gate V2 provider request timed out.", { code: "PROVIDER_TIMEOUT" })), 120_000);
+        let result;
+        try {
+          result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements }), images: [...referenceImages, ...frameImages], signal: timeout.signal });
+        } finally {
+          clearTimeout(timer);
+        }
         if (result.providerEvidence) {
           record.providerEvidence = result.providerEvidence;
           record.telemetry = result.telemetry;

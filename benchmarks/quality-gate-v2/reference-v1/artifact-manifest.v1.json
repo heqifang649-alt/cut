@@ -1,13 +1,10 @@
 {
-  "schemaVersion": "quality-gate-v2-benchmark.v1",
-  "manifestVersion": "quality-gate-v2-ground-truth.v1",
-  "status": "FROZEN_HUMAN_GROUND_TRUTH",
-  "frozenAt": "2026-08-28T06:09:26.186Z",
-  "immutableRule": "Ground truth may only be written by an independent human annotator. Benchmark results must never modify this file.",
-  "policyBaseline": {
-    "policyVersion": "quality-gate-v2-policy.v1",
-    "sha256": "32c55598a670c1318eaeb0daafee25acc5d50471bb19f242c0ccc60c26140c75"
-  },
+  "schemaVersion": "quality-gate-v2-artifact-track.v1",
+  "manifestVersion": "quality-gate-v2-artifact-v1",
+  "policyVersion": "quality-gate-v2-policy.v1",
+  "createdAt": "2026-08-31T02:42:40.153Z",
+  "sourceManifest": "../v1/ground-truth-manifest.v1.json",
+  "immutableRule": "Uses frozen human Ground Truth only; it does not alter Ground Truth or production behavior.",
   "samples": [
     {
       "id": "qgv2-001",
@@ -5353,11 +5350,5 @@
         "temporalArtifact": false
       }
     }
-  ],
-  "groundTruthFrozenAt": "2026-08-28T10:43:43.916Z",
-  "groundTruthSource": {
-    "schemaVersion": "quality-gate-v2-pilot-labels.v2",
-    "labelFileSha256": "43fc5026137318b88b27739e3610d8321327b6b8de522758ed3a6183bf60a647",
-    "labels": 200
-  }
+  ]
 }

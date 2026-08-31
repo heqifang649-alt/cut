@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { productReferenceForGroup, productReferencesForGroup } from "../lib/product-reference-match.mjs";
+import { productReferenceForGroup, productReferencesForGroup, representativeProductReferencesForGroup } from "../lib/product-reference-match.mjs";
 
 const references = [
   { relativePath: "shared/gc1反.jpg" },
@@ -32,4 +32,11 @@ test("matches numeric product sessions to imported sample-photo suffixes without
   const samples = [{ relativePath: "refs/样衣1.jpg" }, { relativePath: "refs/样衣2.jpg" }];
   assert.equal(productReferenceForGroup({ id: "1", files: ["1.mp4"] }, samples)?.relativePath, "refs/样衣1.jpg");
   assert.equal(productReferenceForGroup({ id: "2", files: ["2.mp4"] }, samples)?.relativePath, "refs/样衣2.jpg");
+});
+
+test("selects representative reference types within the five-image cap", () => {
+  const typed = ["gc1正.jpg", "gc1背.jpg", "gc1logo.jpg", "gc1图案.jpg", "gc1细节.jpg", "gc1细节2.jpg"].map((name) => ({ relativePath: `refs/${name}` }));
+  assert.deepEqual(representativeProductReferencesForGroup({ id: "gc1-m1" }, typed, 5).map((file) => file.relativePath), [
+    "refs/gc1正.jpg", "refs/gc1背.jpg", "refs/gc1logo.jpg", "refs/gc1图案.jpg", "refs/gc1细节.jpg",
+  ]);
 });

@@ -1,0 +1,2066 @@
+{
+  "schemaVersion": "quality-gate-v2-reference-track.v1",
+  "manifestVersion": "quality-gate-v2-reference-baseline-v1",
+  "policyVersion": "quality-gate-v2-policy.reference-v1",
+  "createdAt": "2026-08-31T02:42:40.152Z",
+  "sourceManifest": "../v1/ground-truth-manifest.v1.json",
+  "immutableRule": "Reference overrides are benchmark-only provenance records; they must not alter Batch, ProductGroup, Ground Truth, or production indexing.",
+  "samples": [
+    {
+      "id": "qgv2-001",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "40aa23dc-2c06-4ab1-9e6c-518d37a35139",
+      "source": {
+        "name": "gc1-m1 (2).mp4",
+        "sha256": "9f1097fe8e0ae18c06cfb251a807e8bd701c3b81cce3e4c49f2ba3f746dc3080",
+        "bytes": 42960360
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:47:40.669Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": true,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-003",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "1ac1fa6c-4bce-4708-aa8d-308557c1b32f",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:52:32.133Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-004",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "fed1b263-7f26-4e81-8c07-96315b34100b",
+      "source": {
+        "name": "TT6-M1 (3).mp4",
+        "sha256": "f8fc8bee9b7c62134e384c3d4447f372161e3dcdfc96cec941945a53ad02ed9f",
+        "bytes": 2561969
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:52:35.975Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-006",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "dac76f8c-dd10-407c-bf11-6fe556a8beb3",
+      "source": {
+        "name": "gc3-m1 (5).mp4",
+        "sha256": "c4556b93ffa3c7640eb047affb34e258c37b9a6691bd3a19c64abba30a04bf44",
+        "bytes": 46210368
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:52:41.831Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-007",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "d1a636c1-7673-485a-9b4f-c6927e3945e6",
+      "source": {
+        "name": "TT6-M1 (4).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:52:54.936Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-013",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "5922c1f1-e880-4751-82f0-87c3fc5b0df2",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:54:19.520Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-015",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "7b4ced68-2c3f-4b4f-9fe5-64b9336ed9ea",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:54:46.481Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-016",
+      "batchId": "d737c0af-b50d-4e99-bdd6-e231cf2bab66",
+      "fileId": "f8dc18c5-e41d-40ba-afef-7de8ba58dfd5",
+      "source": {
+        "name": "C4176.MP4",
+        "sha256": "94892c8613d717770cecebc68f1119f115ec3be88e1019c79d47a38180b9f913",
+        "bytes": 268725840
+      },
+      "referenceFileIds": [
+        "1e2998d8-200a-4f15-8151-e3ed7a6bca4f"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:54:49.816Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-019",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "00971085-f475-44cb-960f-162eaeedaf10",
+      "source": {
+        "name": "gc3-m1 (1).mp4",
+        "sha256": "c2f5e9aab5adc7f6d73c2bda0e2a7a11083f45e190f2c5b2a2ac0c757169ce5d",
+        "bytes": 46173801
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:55:20.657Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-022",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "d1c73eac-9edc-4335-8684-6c059b2c91f8",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:55:48.483Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-023",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "d6188b20-6a21-4414-a183-9debbe046862",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:56:02.368Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-025",
+      "batchId": "5bb69aa8-a69e-4831-a9bb-21ecdafecce5",
+      "fileId": "2c1642af-8804-4598-a8ec-191039b46d7b",
+      "source": {
+        "name": "TT1-M1  (1).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "c4a1716b-489b-421c-99c1-cc5e22bb4419",
+        "8ab8c66d-a52f-4e60-8291-235c68c02493"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:56:24.300Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-031",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "20b69700-a365-4815-8cc2-9686c60e5108",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:57:44.706Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-036",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "f803f29f-b0f0-4ba2-af88-472dac0218ca",
+      "source": {
+        "name": "TT5-M1 (2).mp4",
+        "sha256": "db05d87813666b12f8ab5407e3fb3ec46dc9adfeb6e72fee85ddc8861802a15c",
+        "bytes": 1581207
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:59:09.708Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-037",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "3bd39569-e89d-4012-a78e-25a633ace94e",
+      "source": {
+        "name": "TT5-M1 (2).mp4",
+        "sha256": "db05d87813666b12f8ab5407e3fb3ec46dc9adfeb6e72fee85ddc8861802a15c",
+        "bytes": 1581207
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T08:59:21.350Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-045",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "6c4291ea-c472-4534-b5df-d273ccc82e05",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:01:46.006Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-049",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "834db489-d183-4ac7-ae10-3a5abc106f3d",
+      "source": {
+        "name": "TT5-M2 (2).mp4",
+        "sha256": "5358d7eef8c86bce34618fad8421951b9579f525fcfac1baf994224218798344",
+        "bytes": 2655555
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:02:57.714Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-058",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "301c162c-aee4-45cf-b039-dedf8368865a",
+      "source": {
+        "name": "gc3-m1 (4).mp4",
+        "sha256": "2ba4d8b610e4664dc4124f96ec56e5509e2cb4f74f38ec1e02ccaf2e1f6ecac6",
+        "bytes": 47122534
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:04:44.296Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-062",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "1c0fea89-d2fb-4321-8f25-91fab09a69f3",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:05:40.061Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-064",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "f91669e9-bae7-4cf8-be0f-8abbce10ef79",
+      "source": {
+        "name": "TT5-M1 (3).mp4",
+        "sha256": "3a80bfc8bf26fcc7afb776384fbffdca875ee56001fa736a0f3e3e82e2903b8a",
+        "bytes": 2604710
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:10:42.969Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-066",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "60e748a0-8530-4338-b021-d0a7c05540f6",
+      "source": {
+        "name": "gc1-m2 (2).mp4",
+        "sha256": "7542f5e5a197672cf72e3cd7b37c46f9985ff4ddb1fa6f477cc8f0bb53b7f6da",
+        "bytes": 62718518
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:11:17.701Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-072",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "71b03b35-adf7-498c-88e4-28563ce5b6a3",
+      "source": {
+        "name": "TT6-M1 (3).mp4",
+        "sha256": "f8fc8bee9b7c62134e384c3d4447f372161e3dcdfc96cec941945a53ad02ed9f",
+        "bytes": 2561969
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:13:54.893Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-076",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "8f96a1d1-7366-47e5-92e0-7f42e272560b",
+      "source": {
+        "name": "TT5-M1 (1).mp4",
+        "sha256": "2822b4d2e7cf734aefbb24f4173c45296935db1a66654837a00548b6accf2c6f",
+        "bytes": 2671418
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:14:40.951Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-081",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "56e78030-452a-4703-ba2e-6176ce88242f",
+      "source": {
+        "name": "gc3-m1 (3).mp4",
+        "sha256": "8d5a2cd725d4ddf2b6f82b471fa75e16bc22ab97fab60384aeb77c998126a980",
+        "bytes": 40615039
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:15:57.393Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-083",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "2561d771-f665-49e4-9a4c-218fa8281bac",
+      "source": {
+        "name": "TT5-M1 (4).mp4",
+        "sha256": "5d1051dc691aee934cafe77f252ad3c17f2dfb9caf0c5dcad8d29d5463c44f90",
+        "bytes": 2670120
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:16:16.976Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-085",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "389892d1-37c7-4d0e-9ace-e6220731000b",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:16:33.880Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-090",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "21dc5619-df00-4a96-99f2-a9ce2bdc3fec",
+      "source": {
+        "name": "TT2-M1 (2).mp4",
+        "sha256": "fa3c7ca5bab0bf35f614433102a471c826c31bcbebf6887265853a733c44e7bc",
+        "bytes": 2053012
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:17:53.224Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-092",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "00c7cb77-70ae-42b2-b4d1-73e43419282b",
+      "source": {
+        "name": "TT5-M2 (1).mp4",
+        "sha256": "a8a43981a63a32cb7f2e4c94f6c4e4bd53b804f266dd5b9b737df95d98ca7162",
+        "bytes": 2713024
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:18:30.574Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-095",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "3fd05635-bd84-46da-99f8-9b7bbb67b8fd",
+      "source": {
+        "name": "TT1-M1 (3).mp4",
+        "sha256": "873b2b013a865e6477ae604802c7cd109922bc492fd9fcfb64053e8c99c2e286",
+        "bytes": 2619062
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:19:40.533Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-097",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "99909d8c-aec2-4c43-9ba0-aeb5bfda38c4",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:20:07.843Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-100",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "a4c321e5-d460-41a7-908b-f33a2e8db959",
+      "source": {
+        "name": "gc3-m1 (5).mp4",
+        "sha256": "c4556b93ffa3c7640eb047affb34e258c37b9a6691bd3a19c64abba30a04bf44",
+        "bytes": 46210368
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T09:20:51.125Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": true,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-106",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "fileId": "4eac64d8-9fac-491d-894a-02f4067f75e3",
+      "source": {
+        "name": "gc2-m1 (1).mp4",
+        "sha256": "4567815432efe751ab65b6f936250cb200f17202d99ec5fdc7f5388973665d30",
+        "bytes": 36061317
+      },
+      "referenceFileIds": [
+        "c4b0d74d-f2e5-4ce3-b53a-3fdc6014a2cd",
+        "567574b9-18c6-4faf-bb4d-c15d0f4d6f79",
+        "f9d25be5-01b3-4b80-96c0-5a6a0637f72a",
+        "a371b1dc-319b-4dad-a8e6-603b02ba2f4a",
+        "cffc745b-4645-427e-a22a-d09fe2c86de7"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:20:57.124Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": true,
+        "productError": false,
+        "bodyArtifact": true,
+        "objectArtifact": false,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-107",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "4353fb3e-58d1-496c-9bbb-d1dc5691f3ef",
+      "source": {
+        "name": "gc3-m1 (1).mp4",
+        "sha256": "c2f5e9aab5adc7f6d73c2bda0e2a7a11083f45e190f2c5b2a2ac0c757169ce5d",
+        "bytes": 46173801
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:21:19.105Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-108",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "b728c6d9-e43c-4db2-af47-4246b824aba2",
+      "source": {
+        "name": "TT4-M1 (5).mp4",
+        "sha256": "9b26bd9e19cf63157c2dac676449d23d6dac1e36cc3c16e93e5ad39ec94b272d",
+        "bytes": 2601978
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:21:36.721Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-109",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "c03614b7-65e6-4f2e-877f-7235c14a6e68",
+      "source": {
+        "name": "TT1-M1 (3).mp4",
+        "sha256": "873b2b013a865e6477ae604802c7cd109922bc492fd9fcfb64053e8c99c2e286",
+        "bytes": 2619062
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:21:51.736Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-112",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3cca71c5-8f30-4e75-815f-699b7f8e1d38",
+      "source": {
+        "name": "TT5-M2 (4).mp4",
+        "sha256": "5b8166bf12399db27da6ea4704a7ba1296dc424d35dd8b81a91f95130edcb67a",
+        "bytes": 2664183
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:23:12.380Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": true,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-114",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "8e2450c5-a076-41a3-a3ef-8e5046576b6a",
+      "source": {
+        "name": "gc1-m1 (1).mp4",
+        "sha256": "6a1ea8579f4295a4f8d9564cbeaab7e7fca8c7593ed84cefdbab8de1c81cacf5",
+        "bytes": 46051066
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:23:44.560Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-116",
+      "batchId": "dba0174c-6ee7-47e5-b356-91633b12d4f9",
+      "fileId": "602cb1f5-51b1-4cb8-8248-6a90a93f2fd3",
+      "source": {
+        "name": "gc2-m1 (1).mp4",
+        "sha256": "4567815432efe751ab65b6f936250cb200f17202d99ec5fdc7f5388973665d30",
+        "bytes": 36061317
+      },
+      "referenceFileIds": [
+        "24444421-c568-4215-968c-a57217a50fe4",
+        "b0934f62-ddfe-4f29-8945-3333e12fc0d1",
+        "d70dc53b-0500-436f-927d-8084957ca61c",
+        "944e8fd5-1231-4389-be70-55fd01b0bf4e",
+        "f4b72f02-cd03-4381-8050-6b30372b459b"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:24:15.650Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": true,
+        "productError": false,
+        "bodyArtifact": true,
+        "objectArtifact": false,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-117",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "ac8b7823-a554-4366-9505-6aa89ba8b69f",
+      "source": {
+        "name": "TT5-M1 (1).mp4",
+        "sha256": "2822b4d2e7cf734aefbb24f4173c45296935db1a66654837a00548b6accf2c6f",
+        "bytes": 2671418
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:24:27.288Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-118",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3c7f0942-1a5a-457e-94f2-3e9acaccd86e",
+      "source": {
+        "name": "TT4-M1 (4).mp4",
+        "sha256": "19853200a3515b58258926c6e74a5f3c3c2facb14d7b1cbff7b4e596a469a989",
+        "bytes": 2655505
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:24:41.778Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-121",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "056e2025-7266-46bf-91d8-3c0ea3199bd0",
+      "source": {
+        "name": "TT1-M1 (2).mp4",
+        "sha256": "3569e6f44b53b8bc3a01d12acc637274f11436bd5ab9180a3ec15ff63ef71779",
+        "bytes": 2599113
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:26:30.192Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-123",
+      "batchId": "5bb69aa8-a69e-4831-a9bb-21ecdafecce5",
+      "fileId": "1bde84e2-b44a-4ad6-81cb-9f7ae396ac5b",
+      "source": {
+        "name": "TT1-M1  (3).mp4",
+        "sha256": "12c281cc6a60173f5bb41a4ad92d4751deb8d185fbcfeca3384c30d34efab15d",
+        "bytes": 2570591
+      },
+      "referenceFileIds": [
+        "c4a1716b-489b-421c-99c1-cc5e22bb4419",
+        "8ab8c66d-a52f-4e60-8291-235c68c02493"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:26:51.842Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-128",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "364c7162-e79d-4464-8aab-a6f86a7a515c",
+      "source": {
+        "name": "TT5-M2 (2).mp4",
+        "sha256": "5358d7eef8c86bce34618fad8421951b9579f525fcfac1baf994224218798344",
+        "bytes": 2655555
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:28:47.721Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-130",
+      "batchId": "d737c0af-b50d-4e99-bdd6-e231cf2bab66",
+      "fileId": "9742e318-c6eb-4480-9a32-c097cf7e25ab",
+      "source": {
+        "name": "C4173.MP4",
+        "sha256": "be49c37fc44a1c7c6f066614f7b39b530e6e6ac0b8d16d456c35e1eefeac1e5e",
+        "bytes": 470068616
+      },
+      "referenceFileIds": [
+        "1e2998d8-200a-4f15-8151-e3ed7a6bca4f"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:29:09.300Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-138",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "6fb8a764-7504-48a5-bff2-4387b2e135ab",
+      "source": {
+        "name": "TT3-M1 (1).mp4",
+        "sha256": "31671ca597bc1d2d55ed5eb87b54fa9bbfafa1c5e9f9f73a2f85e1be7eaefee0",
+        "bytes": 2138424
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:30:22.147Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-141",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "4b849829-445d-48a9-ac48-255e051b34bb",
+      "source": {
+        "name": "TT3-M1 (2).mp4",
+        "sha256": "7dbaf0b0ccb27e101d515399291ff00a697bfe688dcc2c7ef544c7a3bbc7bfd0",
+        "bytes": 2403234
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:30:53.359Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-145",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "f0a6d227-db23-44f2-aa08-6bbfbca43b4b",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:31:28.556Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-147",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "d160cc55-8ec3-492a-b082-bd25ccdafb04",
+      "source": {
+        "name": "TT4-M1 (2).mp4",
+        "sha256": "518ae7b435f8b0ec8b5bee4a76f813017a104385d68e238e8975b91d65f1608d",
+        "bytes": 2601490
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:31:52.969Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-151",
+      "batchId": "1315a6e8-d78a-4c79-904b-731c42b59c1c",
+      "fileId": "362cd27a-7607-46d8-ae59-d947ea101446",
+      "source": {
+        "name": "1.mp4",
+        "sha256": "2d9f53cd82c1a401a03deecd0c3922f96f323fcc5af508ea6a09dc1a30628588",
+        "bytes": 17877789
+      },
+      "referenceFileIds": [
+        "b2421f6a-69df-453d-ba03-588c2ce69b6c",
+        "e822cd15-91da-416d-a1e9-4a1672717363"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:32:37.344Z",
+        "expectedVerdict": "reject",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": true,
+        "bodyArtifact": true,
+        "objectArtifact": true,
+        "temporalArtifact": true
+      }
+    },
+    {
+      "id": "qgv2-152",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "b8500198-5b63-4e76-8e83-17dec009ace2",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:32:49.480Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-156",
+      "batchId": "d493c143-83f6-4424-b87b-08af45332e33",
+      "fileId": "12c6ab09-317e-4c13-bce3-9b5c28e0c998",
+      "source": {
+        "name": "TT2-M1 (1).mp4",
+        "sha256": "def98cef68bcb23c5f58c05c73f24e9eddc6175608c762e84e6bf6bc7093755f",
+        "bytes": 23936843
+      },
+      "referenceFileIds": [
+        "c1c547a1-e821-41df-8d26-dd18b8aa0fd3",
+        "5287b3c6-21b8-4cf4-93da-f263aa85c737",
+        "1b60a268-2f82-438d-b044-4d25d0f2e708",
+        "8ecb274a-33e8-415f-ab04-bc1b00950c17"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:33:28.583Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-160",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "252adb1f-8b40-481a-b72a-636d5c528c1f",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:34:16.900Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-164",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "39864b65-8518-4579-b525-140cf51ca160",
+      "source": {
+        "name": "TT6-M1 (4).mp4",
+        "sha256": "71a673944f203ea49edc336e247095a384a287f7cbb5e264a59706d4b644733f",
+        "bytes": 2583299
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:35:01.422Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-166",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "433ae3b4-90be-4bbb-a63d-b8ea11362b37",
+      "source": {
+        "name": "TT6-M1 (1).mp4",
+        "sha256": "ce855da7d1006e9009c136e583b2769834478d95eb0ccecdd188a83bd2b268e5",
+        "bytes": 2669246
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:35:26.366Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-171",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "3f86f631-9587-45e2-81b0-b118f300094f",
+      "source": {
+        "name": "TT4-M1 (6).mp4",
+        "sha256": "70ef93872fd83b2acddac980ed5961e8f39aedfd9cf07bef6b916c51e084add5",
+        "bytes": 2658778
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:36:18.927Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-173",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "68b3fe40-f1d6-4337-9171-9e8723a83d92",
+      "source": {
+        "name": "TT3-M1 (2).mp4",
+        "sha256": "7dbaf0b0ccb27e101d515399291ff00a697bfe688dcc2c7ef544c7a3bbc7bfd0",
+        "bytes": 2403234
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:36:49.539Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-182",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "0a943549-3aaf-4919-b0fb-3827cc85ca9d",
+      "source": {
+        "name": "TT2-M1 (3).mp4",
+        "sha256": "88362ccfe010ed5a93975e6d3858960bbce110fbdc7c5376514f77f8e393b6ee",
+        "bytes": 1978085
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:38:19.564Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-184",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "362ba964-173a-45b2-84b1-8cc1ab84a210",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:38:39.114Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-189",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "2da64f91-7b6f-4491-a2ea-7236ccb8fe11",
+      "source": {
+        "name": "TT3-M1 (3).mp4",
+        "sha256": "105c6974b55e3c5333158c58c211bd0d67cf98b03869f76fc8ea8543da3c0aa5",
+        "bytes": 2122314
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:39:33.664Z",
+        "expectedVerdict": "reject",
+        "wrongSku": true,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-192",
+      "batchId": "559023a9-a475-4965-be0b-2f995336dc96",
+      "fileId": "0ca6110d-7f71-481e-81cf-4ca995e30743",
+      "source": {
+        "name": "TT4-M1 (1).mp4",
+        "sha256": "b2c3ba131074234c939356a52bd5b651b27efe3e0b39ce1b4597a73c1c91b0ad",
+        "bytes": 2701788
+      },
+      "referenceFileIds": [
+        "9a9374e3-ae84-4b2e-b971-6aca992b86a3",
+        "67c35e2a-dd6f-4453-9d7b-3c816121b9a2",
+        "9e14cee4-ab78-4868-90f3-48c4d4ddcf09",
+        "8202f954-cb57-456f-8057-ac9dd7985d6b",
+        "07c0b377-1e2a-47bd-a521-70a9963469d2",
+        "0df92937-5107-401e-b2d3-e7c0dd1f70a7",
+        "9dbd3531-d079-4036-96b3-a125e2e6bbfd",
+        "cec9710d-d63d-4cf7-9f07-87471e1a3be2",
+        "eeba4529-3b3f-443a-a7a0-5d57c6fcd9e1",
+        "4368cbf2-ab99-41f7-b2c4-18d726524b61"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:40:10.588Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-193",
+      "batchId": "f1e8578b-f3b5-4ba4-973e-30268fd19d3a",
+      "fileId": "e5de1823-065e-48f1-aa3d-437ab07dbaa2",
+      "source": {
+        "name": "TT6-M1 (2).mp4",
+        "sha256": "12c281cc6a60173f5bb41a4ad92d4751deb8d185fbcfeca3384c30d34efab15d",
+        "bytes": 2570591
+      },
+      "referenceFileIds": [
+        "3d02e2a2-dab6-4c5f-ad46-12334cbee94a",
+        "200c418a-2c17-42de-8af3-a9106f1065a9",
+        "00f153c6-3d54-4a0e-b657-fced0d4ae1b2",
+        "f4ca2981-9628-4cb1-8576-ea7c9d537894",
+        "1d2a0c42-1cbe-4ea9-97d2-8cb3f0226d1f",
+        "d9c31024-aeb8-407e-ad80-7c715652796f",
+        "04bcb2ce-5dfc-479d-9142-28b800a3dc19",
+        "8bb5f7f0-8ae1-40fa-9d2f-47140b3cc40c",
+        "3ee3f49a-7abc-4504-92d2-57e2d82a7c23",
+        "c5f2c522-1ba6-4f2e-a6b3-a2d0afe47b4e"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:40:22.636Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-198",
+      "batchId": "6a4cad19-de7c-4ce3-87ae-82ff779167c2",
+      "fileId": "bb2342a4-8248-4d4f-bd9b-0a2d99bc9759",
+      "source": {
+        "name": "TT4-M1 (4).mp4",
+        "sha256": "19853200a3515b58258926c6e74a5f3c3c2facb14d7b1cbff7b4e596a469a989",
+        "bytes": 2655505
+      },
+      "referenceFileIds": [
+        "b1b047bc-ed1e-410c-bfe3-688bdb820680",
+        "99d794d7-e585-432e-b465-3e7a4ded798a",
+        "471330d9-ef74-4e8d-b8f5-9251b9332dc2",
+        "54f2f3e4-da2f-4ac7-9283-0d4e78d38eec",
+        "c4cf310a-ef80-4ea3-a1b3-8e33f15529e5",
+        "5b308d56-3d50-4bbb-ad55-06936741c16c",
+        "0dbcd16d-e8d1-4a3c-ae3b-252cc21f7879",
+        "aeb1c6fb-3b09-4f94-8652-15e39fa1d150"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:41:09.869Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    },
+    {
+      "id": "qgv2-199",
+      "batchId": "5224e1b5-d891-4acf-ad4d-c76953996554",
+      "fileId": "462483e6-080f-4e79-8ad3-90bfa9617ff8",
+      "source": {
+        "name": "TT2-M1 (1).mp4",
+        "sha256": "87adfdf1640e3a83c2f364e45cb01d25dcd68eb2939567427e682f04941ccc17",
+        "bytes": 2093901
+      },
+      "referenceFileIds": [
+        "54c5e1ed-b197-4f24-ad2f-73af2cf3021f",
+        "8c1f9bde-c109-4bdd-8d2e-0d1c2986135f",
+        "1af7f84e-210c-4907-9bf3-6112569dc437",
+        "8cd169ee-cf84-4052-bb4f-c54119cda9eb",
+        "d2b89bce-fa40-4c1d-98e1-d3855a23e8fb",
+        "ed132141-47d1-4e69-9957-b543340980a1",
+        "72bdea7a-9b8a-4010-addb-821f68b30acc",
+        "c8c3b31a-ba83-4471-a3a4-a8b318d7a2ff"
+      ],
+      "groundTruth": {
+        "status": "confirmed",
+        "annotatedFrom": "manual",
+        "annotationVersion": "quality-gate-v2-pilot-labels.v2",
+        "annotatedAt": "2026-08-28T10:41:20.546Z",
+        "expectedVerdict": "accept",
+        "wrongSku": false,
+        "handArtifact": false,
+        "productError": false,
+        "bodyArtifact": false,
+        "objectArtifact": false,
+        "temporalArtifact": false
+      }
+    }
+  ]
+}
