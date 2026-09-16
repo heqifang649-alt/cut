@@ -1,0 +1,1441 @@
+{
+  "policyVersion": "scheduler-v2.0-mva5",
+  "productionDefault": "v0-pilot",
+  "mode": "isolated_mp4_validation",
+  "sourceReport": "D:\\自动剪辑网站\\.project-governance\\evidence\\scheduler-v2-policy\\2026-09-16T07-26-39.464Z-632759b2-4a8f-47f4-8815-7ad4987ba8e6\\report.json",
+  "outputDirectory": "D:\\自动剪辑网站\\.project-governance\\evidence\\scheduler-render-validation\\2026-09-16T09-58-27.632Z-5e076690-9758-4568-a456-5d5ef6bb8d89",
+  "rows": [
+    {
+      "id": "RV1",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "productId": "gc3-m1",
+      "level": "A",
+      "plannedDuration": 10.472,
+      "shots": [
+        {
+          "shotId": "79ed4fadac7b07e81e1cc0db373f079d",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (5).mp4",
+          "start": 4.42,
+          "end": 6.5144,
+          "assignedRole": "opening",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "8f8e6e3e923cb14d0a243da03571e429",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (4).mp4",
+          "start": 4.42,
+          "end": 6.5144,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        },
+        {
+          "shotId": "facc336ef19be14d6525b87a89dac2f3",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (1).mp4",
+          "start": 4.42,
+          "end": 6.5144,
+          "assignedRole": "detail",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "detail"
+          ]
+        },
+        {
+          "shotId": "6c1fa6ecc775570f8dd81778d582dc06",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (2).mp4",
+          "start": 0,
+          "end": 2.0943999999999994,
+          "assignedRole": "variation",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "b5bc8c02b319dc299fbcfaa36de85034",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (3).mp4",
+          "start": 4.42,
+          "end": 6.514399999999999,
+          "assignedRole": "end",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        }
+      ],
+      "sameSourceReuse": [],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (5).mp4",
+          "size": 46210368,
+          "mtimeMs": 1782705439333.652
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (4).mp4",
+          "size": 47122534,
+          "mtimeMs": 1782705451521.3745
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (1).mp4",
+          "size": 46173801,
+          "mtimeMs": 1782714601945.0027
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (2).mp4",
+          "size": 47255667,
+          "mtimeMs": 1782704104845.291
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (3).mp4",
+          "size": 40615039,
+          "mtimeMs": 1782704109924.2524
+        }
+      ],
+      "actualDuration": 10.5,
+      "mp4": "RV1/output/gc3-m1.mp4",
+      "outputSha256": "bd5dc6f818dcdfe17032e9bb018454a641c35fd2f1e81dcd1c04748ef9989266",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "gc3-m1",
+              "reviewed_segments": 5,
+              "passed_segments": 5,
+              "min_product_match": 0.96,
+              "min_clothing_visibility": 0.76,
+              "min_confidence": 0.91
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 5
+          }
+        ]
+      },
+      "musicName": "06d761c9-ac5f-41c3-b460-2d64c83025f3-template-bgm.m4a",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 10.472,
+          "cuts": [
+            2.0944,
+            4.1888,
+            6.2832,
+            8.3776
+          ],
+          "hook": {
+            "text": "This has my go-to style lately..."
+          },
+          "cvr": {
+            "center_x_percent": 78,
+            "max_width_percent": 24,
+            "pointer_center_x_percent": 91,
+            "text": "Don't wait on this one."
+          }
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "gc3-m1",
+            "display_name": "gc3-m1",
+            "duration_seconds": 10.472,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "gc3-m1-S01",
+                "slot": "opening",
+                "duration": 2.0944,
+                "source_name": "gc3-m1 (5).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (5).mp4",
+                "source_in": 4.42,
+                "source_out": 6.5144,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 2.0944
+              },
+              {
+                "segment_id": "gc3-m1-S02",
+                "slot": "product",
+                "duration": 2.0944,
+                "source_name": "gc3-m1 (4).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (4).mp4",
+                "source_in": 4.42,
+                "source_out": 6.5144,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 2.0944,
+                "output_out": 4.1888
+              },
+              {
+                "segment_id": "gc3-m1-S03",
+                "slot": "detail",
+                "duration": 2.0944,
+                "source_name": "gc3-m1 (1).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (1).mp4",
+                "source_in": 4.42,
+                "source_out": 6.5144,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 4.1888,
+                "output_out": 6.2832
+              },
+              {
+                "segment_id": "gc3-m1-S04",
+                "slot": "variation",
+                "duration": 2.0944,
+                "source_name": "gc3-m1 (2).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (2).mp4",
+                "source_in": 0,
+                "source_out": 2.0944,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 6.2832,
+                "output_out": 8.3776
+              },
+              {
+                "segment_id": "gc3-m1-S05",
+                "slot": "end",
+                "duration": 2.0944,
+                "source_name": "gc3-m1 (3).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc3-m1 (3).mp4",
+                "source_in": 4.42,
+                "source_out": 6.5144,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 8.3776,
+                "output_out": 10.472
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV1/preview/frame-001.jpg",
+        "RV1/preview/frame-002.jpg",
+        "RV1/preview/frame-003.jpg",
+        "RV1/preview/frame-004.jpg",
+        "RV1/preview/frame-005.jpg",
+        "RV1/preview/frame-006.jpg",
+        "RV1/preview/frame-007.jpg",
+        "RV1/preview/frame-008.jpg",
+        "RV1/preview/frame-009.jpg",
+        "RV1/preview/frame-010.jpg",
+        "RV1/preview/frame-011.jpg",
+        "RV1/preview/frame-012.jpg",
+        "RV1/preview/frame-013.jpg",
+        "RV1/preview/frame-014.jpg",
+        "RV1/preview/frame-015.jpg",
+        "RV1/preview/frame-016.jpg",
+        "RV1/preview/frame-017.jpg",
+        "RV1/preview/frame-018.jpg",
+        "RV1/preview/frame-019.jpg",
+        "RV1/preview/frame-020.jpg",
+        "RV1/preview/frame-021.jpg"
+      ]
+    },
+    {
+      "id": "RV2",
+      "batchId": "0c8c23d7-69fc-42af-a93d-5a1b3103ec1f",
+      "productId": "gc1-m1",
+      "level": "B",
+      "plannedDuration": 10.472,
+      "shots": [
+        {
+          "shotId": "a914125105f12a4fa570c86ae150ae95",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1.mp4",
+          "start": 4.42,
+          "end": 7.038,
+          "assignedRole": "opening",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        },
+        {
+          "shotId": "90066d2ee90aa04e6461b9f33460447c",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (1).mp4",
+          "start": 4.42,
+          "end": 7.037999999999999,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "de7d5dafcaf9fd9cbe8099b2f7b9545b",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (3).mp4",
+          "start": 0,
+          "end": 2.6179999999999994,
+          "assignedRole": "variation",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "a29b7de3a48674a77672b4ca04a0e52a",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (2).mp4",
+          "start": 8.84,
+          "end": 11.458,
+          "assignedRole": "end",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        }
+      ],
+      "sameSourceReuse": [],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1.mp4",
+          "size": 50787774,
+          "mtimeMs": 1782715713291.1982
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (1).mp4",
+          "size": 46051066,
+          "mtimeMs": 1782705473044.4373
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (3).mp4",
+          "size": 45984250,
+          "mtimeMs": 1782704957837.8967
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (2).mp4",
+          "size": 42960360,
+          "mtimeMs": 1782704970871.3743
+        }
+      ],
+      "actualDuration": 10.5,
+      "mp4": "RV2/output/gc1-m1.mp4",
+      "outputSha256": "55d94085fe8536dc1071080ea6b181fc35a0a9f69a5751ddcd6338aec5b810e7",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "gc1-m1",
+              "reviewed_segments": 4,
+              "passed_segments": 4,
+              "min_product_match": 0.97,
+              "min_clothing_visibility": 0.76,
+              "min_confidence": 0.93
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 4
+          }
+        ]
+      },
+      "musicName": "06d761c9-ac5f-41c3-b460-2d64c83025f3-template-bgm.m4a",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 10.472,
+          "cuts": [
+            2.618,
+            5.236,
+            7.854
+          ],
+          "hook": {
+            "text": "This has my go-to style lately..."
+          },
+          "cvr": {
+            "center_x_percent": 78,
+            "max_width_percent": 24,
+            "pointer_center_x_percent": 91,
+            "text": "Don't wait on this one."
+          }
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "gc1-m1",
+            "display_name": "gc1-m1",
+            "duration_seconds": 10.472,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "gc1-m1-S01",
+                "slot": "opening",
+                "duration": 2.618,
+                "source_name": "gc1-m1.mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1.mp4",
+                "source_in": 4.42,
+                "source_out": 7.038,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 2.618
+              },
+              {
+                "segment_id": "gc1-m1-S02",
+                "slot": "product",
+                "duration": 2.618,
+                "source_name": "gc1-m1 (1).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (1).mp4",
+                "source_in": 4.42,
+                "source_out": 7.038,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 2.618,
+                "output_out": 5.236
+              },
+              {
+                "segment_id": "gc1-m1-S03",
+                "slot": "variation",
+                "duration": 2.618,
+                "source_name": "gc1-m1 (3).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (3).mp4",
+                "source_in": 0,
+                "source_out": 2.618,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 5.236,
+                "output_out": 7.854
+              },
+              {
+                "segment_id": "gc1-m1-S04",
+                "slot": "end",
+                "duration": 2.618,
+                "source_name": "gc1-m1 (2).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\GC\\新建文件夹\\gc1-m1 (2).mp4",
+                "source_in": 8.84,
+                "source_out": 11.458,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 7.854,
+                "output_out": 10.472
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV2/preview/frame-001.jpg",
+        "RV2/preview/frame-002.jpg",
+        "RV2/preview/frame-003.jpg",
+        "RV2/preview/frame-004.jpg",
+        "RV2/preview/frame-005.jpg",
+        "RV2/preview/frame-006.jpg",
+        "RV2/preview/frame-007.jpg",
+        "RV2/preview/frame-008.jpg",
+        "RV2/preview/frame-009.jpg",
+        "RV2/preview/frame-010.jpg",
+        "RV2/preview/frame-011.jpg",
+        "RV2/preview/frame-012.jpg",
+        "RV2/preview/frame-013.jpg",
+        "RV2/preview/frame-014.jpg",
+        "RV2/preview/frame-015.jpg",
+        "RV2/preview/frame-016.jpg",
+        "RV2/preview/frame-017.jpg",
+        "RV2/preview/frame-018.jpg",
+        "RV2/preview/frame-019.jpg",
+        "RV2/preview/frame-020.jpg",
+        "RV2/preview/frame-021.jpg"
+      ]
+    },
+    {
+      "id": "RV3",
+      "batchId": "c0f1765d-bf55-41e2-a296-5aababcfe149",
+      "productId": "TT1-M1",
+      "level": "MVA",
+      "plannedDuration": 6.4,
+      "shots": [
+        {
+          "shotId": "45a0216cb82a1c121cde529d49efc8e4",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (1).mp4",
+          "start": 0,
+          "end": 3.2,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "a063619a3db5d7b4ce26fb746727bb9f",
+          "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (2).mp4",
+          "start": 0,
+          "end": 3.2,
+          "assignedRole": "product_2",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        }
+      ],
+      "sameSourceReuse": [],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (1).mp4",
+          "size": 12409788,
+          "mtimeMs": 1787626720293.006
+        },
+        {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (2).mp4",
+          "size": 25511515,
+          "mtimeMs": 1787626629715.733
+        }
+      ],
+      "actualDuration": 6.4,
+      "mp4": "RV3/output/TT1-M1.mp4",
+      "outputSha256": "aa32667977b268c9864bfb98281d81cf75c3e4bee01e5c27182820c04f4fc501",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "TT1-M1",
+              "reviewed_segments": 2,
+              "passed_segments": 2,
+              "min_product_match": 0.98,
+              "min_clothing_visibility": 0.97,
+              "min_confidence": 0.98
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 2
+          }
+        ]
+      },
+      "musicName": "ea0766f1-639e-415b-b056-9e7b5aeaf831-template-bgm.m4a",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 6.4,
+          "cuts": [
+            3.2
+          ],
+          "hook": {
+            "text": "This has my go-to style lately..."
+          },
+          "cvr": {
+            "center_x_percent": 78,
+            "max_width_percent": 24,
+            "pointer_center_x_percent": 91,
+            "text": "Don't wait on this one."
+          }
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "TT1-M1",
+            "display_name": "TT1-M1",
+            "duration_seconds": 6.4,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "TT1-M1-S01",
+                "slot": "product",
+                "duration": 3.2,
+                "source_name": "TT1-M1 (1).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (1).mp4",
+                "source_in": 0,
+                "source_out": 3.2,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 3.2
+              },
+              {
+                "segment_id": "TT1-M1-S02",
+                "slot": "product_2",
+                "duration": 3.2,
+                "source_name": "TT1-M1 (2).mp4",
+                "source_original": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\TT\\8.28\\TT1-M1 (2).mp4",
+                "source_in": 0,
+                "source_out": 3.2,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 3.2,
+                "output_out": 6.4
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV3/preview/frame-001.jpg",
+        "RV3/preview/frame-002.jpg",
+        "RV3/preview/frame-003.jpg",
+        "RV3/preview/frame-004.jpg",
+        "RV3/preview/frame-005.jpg",
+        "RV3/preview/frame-006.jpg",
+        "RV3/preview/frame-007.jpg",
+        "RV3/preview/frame-008.jpg",
+        "RV3/preview/frame-009.jpg",
+        "RV3/preview/frame-010.jpg",
+        "RV3/preview/frame-011.jpg",
+        "RV3/preview/frame-012.jpg",
+        "RV3/preview/frame-013.jpg"
+      ]
+    },
+    {
+      "id": "RV4",
+      "batchId": "1315a6e8-d78a-4c79-904b-731c42b59c1c",
+      "productId": "2",
+      "level": "MVA",
+      "plannedDuration": 6.3999999999999995,
+      "shots": [
+        {
+          "shotId": "ce03992cf37be53c3be5cbd6b78b6ef9",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+          "start": 4.84,
+          "end": 8.04,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "65334551ef683a68d8b8c759229ab285",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+          "start": 0,
+          "end": 3.2,
+          "assignedRole": "product_2",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        }
+      ],
+      "sameSourceReuse": [
+        {
+          "shotIds": [
+            "65334551ef683a68d8b8c759229ab285",
+            "ce03992cf37be53c3be5cbd6b78b6ef9"
+          ],
+          "evidenceRef": ".project-governance/evidence/scheduler-comparability/2026-09-16T03-55-33.259Z-cdffe009-6c17-40a7-b40a-4ffa4e7231ea/contact-sheets/case-01.jpg",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+          "intervals": [
+            [
+              4.84,
+              8.04
+            ],
+            [
+              0,
+              3.2
+            ]
+          ]
+        }
+      ],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+          "size": 19894342,
+          "mtimeMs": 1787128532277.6692
+        },
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+          "size": 19894342,
+          "mtimeMs": 1787128532277.6692
+        }
+      ],
+      "actualDuration": 6.4,
+      "mp4": "RV4/output/2.mp4",
+      "outputSha256": "13c17b19a0105042fbabfbc5eabb8e9833addf0760fd822bb98b2cc43c0f53a3",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "2",
+              "reviewed_segments": 2,
+              "passed_segments": 2,
+              "min_product_match": 0.95,
+              "min_clothing_visibility": 0.94,
+              "min_confidence": 0.92
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 2
+          }
+        ]
+      },
+      "musicName": "SaveClip.App_AQMuaqJ0w-4NNLPdr0iVZlT86gO-miOC09WhLM5PQQf5LN7i1X92AtSYuqsE9ujFyfkg2HrHJq22Z4y8Jtsuun7UaFbhEWxmIMegJkA.mp4",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 6.4,
+          "cuts": [
+            3.2
+          ]
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "2",
+            "display_name": "2",
+            "duration_seconds": 6.4,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "2-S01",
+                "slot": "product",
+                "duration": 3.2,
+                "source_name": "2.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+                "source_in": 4.84,
+                "source_out": 8.04,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 3.2
+              },
+              {
+                "segment_id": "2-S02",
+                "slot": "product_2",
+                "duration": 3.2,
+                "source_name": "2.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\products\\2.mp4",
+                "source_in": 0,
+                "source_out": 3.2,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 3.2,
+                "output_out": 6.4
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV4/preview/frame-001.jpg",
+        "RV4/preview/frame-002.jpg",
+        "RV4/preview/frame-003.jpg",
+        "RV4/preview/frame-004.jpg",
+        "RV4/preview/frame-005.jpg",
+        "RV4/preview/frame-006.jpg",
+        "RV4/preview/frame-007.jpg",
+        "RV4/preview/frame-008.jpg",
+        "RV4/preview/frame-009.jpg",
+        "RV4/preview/frame-010.jpg",
+        "RV4/preview/frame-011.jpg",
+        "RV4/preview/frame-012.jpg",
+        "RV4/preview/frame-013.jpg"
+      ]
+    },
+    {
+      "id": "RV5",
+      "batchId": "3a1d6f81-21f4-41b1-a8f8-9ecca662042f",
+      "productId": "1",
+      "level": "MVA",
+      "plannedDuration": 5.4,
+      "shots": [
+        {
+          "shotId": "cb4040b30f18360ba3574010fe4b48bd",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+          "start": 0,
+          "end": 2.7,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        },
+        {
+          "shotId": "c26afa226238f422b34797b1cc60a8fd",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+          "start": 4.84,
+          "end": 7.54,
+          "assignedRole": "product_2",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        }
+      ],
+      "sameSourceReuse": [
+        {
+          "shotIds": [
+            "cb4040b30f18360ba3574010fe4b48bd",
+            "c26afa226238f422b34797b1cc60a8fd"
+          ],
+          "evidenceRef": ".project-governance/evidence/scheduler-comparability/2026-09-16T03-55-33.259Z-cdffe009-6c17-40a7-b40a-4ffa4e7231ea/contact-sheets/case-02.jpg",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+          "intervals": [
+            [
+              0,
+              2.7
+            ],
+            [
+              4.84,
+              7.54
+            ]
+          ]
+        }
+      ],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+          "size": 21541071,
+          "mtimeMs": 1787130738435.565
+        },
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+          "size": 21541071,
+          "mtimeMs": 1787130738435.565
+        }
+      ],
+      "actualDuration": 5.4,
+      "mp4": "RV5/output/1.mp4",
+      "outputSha256": "86e348751f420b382757b75767424fce16ec8b290a54b8e1ad625c96acca9b65",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "1",
+              "reviewed_segments": 2,
+              "passed_segments": 2,
+              "min_product_match": 0.92,
+              "min_clothing_visibility": 0.93,
+              "min_confidence": 0.96
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 2
+          }
+        ]
+      },
+      "musicName": "TikSave.io_7400182486245887274.mp4",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 5.4,
+          "cuts": [
+            2.7
+          ],
+          "hook": {
+            "text": "Faith wear that actually feels wearable."
+          }
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "1",
+            "display_name": "1",
+            "duration_seconds": 5.4,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "1-S01",
+                "slot": "product",
+                "duration": 2.7,
+                "source_name": "1.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+                "source_in": 0,
+                "source_out": 2.7,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 2.7
+              },
+              {
+                "segment_id": "1-S02",
+                "slot": "product_2",
+                "duration": 2.7,
+                "source_name": "1.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\1.mp4",
+                "source_in": 4.84,
+                "source_out": 7.54,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 2.7,
+                "output_out": 5.4
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV5/preview/frame-001.jpg",
+        "RV5/preview/frame-002.jpg",
+        "RV5/preview/frame-003.jpg",
+        "RV5/preview/frame-004.jpg",
+        "RV5/preview/frame-005.jpg",
+        "RV5/preview/frame-006.jpg",
+        "RV5/preview/frame-007.jpg",
+        "RV5/preview/frame-008.jpg",
+        "RV5/preview/frame-009.jpg",
+        "RV5/preview/frame-010.jpg",
+        "RV5/preview/frame-011.jpg"
+      ]
+    },
+    {
+      "id": "RV6",
+      "batchId": "3a1d6f81-21f4-41b1-a8f8-9ecca662042f",
+      "productId": "2",
+      "level": "MVA",
+      "plannedDuration": 5.4,
+      "shots": [
+        {
+          "shotId": "dc17e99f42717d8afe2fc08e91a82b42",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+          "start": 4.84,
+          "end": 7.54,
+          "assignedRole": "product",
+          "roles": [
+            "product",
+            "end",
+            "opening",
+            "variation"
+          ]
+        },
+        {
+          "shotId": "77591af0038853391b6a8b30b1f8194a",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+          "start": 0,
+          "end": 2.7,
+          "assignedRole": "product_2",
+          "roles": [
+            "product",
+            "end",
+            "opening"
+          ]
+        }
+      ],
+      "sameSourceReuse": [
+        {
+          "shotIds": [
+            "77591af0038853391b6a8b30b1f8194a",
+            "dc17e99f42717d8afe2fc08e91a82b42"
+          ],
+          "evidenceRef": ".project-governance/evidence/scheduler-comparability/2026-09-16T03-55-33.259Z-cdffe009-6c17-40a7-b40a-4ffa4e7231ea/contact-sheets/case-03.jpg",
+          "source": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+          "intervals": [
+            [
+              4.84,
+              7.54
+            ],
+            [
+              0,
+              2.7
+            ]
+          ]
+        }
+      ],
+      "renderStatus": "success",
+      "humanReview": {
+        "status": "pending",
+        "reviewer": null,
+        "criteria": {
+          "广告节奏": "pending",
+          "开头吸引力": "pending",
+          "产品展示完整性": "pending",
+          "明显重复": "pending",
+          "同源复用观感": "pending",
+          "CTA结尾": "pending"
+        }
+      },
+      "sourceMedia": [
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+          "size": 21690380,
+          "mtimeMs": 1787130738642.87
+        },
+        {
+          "path": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+          "size": 21690380,
+          "mtimeMs": 1787130738642.87
+        }
+      ],
+      "actualDuration": 5.4,
+      "mp4": "RV6/output/2.mp4",
+      "outputSha256": "0a4cb97c66815f87c9bcefb0e1923c9d1a39c774aa93cc1580f96894e117b321",
+      "decodeCheck": "passed",
+      "rendererSummary": {
+        "renderedProducts": 1,
+        "excludedProducts": [],
+        "qualityGates": {
+          "productConsistency": "passed",
+          "originalSpeed": "passed",
+          "decodeCheck": "passed",
+          "uniqueMusic": "passed"
+        },
+        "productVisualReview": {
+          "status": "passed",
+          "threshold": 0.5,
+          "products": [
+            {
+              "product_id": "2",
+              "reviewed_segments": 2,
+              "passed_segments": 2,
+              "min_product_match": 0.96,
+              "min_clothing_visibility": 0.89,
+              "min_confidence": 0.96
+            }
+          ],
+          "failures": []
+        },
+        "transitionProfile": "hard_cut",
+        "transitions": [
+          {
+            "type": "hard_cut",
+            "durationSeconds": 0,
+            "count": 2
+          }
+        ]
+      },
+      "musicName": "SaveClip.App_AQPWJH2HUz0dhKFYRDFn8Da1aI29Bi46GbkVuwDUo9-3q48umsViWgFczZwbzBmsdu6-nHndu5Vpc2grVxprOoGiXF3XcEU4cmSic7o.mp4",
+      "edl": {
+        "master": {
+          "width": 1080,
+          "height": 1920,
+          "fps": 30,
+          "duration_seconds": 5.4,
+          "cuts": [
+            2.7
+          ],
+          "hook": {
+            "text": "Faith wear that actually feels wearable."
+          }
+        },
+        "transition_profile": "hard_cut",
+        "transition_feature_enabled": false,
+        "products": [
+          {
+            "product_id": "2",
+            "display_name": "2",
+            "duration_seconds": 5.4,
+            "visual_consistency_verified": true,
+            "transition_profile": "hard_cut",
+            "applied_transition_profile": "hard_cut",
+            "segments": [
+              {
+                "segment_id": "2-S01",
+                "slot": "product",
+                "duration": 2.7,
+                "source_name": "2.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+                "source_in": 4.84,
+                "source_out": 7.54,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 0,
+                "output_out": 2.7
+              },
+              {
+                "segment_id": "2-S02",
+                "slot": "product_2",
+                "duration": 2.7,
+                "source_name": "2.mp4",
+                "source_original": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\products\\2.mp4",
+                "source_in": 0,
+                "source_out": 2.7,
+                "speed": 1,
+                "transition_out": "hard_cut",
+                "output_in": 2.7,
+                "output_out": 5.4
+              }
+            ]
+          }
+        ],
+        "excluded_products": []
+      },
+      "rendererRecordQualityStatus": "decode/technical only; not human acceptance",
+      "previewFrames": [
+        "RV6/preview/frame-001.jpg",
+        "RV6/preview/frame-002.jpg",
+        "RV6/preview/frame-003.jpg",
+        "RV6/preview/frame-004.jpg",
+        "RV6/preview/frame-005.jpg",
+        "RV6/preview/frame-006.jpg",
+        "RV6/preview/frame-007.jpg",
+        "RV6/preview/frame-008.jpg",
+        "RV6/preview/frame-009.jpg",
+        "RV6/preview/frame-010.jpg",
+        "RV6/preview/frame-011.jpg"
+      ]
+    }
+  ],
+  "metrics": {
+    "renderSuccessRate": 1,
+    "planned": 6,
+    "rendered": 6,
+    "humanReviewed": 0,
+    "humanPassRate": null,
+    "nearDuplicateRate": null,
+    "sameSourceReusePassRate": null,
+    "revisionRate": null,
+    "note": "Human metrics require submitted human review; null means pending, not zero."
+  },
+  "providerCalls": 0,
+  "originalInputs": [
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\shot-pool.json",
+      "sha256": "0eaec356d9beec617a10a1711f8016923340906787bffe2798bd988868eef626"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\product-groups.json",
+      "sha256": "672f2b3633337defee89b1f53c02197911c9feba7282211d06bc2df1e92c9fcf"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\script-template.json",
+      "sha256": "84a753ba00e2d4e4143aa3c278f29d5be8d45dcd13a7c2ad60fe8cea43d8ece5"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\semantic-evidence.v1.json",
+      "sha256": "63d997cf3474e413b045cd076552cd303377670ed468fb314d43ce2e1fc1fcbb"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\schedule-result.json",
+      "sha256": "7b77bb923ef2ad27d2aa25ce894ff6f8189aeada531954fc6fff36dafcd704d8"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\reference-profile.json",
+      "sha256": "f269a5fd0acdf95a3e81baa66cd2d6222a0734762100429a3477aead0ac5b730"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\0c8c23d7-69fc-42af-a93d-5a1b3103ec1f\\bgm\\template-bgm.m4a",
+      "sha256": "53d801896cff0ef5e90d4a11e8e7d9943e08c7f4b113d9a24902b5cbef4989b4"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\shot-pool.json",
+      "sha256": "c20409b2bbcbd4bf81d0a043d6cb5f8329b3aa05865287765f8cab3bf20c336b"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\product-groups.json",
+      "sha256": "c79ab331cd82188ef4b17db5e0ef66642c9f4a6699ea08397ca0cf5f8d675e24"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\script-template.json",
+      "sha256": "84a753ba00e2d4e4143aa3c278f29d5be8d45dcd13a7c2ad60fe8cea43d8ece5"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\semantic-evidence.v1.json",
+      "sha256": "c7a5fbda9b856559d9cc7d665998918cd8e28dbc87f64d8c1400e791e4a7561b"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\schedule-result.json",
+      "sha256": "d458266661a8c29ef7d491124f0989c5bf9b46fc2cc64fd03713237e89e508de"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\reference-profile.json",
+      "sha256": "f269a5fd0acdf95a3e81baa66cd2d6222a0734762100429a3477aead0ac5b730"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2e8eda5f-b1a9-46ac-8336-329bc5a27f93\\batches\\c0f1765d-bf55-41e2-a296-5aababcfe149\\bgm\\template-bgm.m4a",
+      "sha256": "53d801896cff0ef5e90d4a11e8e7d9943e08c7f4b113d9a24902b5cbef4989b4"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\shot-pool.json",
+      "sha256": "e11487a7abcd91b6bd2c1e3c3615a1e2a028f4b8fc705f71a91e5fb2ef95939b"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\product-groups.json",
+      "sha256": "7411e4cdf150c442ae87dfe09e8ae6f68ea67d579d39feed2a89d226dbdbe0a7"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\script-template.json",
+      "sha256": "d5ec8a79874b8485edb366b4fcf3fd5dab1e8048703ce4f86671a07611be4053"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\semantic-evidence.v1.json",
+      "sha256": "828cd60adae0ef8b8fc7bf244de5ceef667da0f6fd5fff4f357962ace9197152"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\schedule-result.json",
+      "sha256": "b4edef7b6d7ddb3dc5c4181053711de46dce952473f2579660439f49be89070d"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\1315a6e8-d78a-4c79-904b-731c42b59c1c\\reference-profile.json",
+      "sha256": "ac9049856de72a81ae5651eda2c192baac0c24b24ec29623946b38efc906c857"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\shot-pool.json",
+      "sha256": "5f39451a04a3f1c125408ca14aa849856e12c7132d30fa297dfb50b5248799ac"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\product-groups.json",
+      "sha256": "7411e4cdf150c442ae87dfe09e8ae6f68ea67d579d39feed2a89d226dbdbe0a7"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\script-template.json",
+      "sha256": "53215e36a8762e1ddaa4f312a7e289410810faa1a2c9ec77b1dd4492a8bad3ed"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\semantic-evidence.v1.json",
+      "sha256": "2728ab47554ba5e668d8d516153390aac989cd14670818d84bde7c4678e47e67"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\schedule-result.json",
+      "sha256": "98d282f7e4093210e24fa7912d679441296b6c023cb139ed9ee5c9ba60e06f2e"
+    },
+    {
+      "file": "D:\\自动剪辑网站\\storage\\users\\2de95197-4417-4ab0-8f87-cf8ea2e5171a\\batches\\3a1d6f81-21f4-41b1-a8f8-9ecca662042f\\reference-profile.json",
+      "sha256": "407dc4a792f59644e58e130abff015110d353b9a0ff55fede2b63c73be5e6162"
+    }
+  ],
+  "protectedHashes": [
+    {
+      "file": "D:\\自动剪辑网站\\.project-governance\\evidence\\scheduler-v2-policy\\2026-09-16T07-26-39.464Z-632759b2-4a8f-47f4-8815-7ad4987ba8e6\\report.json",
+      "sha256": "e7e3b84389bc2d43ae7ac6c4354619df13c88b0b7b06974e422a81806d06242c"
+    },
+    {
+      "file": "data/batches.json",
+      "sha256": "f0ba55cd75c99bfd4f334cba6e983709cda3f7fa58b6f438c6225115ec6eb15c"
+    },
+    {
+      "file": "data/production-path.json",
+      "sha256": "bd1c63c606a592587b7c87bfa8ee78ad9392c581c52e7d640db9830949568481"
+    },
+    {
+      "file": ".env.local",
+      "sha256": "e5042892d6131d7cb8a8d6fb54900e643ec9010054e449dd66d6b45f8f2b62a8"
+    },
+    {
+      "file": "worker/batch-renderer.mjs",
+      "sha256": "303f34d6d9c5c600952257d7a481f65cc1c099d33a48c3f37fa33d3c62f3d533"
+    },
+    {
+      "file": "worker/scheduler-v2-policy.mjs",
+      "sha256": "0d4b6f6f9b485268c1a91a9ccde7802ae4f324e4dd675f3fb69ceb1ef91f71a2"
+    },
+    {
+      "file": "lib/scheduler-policy-v2.mjs",
+      "sha256": "d62c1161f483af29f35a3e13cf88e7d513ec644ca4391d34e720c563a41c83f8"
+    },
+    {
+      "file": "worker/ai-video-validator.mjs",
+      "sha256": "45c7afda00789543fa273676b68ec13207a14ea30e330cd3c668bc56a4f432b5"
+    },
+    {
+      "file": "worker/quality-gate-v2.mjs",
+      "sha256": "7207227782140ef14e726bddbff69a4042ee343a8dad73428b9c384485ae3130"
+    },
+    {
+      "file": "lib/ai-provider-adapter.mjs",
+      "sha256": "681e777a915dd8f3b911521be914ba731dd316ed4e7a6d60540c691ef1f3f860"
+    },
+    {
+      "file": "config/cutflow-runtime.json",
+      "sha256": "74b6493a9abf6ccb547cbac969f25da1fbc99f45331e2617a28f34afd9d798c9"
+    }
+  ],
+  "originalInputsUnchanged": true,
+  "protectedPolicyRendererConfigUnchanged": true,
+  "liveRegistryDrift": [
+    {
+      "file": "data/batches.json",
+      "before": "f0ba55cd75c99bfd4f334cba6e983709cda3f7fa58b6f438c6225115ec6eb15c",
+      "after": "06f8105ecd198345686f1591b0593c75976b4f872be4512f013513a8509b1f27",
+      "disposition": "live_global_registry_changed; validation_runner_has_no_write_path_to_this_file; not_claimed_unchanged"
+    }
+  ],
+  "finalizedAt": "2026-09-16T10:02:15.918Z"
+}

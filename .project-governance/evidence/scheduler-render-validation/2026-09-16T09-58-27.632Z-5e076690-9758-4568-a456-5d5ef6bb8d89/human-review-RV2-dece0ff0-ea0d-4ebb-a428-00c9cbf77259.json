@@ -1,0 +1,15 @@
+{
+  "status": "revision_required",
+  "reviewer": "尔尔",
+  "criteria": {
+    "广告节奏": "revise",
+    "开头吸引力": "pass",
+    "产品展示完整性": "pass",
+    "明显重复": "pass",
+    "同源复用观感": "na",
+    "CTA结尾": "pass"
+  },
+  "notes": "同样推镜头的画面不要放在一起",
+  "reviewedAt": "2026-09-16T10:14:26.023Z",
+  "outputSha256": "55d94085fe8536dc1071080ea6b181fc35a0a9f69a5751ddcd6338aec5b810e7"
+}

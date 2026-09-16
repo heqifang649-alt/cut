@@ -1,0 +1,15 @@
+{
+  "status": "pass",
+  "reviewer": "尔尔",
+  "criteria": {
+    "广告节奏": "pass",
+    "开头吸引力": "pass",
+    "产品展示完整性": "pass",
+    "明显重复": "pass",
+    "同源复用观感": "pass",
+    "CTA结尾": "pass"
+  },
+  "notes": "",
+  "reviewedAt": "2026-09-16T10:16:44.410Z",
+  "outputSha256": "86e348751f420b382757b75767424fce16ec8b290a54b8e1ad625c96acca9b65"
+}
