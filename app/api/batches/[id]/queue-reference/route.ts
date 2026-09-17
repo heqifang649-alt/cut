@@ -1,3 +1,5 @@
+import { assertProviderAvailable } from '@/lib/provider-incident.mjs';
+import { resolveProviderConfig } from '@/lib/ai-provider-config.mjs';
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -45,6 +47,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   try {
     const root = process.cwd();
+    const { config } = await resolveProviderConfig(root);
+    await assertProviderAvailable(config, config.fastModel, { root });
     await ensureFleetAvailable({ root });
     const batchDir = batchWorkspacePath(root, existing);
     await unlink(path.join(batchDir, "cancel.request")).catch(() => undefined);
@@ -89,6 +93,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await enqueueStage({ root, batchId: batch.id, stage: plan.stage, operation: plan.operation, priority: batch.priority, workflowVersion: batch.workflowVersion, reason: explicitRetry ? "explicit_user_requeue" : undefined, taskNumber: taskNumberForBatch(batch) });
     return NextResponse.json({ batch });
   } catch (error) {
+    if (error && typeof error === "object" && "code" in error && ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED"].includes(String(error.code))) {
+      return NextResponse.json({ code: error.code, error: "当前 Provider 尚未通过 A–D Recovery Check，暂不能恢复 Batch。" }, { status: 409 });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to queue batch." }, { status: 400 });
   }
 }

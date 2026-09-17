@@ -6,6 +6,7 @@ import test from "node:test";
 import { MAX_CODEX_CONCURRENCY_ATTEMPTS, MAX_CODEX_INACTIVITY_ATTEMPTS, MAX_RECOVERY_ATTEMPTS, MAX_SEMANTIC_PROVIDER_ATTEMPTS, acquireCodexExecution, appendRecoveryEvent, classifyRecoveryError, codexFailureClassFor, codexInactivityManualMessage, isRetryDue, markRecoveryRetryReady, markRecoverySucceeded, readCodexExecutionState, readRecoveryState, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, releaseCodexExecution, retryDelayFor, scheduleRecovery, tripCodexConcurrencyCircuit } from "../worker/recovery.mjs";
 
 test("recovery classifies temporary connectivity and ffmpeg errors for retry", () => {
+  assert.equal(classifyRecoveryError(Object.assign(new Error("语义分析已暂停"), { code: "SEMANTIC_ANALYSIS_PAUSED" })).recoverable, false);
   assert.deepEqual(classifyRecoveryError(new Error("connect ECONNREFUSED 192.168.1.1")).recoverable, true);
   assert.deepEqual(classifyRecoveryError(new Error("ffmpeg render timed out")).recoverable, true);
   assert.equal(classifyRecoveryError(new Error("batch-edl.json has no renderable product")).category, "business");

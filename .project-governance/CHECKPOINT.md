@@ -11,12 +11,13 @@ G3 = PASS
 PRODUCTION_CUTOVER = TRUE
 CONTROL_A = PRESERVED / VERIFIED
 TREATMENT_B = HYBRID DEFAULT
-PILOT_PRIMARY_VLM = gpt-5.6-sol
+PILOT_PRIMARY_VLM = gpt-6-astra
+PROVIDER_COMPATIBILITY = PASS / 2026-09-17
 NORMAL_CONFIRMED_BATCH_CODEX_DEPENDENCY = OFF
 PASS_FAIL = CONTRACT_V2_FROZEN; G1_PASS; G2_PASS; G3_PASS; PRODUCTION_CUTOVER_TRUE
 EVIDENCE = .project-governance/evidence/g3-independent-review-20260814.md; .project-governance/evidence/g3-canary-metrics-20260814.json; data/production-path.json
 BLOCKERS = NONE
-GUARDED_RISKS = Preserve Control A and telemetry during the post-cutover observation window; provider JSON fallback remains the accepted semantic path.
+GUARDED_RISKS = Preserve Control A and telemetry during the post-cutover observation window; provider JSON fallback remains the accepted semantic path; the Astra provider cutover has compatibility evidence but no new independent G2/G3 creative-quality pass.
 NEXT_CRITICAL_TASK = Observe production telemetry and retain the verified one-command Control A rollback.
 USER_ACTION_REQUIRED = NONE
 ```

@@ -22,9 +22,9 @@ $_cleanPath = (($_sysPath, $_usrPath) -join ';') -replace ';+', ';' -replace '^;
 $env:NODE_OPTIONS = '--openssl-legacy-provider'
 
 $portalRoot = Split-Path -Parent $PSScriptRoot
-# Codex 自带的 node v24.14.0 在 Windows 上有 ncrypto::CSPRNG assert bug。
-# 临时回退到 workbuddy 自带的稳定 v22.22.2。架构层面不影响。
-$runtimeRoot = 'C:\Users\尔尔\.workbuddy\binaries\node\versions\22.22.2'
+# 使用当前已安装的 Codex Node 运行时；上方 NODE_OPTIONS 规避 Windows
+# 上的 ncrypto::CSPRNG 断言问题。
+$runtimeRoot = 'C:\Users\尔尔\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin'
 $runtimeNode = Join-Path $runtimeRoot 'node.exe'
 $runtimePython = 'D:\codex\cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
 $logRoot = Join-Path $portalRoot 'logs'
@@ -87,12 +87,12 @@ foreach ($flag in $hybridFlags) {
   [Environment]::SetEnvironmentVariable($flag, $(if ($ControlA) { 'false' } else { 'true' }), 'Process')
 }
 $env:ENABLE_ARTIFACT_GATE = 'false'
-$env:MODEL_FAST = 'gpt-5.6-sol'
-$env:MODEL_STRONG = 'gpt-5.6-sol'
+$env:MODEL_FAST = 'gpt-6-astra'
+$env:MODEL_STRONG = 'gpt-6-astra'
 if ($ControlA) {
   Write-Host 'Cutflow production path: Control A rollback mode.' -ForegroundColor Yellow
 } else {
-  Write-Host 'Cutflow production path: Hybrid deterministic default (gpt-5.6-sol).' -ForegroundColor Green
+  Write-Host 'Cutflow production path: Hybrid deterministic default (gpt-6-astra).' -ForegroundColor Green
 }
 $productionPathState = @{
   schemaVersion = 1
@@ -334,5 +334,11 @@ do {
 } while ((Get-Date) -lt $deadline)
 
 if (-not $webReady -or -not $servicesReady) { throw 'Cutflow failed its startup health check. See logs\*.stderr.log.' }
-Write-Host 'GC Cutflow is ready: http://localhost:3001/' -ForegroundColor Green
-if (-not $NoBrowser) { Start-Process 'http://localhost:3001/' | Out-Null }
+if (-not $NoBrowser) {
+  . (Join-Path $PSScriptRoot 'cutflow-lan-url.ps1')
+  $lanUrl = Get-CutflowLanUrl
+  Write-Host "GC Cutflow is ready: $lanUrl" -ForegroundColor Green
+  Start-Process $lanUrl | Out-Null
+} else {
+  Write-Host 'GC Cutflow web and workers are ready.' -ForegroundColor Green
+}

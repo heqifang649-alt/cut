@@ -1,10 +1,15 @@
+import { mkdtempSync } from 'node:fs';
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AiProviderAdapter, ProviderAdapterError, ProviderRequestGuard } from "../lib/ai-provider-adapter.mjs";
+import { AiProviderAdapter as BaseAdapter, ProviderAdapterError, ProviderRequestGuard } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+
+class AiProviderAdapter extends BaseAdapter {
+  constructor(config, options = {}) { super(config, { root: mkdtempSync(path.join(os.tmpdir(), 'adapter-incident-')), ...options }); }
+}
 
 function jsonResponse(payload, status = 200, headers = {}) {
   return new Response(JSON.stringify(payload), { status, headers: { "content-type": "application/json", ...headers } });
@@ -39,8 +44,74 @@ test("Responses text requests use the verified Codex-compatible shape", async ()
     input: "Reply with exactly READY.",
     max_output_tokens: 16,
     reasoning: { effort: "low" },
+    stream: true,
     text: { verbosity: "low" },
   });
+});
+
+test("adapter parses streaming Responses text and usage", async () => {
+  const adapter = new AiProviderAdapter(config, { fetchImpl: async () => new Response([
+    'data: {"type":"response.output_text.delta","delta":"REA"}',
+    '',
+    'data: {"type":"response.output_text.delta","delta":"DY"}',
+    '',
+    'data: {"type":"response.completed","response":{"usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}}',
+    '',
+    'data: [DONE]',
+    '',
+  ].join("\n"), { status: 200, headers: { "content-type": "text/event-stream" } }) });
+  const result = await adapter.complete({ model: "gpt-5.6-sol", prompt: "Reply with exactly READY.", protocolMode: "responses" });
+  assert.equal(result.text, "READY");
+  assert.deepEqual(result.usage, { inputTokens: 2, outputTokens: 1, totalTokens: 3 });
+});
+
+test("adapter parses streaming Chat Completions text", async () => {
+  const adapter = new AiProviderAdapter(config, { fetchImpl: async () => new Response([
+    'data: {"choices":[{"delta":{"content":"REA"}}]}',
+    '',
+    'data: {"choices":[{"delta":{"content":"DY"}}],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}',
+    '',
+    'data: [DONE]',
+    '',
+  ].join("\n"), { status: 200, headers: { "content-type": "text/event-stream" } }) });
+  const result = await adapter.complete({ model: "gpt-5.6-sol", prompt: "Reply with exactly READY.", protocolMode: "chat_completions" });
+  assert.equal(result.text, "READY");
+  assert.deepEqual(result.usage, { inputTokens: 2, outputTokens: 1, totalTokens: 3 });
+});
+
+test("streaming activity refreshes the provider timeout without changing its configured duration", async () => {
+  const encoder = new TextEncoder();
+  const events = [];
+  const adapter = new AiProviderAdapter({ ...config, requestTimeoutMs: 10 }, { fetchImpl: async () => new Response(new ReadableStream({
+    start(controller) {
+      setTimeout(() => controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"REA"}\n\n')), 15);
+      setTimeout(() => controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"DY"}\n\n')), 30);
+      setTimeout(() => { controller.enqueue(encoder.encode('data: [DONE]\n\n')); controller.close(); }, 45);
+    },
+  }), { status: 200, headers: { "content-type": "text/event-stream" } }) });
+  const result = await adapter.complete({ model: "gpt-5.6-sol", prompt: "Reply with exactly READY.", protocolMode: "responses", timeoutMs: 25, onRequestEvent: (event) => events.push(event) });
+  assert.equal(result.text, "READY");
+  assert.equal(events.filter((event) => event.phase === "first_data").length, 1);
+  assert.ok(events.find((event) => event.phase === "first_data").firstDataLatencyMs >= 0);
+  assert.equal(events.find((event) => event.phase === "end").firstDataLatencyMs, events.find((event) => event.phase === "first_data").firstDataLatencyMs);
+});
+
+test("a stalled stream after first data is classified as a no-data timeout", async () => {
+  const encoder = new TextEncoder();
+  const events = [];
+  const adapter = new AiProviderAdapter({ ...config, requestTimeoutMs: 20 }, { fetchImpl: async (_url, init) => new Response(new ReadableStream({
+    start(controller) {
+      setTimeout(() => controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"REA"}\n\n')), 5);
+      init.signal.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")), { once: true });
+    },
+  }), { status: 200, headers: { "content-type": "text/event-stream" } }) });
+  await assert.rejects(
+    () => adapter.complete({ model: "gpt-5.6-sol", prompt: "Reply with exactly READY.", protocolMode: "responses", onRequestEvent: (event) => events.push(event) }),
+    (error) => error.code === "PROVIDER_TIMEOUT",
+  );
+  assert.ok(events.some((event) => event.phase === "first_data"));
+  assert.equal(events.find((event) => event.phase === "end").timeout, true);
+  assert.equal(events.find((event) => event.phase === "end").resultStatus, "error");
 });
 
 test("auto protocol detection caches Chat Completions after the first unsupported Responses request", async () => {
@@ -376,7 +447,7 @@ test("adapter aborts a timed-out request and retries malformed semantic output b
   await assert.rejects(() => timeoutAdapter.complete({ model: "m", prompt: "x", protocolMode: "responses" }), (error) => error.code === "PROVIDER_TIMEOUT");
 
   let calls = 0;
-  const malformedAdapter = new AiProviderAdapter({ ...config, retryLimit: 1 }, {
+  const malformedAdapter = new AiProviderAdapter({ ...config, protocolMode: "responses", retryLimit: 1 }, {
     fetchImpl: async () => {
       calls += 1;
       return jsonResponse({ output_text: calls === 1 ? "not-json" : JSON.stringify({ schema_version: "semantic-shot.v1", shot_id: "shot-1", shot_type: "front_full_body", product_match: 0.9, clothing_visibility: 0.9, visual_quality: 0.8, hook_value: 0.7, usable: true, confidence: 0.9 }) });
@@ -386,11 +457,11 @@ test("adapter aborts a timed-out request and retries malformed semantic output b
   assert.equal(calls, 2);
   assert.equal(scored.result.shot_id, "shot-1");
 
-  const alwaysMalformed = new AiProviderAdapter({ ...config, retryLimit: 0 }, { fetchImpl: async () => jsonResponse({ output_text: "not-json" }) });
+  const alwaysMalformed = new AiProviderAdapter({ ...config, protocolMode: "responses", retryLimit: 0 }, { fetchImpl: async () => jsonResponse({ output_text: "not-json" }) });
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_MALFORMED_RESPONSE");
   }
-  await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_CIRCUIT_OPEN");
+  await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_INCIDENT_OPEN");
 });
 
 test("capability probe propagates an overall deadline and cancels the active upstream request", async () => {
@@ -432,24 +503,24 @@ test("capability probe fails the reliability requirement after its guard opens",
   assert.ok(probe.p1FailureReasons.includes("TIMEOUT_RETRY_GUARD=FAIL"));
 });
 
-test("bounded discovery puts gpt-5.6-sol first and never selects an unverified model", async () => {
+test("bounded discovery puts the configured model first and never selects an unverified model", async () => {
   const dispatched = [];
   const guard = new ProviderRequestGuard({ requestCap: 32, retryLimit: 0, failureThreshold: 100 });
-  const adapter = new AiProviderAdapter({ ...config, retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
-    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6" }, { id: "gpt-5.6-sol" }, { id: "gpt-5.5" }, { id: "gpt-image-2" }] });
+  const adapter = new AiProviderAdapter({ ...config, fastModel: "gpt-6-astra", retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
+    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-6-astra" }, { id: "gpt-5.6" }, { id: "gpt-5.6-sol" }, { id: "gpt-5.5" }, { id: "gpt-image-2" }] });
     const body = JSON.parse(init.body);
     dispatched.push(body.model);
     return jsonResponse({ error: { message: "temporary provider route" } }, 503);
   } });
   const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
-  assert.equal(dispatched[0], "gpt-5.6-sol");
+  assert.equal(dispatched[0], "gpt-6-astra");
   assert.equal(probe.selectedModel, null);
   assert.equal(probe.selectedModels.fastModel, null);
   assert.equal(probe.selectedModels.strongModel, null);
   assert.equal(probe.lastAttemptedModel, "gpt-5.6");
-  assert.deepEqual(probe.attemptedModels, ["gpt-5.6-sol", "gpt-5.6"]);
-  assert.ok(probe.unattemptedModels.includes("gpt-5.5"));
-  assert.ok(!probe.unattemptedModels.includes("gpt-5.6-sol"));
+  assert.deepEqual(probe.attemptedModels, ["gpt-6-astra", "gpt-5.6"]);
+  assert.ok(probe.unattemptedModels.includes("gpt-5.6-sol"));
+  assert.ok(!probe.unattemptedModels.includes("gpt-6-astra"));
 });
 
 test("a candidate that fails both text protocols does not prevent the next candidate from dispatching", async () => {

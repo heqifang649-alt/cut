@@ -36,3 +36,26 @@ test("runtime environment takes precedence over local provider credentials and r
   assert.equal(resolved.config.apiKey, "env-secret");
   assert.equal(publicProviderConfig(resolved).environmentControlled, true);
 });
+
+test("a changed Provider identity gets a new id and does not carry old health metadata", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-identity-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const first = await saveLocalProviderConfig(root, {
+    providerName: "old",
+    baseUrl: "https://shared.test/v1",
+    apiKey: "old-key",
+    fastModel: "model-a",
+  });
+  const withHealth = { ...first, connectionStatus: "PASS", lastTestedAt: new Date().toISOString(), lastProbe: { providerReadyForP1: true } };
+  await (await import("../lib/atomic-json.mjs")).writeJsonAtomic(path.join(root, "data", "ai-provider-config.json"), withHealth);
+  const next = await saveLocalProviderConfig(root, {
+    providerName: "new",
+    baseUrl: "https://shared.test/v1",
+    apiKey: "new-key",
+    fastModel: "model-a",
+  });
+  assert.notEqual(next.providerId, first.providerId);
+  assert.equal(next.connectionStatus, "UNKNOWN");
+  assert.equal(next.lastTestedAt, null);
+  assert.deepEqual(next.lastProbe, {});
+});

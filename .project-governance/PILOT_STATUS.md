@@ -11,9 +11,10 @@ G3 = PASS
 PRODUCTION_CUTOVER = TRUE
 CONTROL_A = PRESERVED / VERIFIED
 TREATMENT_B = HYBRID DEFAULT
-PILOT_PRIMARY_VLM = gpt-5.6-sol
-MODEL_FAST = gpt-5.6-sol
-MODEL_STRONG = gpt-5.6-sol
+PILOT_PRIMARY_VLM = gpt-6-astra
+MODEL_FAST = gpt-6-astra
+MODEL_STRONG = gpt-6-astra
+PROVIDER_COMPATIBILITY = PASS / 2026-09-17
 NORMAL_CONFIRMED_BATCH_CODEX_DEPENDENCY = OFF
 USER_ACTION_REQUIRED = NONE
 ```
@@ -63,8 +64,14 @@ Supervisor/Worker groups and the template, delivery and ChatCut workers are
 running. The root page returns HTTP 200 and the unauthenticated health endpoint
 returns HTTP 401, preserving the authentication boundary.
 
-Latest repository verification: `267 pass / 0 fail / 1 skipped`; production
-build passed with one existing non-blocking NFT tracing warning.
+The 2026-09-17 provider cutover was verified with a real Responses request and
+real single-image/multi-image capability discovery on `gpt-6-astra`; text,
+vision, structured output, usage metadata and timeout/retry checks passed. The
+production build passed and the provider-focused suite passed `37 / 37`. Three
+unrelated existing NAS-boundary/Product-View assertions still fail in the full
+repository suite, so this provider verification is not represented as a new
+independent G2/G3 creative-quality pass. The prior G2/G3 evidence remains tied
+to its recorded model and batches.
 
 ## Preserved rollback and frozen follow-up
 

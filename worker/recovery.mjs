@@ -425,6 +425,7 @@ export function classifyRecoveryError(error, context = {}) {
   const errorCode = String(error && typeof error === "object" ? error.code || "" : "").toLowerCase();
   const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;
   if (context.canceled) return { category: "fatal", kind: "canceled", recoverable: false, label: "任务已取消" };
+  if (errorCode === "semantic_analysis_paused") return { category: "business", kind: "semantic_analysis_paused", recoverable: false, label: "语义分析已暂停，评分已保存" };
   if (errorCode === "codex_circuit_manual") {
     return { category: "business", kind: "codex_circuit_manual", recoverable: false, label: "Codex 并发熔断等待人工处理" };
   }

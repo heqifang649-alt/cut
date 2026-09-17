@@ -32,6 +32,7 @@ type AuthUser = { id: string; username: string; displayName: string; role: "admi
 type ManagedUser = AuthUser & { status: "active" | "disabled"; createdAt: string; updatedAt: string };
 type NewUserDraft = { username: string; role: "admin" | "member" };
 type ProviderConfig = {
+  providerId?: string | null;
   configStatus: "NOT_CONFIGURED" | "CONFIGURED";
   source: "ENV" | "LOCAL_ADMIN_CONFIG" | "DEFAULT";
   environmentControlled: boolean;
@@ -63,8 +64,9 @@ type ProviderConfig = {
   activeFastModel?: string | null;
   activeStrongModel?: string | null;
   providerReadyForP1?: boolean;
+  providerHealth?: { status?: string; healthStatus?: string; model?: string; verifiedAt?: string | null } | null;
 };
-type ProviderDraft = Omit<ProviderConfig, "apiKeyConfigured" | "apiKeyHint" | "source" | "environmentControlled" | "environmentControlledFields" | "environmentMessage" | "lastTestedAt" | "lastProbe" | "activeFastModel" | "activeStrongModel" | "providerReadyForP1" | "configStatus" | "connectionStatus"> & { apiKey: string };
+type ProviderDraft = Omit<ProviderConfig, "providerId" | "providerHealth" | "apiKeyConfigured" | "apiKeyHint" | "source" | "environmentControlled" | "environmentControlledFields" | "environmentMessage" | "lastTestedAt" | "lastProbe" | "activeFastModel" | "activeStrongModel" | "providerReadyForP1" | "configStatus" | "connectionStatus"> & { apiKey: string };
 type NewBatchDraft = {
   expiresAt: number;
   batchName: string;
@@ -82,6 +84,8 @@ type NewBatchDraft = {
   musicSource: "template" | "library" | "upload";
   transitionMode: TransitionMode;
 };
+type WritableFileHandle = { createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> };
+type WritableDirectoryHandle = { getFileHandle: (name: string, options: { create: true }) => Promise<WritableFileHandle> };
 type RenderReadinessProduct = { productId: string; sourceCount: number; acceptShots: number; schedule: { status: string; reason?: string; missingSlot?: string }; excludedReason?: string };
 type RenderReadinessDiagnostic = {
   kind: "render_readiness";
@@ -1150,8 +1154,9 @@ export default function Home() {
     setError("");
     try {
       const response = await fetch(`/api/batches/${batch.id}/approve`, { method: "POST" });
-      const payload = await response.json();
+      const payload = await response.json() as { batch?: Batch; error?: string };
       if (!response.ok) throw new Error(payload.error || "确认成片失败");
+      await saveBatchOutputs(payload.batch || batch);
       await loadBatches();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "确认成片失败");
@@ -1298,7 +1303,8 @@ export default function Home() {
       }
       setUploadState("素材已就绪，正在加入样片识别队列…");
       const queueResponse = await fetch(`/api/batches/${batch.id}/queue-reference`, { method: "POST" });
-      if (!queueResponse.ok) throw new Error("样片识别任务入队失败");
+      const queuePayload = await queueResponse.json().catch(() => ({})) as { error?: string };
+      if (!queueResponse.ok) throw new Error(queuePayload.error || `样片识别任务入队失败 (HTTP ${queueResponse.status})`);
       setReferenceFiles([]);
       setProductFiles([]);
       setProductReferenceFiles([]);
@@ -1427,6 +1433,34 @@ export default function Home() {
     }
   }
 
+  async function saveBatchOutputs(batch: Batch) {
+    const outputs = batch.files.filter((file) => file.kind === "output");
+    const directoryPicker = (window as Window & { showDirectoryPicker?: (options: { mode: "readwrite" }) => Promise<WritableDirectoryHandle> }).showDirectoryPicker;
+    if (!directoryPicker) {
+      for (const file of outputs) {
+        const link = document.createElement("a");
+        link.href = `/api/batches/${batch.id}/media/${file.id}?download=1`;
+        link.download = file.name;
+        link.click();
+      }
+      return;
+    }
+    try {
+      const directory = await directoryPicker.call(window, { mode: "readwrite" });
+      for (const file of outputs) {
+        const response = await fetch(`/api/batches/${batch.id}/media/${file.id}?download=1`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`下载失败：${file.name}`);
+        const handle = await directory.getFileHandle(file.name, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(await response.blob());
+        await writable.close();
+      }
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return;
+      throw caught instanceof Error ? caught : new Error("成片下载失败，请重试");
+    }
+  }
+
   async function signOut() {
     await fetch("/api/auth/logout", { method: "POST" });
     setAuthUser(null);
@@ -1531,6 +1565,7 @@ export default function Home() {
                 <div><span>ACTIVE_FAST_MODEL</span><strong>{provider?.activeFastModel || "PILOT CANDIDATE"}</strong></div>
                 <div><span>ACTIVE_STRONG_MODEL</span><strong>{provider?.activeStrongModel || "PILOT CANDIDATE"}</strong></div>
                 <div><span>PROVIDER_READY_FOR_P1</span><strong>{provider?.providerReadyForP1 ? "YES" : "NO"}</strong></div>
+                <div><span>PROVIDER_HEALTH</span><strong>{provider?.providerHealth?.healthStatus || provider?.providerHealth?.status || "UNVERIFIED"}</strong></div>
                 <div className="capability-list"><span>Capability Probe</span>{Object.entries(provider?.lastProbe?.capabilities || {}).length ? Object.entries(provider!.lastProbe!.capabilities!).map(([name, status]) => <div key={name}><code>{name}</code><b className={status === "PASS" ? "pass" : status === "FAIL" ? "fail" : "unknown"}>{status}</b></div>) : <small>尚未执行测试连接。</small>}</div>
                 <div className="provider-probe-evidence"><span>Endpoint Probe</span>{provider?.lastProbe?.endpointTelemetry?.length ? provider.lastProbe.endpointTelemetry.map((entry, index) => <article key={`${entry.url || "endpoint"}-${entry.capability || "probe"}-${index}`}><code>{entry.capability || "REQUEST"}{entry.model ? ` · ${entry.model}` : ""}</code><strong>{entry.httpStatus ?? "-"} · {entry.contentType || "-"}</strong><small>{entry.url || "-"}</small>{entry.error && <em>{entry.error}</em>}</article>) : <small>尚未记录端点请求。</small>}</div>
                 <div className="provider-probe-evidence"><span>Model Capability Matrix</span>{provider?.lastProbe?.modelMatrix?.length ? provider.lastProbe.modelMatrix.map((entry) => <article key={entry.model || "model"}><code>{entry.model || "-"}</code><strong>{entry.latencyMs ? `${entry.latencyMs}ms` : "-"}</strong><small>{Object.entries(entry.capabilities || {}).filter(([name]) => ["TEXT", "VISION_INPUT", "MULTI_IMAGE", "STRUCTURED_OUTPUT_NATIVE", "JSON_FALLBACK", "TIMEOUT_RETRY_GUARD"].includes(name)).map(([name, status]) => `${name}=${status}`).join(" · ")}</small>{entry.p1FailureReasons?.length ? <em>{entry.p1FailureReasons.join("; ")}</em> : null}{entry.error && <em>{entry.error}</em>}</article>) : <small>尚未执行候选模型探测。</small>}</div>

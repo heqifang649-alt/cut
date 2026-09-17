@@ -70,7 +70,14 @@ if ($listener) {
 # filesystem delete guard and queued work can resume immediately.
 Get-ChildItem -LiteralPath $dataRoot -Filter '*.lock' -File -ErrorAction SilentlyContinue | ForEach-Object {
   $recovered = "$($_.FullName).recovered.$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()).$([guid]::NewGuid().ToString('N'))"
-  Move-Item -LiteralPath $_.FullName -Destination $recovered
+  if (-not (Test-Path -LiteralPath $_.FullName -PathType Leaf)) { return }
+  try {
+    Move-Item -LiteralPath $_.FullName -Destination $recovered -ErrorAction Stop
+  } catch {
+    # A terminating worker can release its lock between enumeration and move.
+    # Treat only that benign race as success; preserve every other filesystem error.
+    if (Test-Path -LiteralPath $_.FullName -PathType Leaf) { throw }
+  }
 }
 
 Start-Sleep -Milliseconds 700

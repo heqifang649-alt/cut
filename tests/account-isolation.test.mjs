@@ -15,6 +15,7 @@ import {
   listLegacyArchive,
   resetUserPassword,
   transferLegacyOwnership,
+  MAX_CONCURRENT_SESSIONS_PER_USER,
 } from "../lib/auth-core.mjs";
 import {
   LEGACY_ARCHIVE_OWNER_ID,
@@ -53,6 +54,26 @@ test("accounts have verified passwords, server sessions, and logout invalidation
   await deleteSession(root, sessionAfterReset.token);
   assert.equal(await getSessionUser(root, sessionAfterReset.token), null);
   assert.equal(admin.role, "admin");
+});
+
+test("each account keeps its two newest device sessions", async (t) => {
+  const root = await fixtureRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const user = await createUser(root, { username: "two-devices", displayName: "Two Devices", role: "admin" });
+  const other = await createUser(root, { username: "other-devices", displayName: "Other Devices", role: "member" });
+  const otherSession = await createSession(root, other.id);
+
+  assert.equal(MAX_CONCURRENT_SESSIONS_PER_USER, 2);
+  const first = await createSession(root, user.id);
+  const second = await createSession(root, user.id);
+  assert.equal((await getSessionUser(root, first.token))?.id, user.id);
+  assert.equal((await getSessionUser(root, second.token))?.id, user.id);
+
+  const third = await createSession(root, user.id);
+  assert.equal(await getSessionUser(root, first.token), null, "a third login must revoke the oldest device session");
+  assert.equal((await getSessionUser(root, second.token))?.id, user.id);
+  assert.equal((await getSessionUser(root, third.token))?.id, user.id);
+  assert.equal((await getSessionUser(root, otherSession.token))?.id, other.id, "another account's session must remain active");
 });
 
 test("deleting an account revokes its sessions without removing other account data", async (t) => {

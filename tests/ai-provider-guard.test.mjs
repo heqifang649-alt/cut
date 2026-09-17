@@ -3,12 +3,50 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
+import { AiProviderAdapter, ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 
 function failure(message = "temporary provider failure") {
   return new ProviderAdapterError(message, { status: 503, retryable: true });
 }
+
+test("scoring deadline aborts the HTTP request and releases its durable slot without fallback", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-score-deadline-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const config = { baseUrl: "https://provider.test/v1", apiKey: "fixture", protocolMode: "auto", retryLimit: 2, requestTimeoutMs: 1000 };
+  const guard = new DurableProviderRequestGuard({ ...config, root });
+  const controller = new AbortController();
+  let calls = 0;
+  let aborted = false;
+  const adapter = new AiProviderAdapter(config, { guard, fetchImpl: async (_url, { signal }) => {
+    calls++;
+    return new Promise((resolve, reject) => {
+      signal.addEventListener("abort", () => { aborted = true; reject(signal.reason); }, { once: true });
+      controller.abort(new Error("scoring budget expired"));
+    });
+  } });
+  await assert.rejects(adapter.scoreShot({ model: "fixture", shotId: "s", prompt: "score", images: [], signal: controller.signal }));
+  assert.equal(calls, 1);
+  assert.equal(aborted, true);
+  assert.equal((await guard.snapshot()).running, 0);
+});
+
+test("durable guard honors zero retries and aborts queued work without dispatch", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-cancel-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const guard = new DurableProviderRequestGuard({ root, baseUrl: "https://provider.test/v1", apiKey: "fixture", retryLimit: 2, maxConcurrency: 1 });
+  let calls = 0;
+  await assert.rejects(guard.run(async () => { calls++; throw failure(); }, { retryLimit: 0 }));
+  assert.equal(calls, 1);
+  const token = await guard.acquire();
+  const controller = new AbortController();
+  const pending = guard.run(async () => { calls++; }, { signal: controller.signal });
+  controller.abort(new Error("budget expired"));
+  await assert.rejects(pending, /budget expired/);
+  await guard.release(token);
+  assert.equal(calls, 1);
+  assert.equal((await guard.snapshot()).running, 0);
+});
 
 async function openCircuit(guard, failureRuns = 3) {
   for (let attempt = 0; attempt < failureRuns; attempt += 1) {

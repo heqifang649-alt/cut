@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -7,6 +7,45 @@ import { runSemanticShadow } from "../worker/semantic-shadow.mjs";
 import { semanticShotJsonSchema } from "../lib/semantic-shot.mjs";
 
 const validResult = { schema_version: "semantic-shot.v1", shot_id: "shot-1", shot_type: "front_full_body", product_match: 0.9, clothing_visibility: 0.9, visual_quality: 0.8, hook_value: 0.7, usable: true, confidence: 0.91 };
+
+test("semantic budgets cancel stalled scoring, checkpoint successes, and resume without rescoring", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-budget-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 5 }, (_, i) => ({ id: `shot-${i + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = [];
+  let stall = true;
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, signal }) => {
+    calls.push(shotId);
+    if (stall && shotId !== "shot-1") {
+      const cache = JSON.parse(await readFile(path.join(root, "semantic-cache.v1.json"), "utf8"));
+      assert.equal(Object.values(cache.entries)[0].result.shot_id, "shot-1");
+      return new Promise((resolve, reject) => {
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    }
+    return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+  } };
+  const progress = [];
+  const options = { root, batchDir: root, batch: { id: "budget", files: [], referenceProfile: {} }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, shotBudgetMs: 25, stageBudgetMs: 5000, onProgress: (value) => progress.push(value) };
+  await assert.rejects(runSemanticShadow(options), { code: "SEMANTIC_ANALYSIS_PAUSED" });
+  assert.deepEqual(calls, ["shot-1", "shot-2", "shot-3", "shot-4"]);
+  const snapshots = await readdir(path.join(root, "semantic-history/snapshots"));
+  const evidence = JSON.parse(await readFile(path.join(root, "semantic-history/snapshots", snapshots[0]), "utf8"));
+  assert.equal(evidence.complete, false);
+  assert.equal(evidence.records[1].error.code, "SEMANTIC_SHOT_BUDGET_EXCEEDED");
+  assert.equal(progress.at(-1).succeeded, 1);
+  stall = false;
+  calls.length = 0;
+  await runSemanticShadow(options);
+  assert.deepEqual(calls, ["shot-2", "shot-3", "shot-4", "shot-5"]);
+  assert.equal(progress.at(-1).succeeded, 5);
+  stall = true;
+  await assert.rejects(runSemanticShadow({ ...options, stageBudgetMs: 0 }), { code: "SEMANTIC_ANALYSIS_PAUSED" });
+  assert.equal(progress.at(-1).stopReason, "SEMANTIC_STAGE_BUDGET_EXCEEDED");
+});
 
 test("semantic JSON schema declares a type for the const schema version", () => {
   assert.deepEqual(semanticShotJsonSchema().properties.schema_version, { type: "string", const: "semantic-shot.v1" });
@@ -31,12 +70,14 @@ test("semantic shadow writes isolated evidence and reuses cache without mutating
   const adapter = { guard: { snapshot: () => ({ started: calls }) }, scoreShot: async () => { calls += 1; return { result: validResult, telemetry: { model: "fixture" } }; } };
   const options = { root, batch, batchDir, shotPool, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, ffmpeg: "", extractFrames: async () => [] };
   await runSemanticShadow(options);
+  const before = await readFile(path.join(batchDir, "semantic-evidence.v1.json"), "utf8");
   await runSemanticShadow(options);
   assert.equal(calls, 1);
   const evidence = JSON.parse(await readFile(path.join(batchDir, "semantic-evidence.v1.json"), "utf8"));
   assert.equal(evidence.isolated, true);
   assert.equal(evidence.shadowOnly, true);
-  assert.equal(evidence.records[0].status, "cache_hit");
+  assert.equal(evidence.records[0].status, "scored");
+  assert.equal(await readFile(path.join(batchDir, "semantic-evidence.v1.json"), "utf8"), before);
   await assert.rejects(() => readFile(path.join(batchDir, "output", "render-manifest.json"), "utf8"));
   assert.doesNotMatch(JSON.stringify(evidence), /secret/);
 });
@@ -178,4 +219,42 @@ test("semantic shadow invalidates cached scores when scoring identities change",
   batch.referenceProfile = { version: "template-v2" };
   await run("fixture-v2");
   assert.equal(calls, 5, "model, reference, frame, and template changes must bypass the cache");
+});
+
+test("verified Provider recovery reuses completed Evidence and scores only unfinished Shots", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-provider-resume-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const batchDir = path.join(root, "storage", "batch-provider-resume");
+  await mkdir(batchDir, { recursive: true });
+  const doneFrame = path.join(batchDir, "done.jpg");
+  const pendingFrame = path.join(batchDir, "pending.jpg");
+  await Promise.all([writeFile(doneFrame, "done-frame"), writeFile(pendingFrame, "pending-frame")]);
+  const batch = { id: "batch-provider-resume", workflowVersion: 8, requirements: "sell shirt", files: [
+    { kind: "products", storagePath: doneFrame, sourceType: "upload" },
+    { kind: "products", storagePath: pendingFrame, sourceType: "upload" },
+  ] };
+  const oldResult = { ...validResult, shot_id: "done" };
+  await writeFile(path.join(batchDir, "semantic-attempts.v1.json"), JSON.stringify({ batchId: batch.id, records: [
+    { shotId: "done", status: "scored", cacheKey: "old-provider-key", result: oldResult, telemetry: { provider: "old" } },
+  ] }));
+  await writeFile(path.join(batchDir, "provider-recovery-resume.json"), JSON.stringify({ schemaVersion: 1, workflowVersion: 8, reuseCompletedEvidence: true, resumeOperation: "quality" }));
+  const scored = [];
+  const adapter = { guard: { snapshot: () => ({}) }, scoreShot: async ({ shotId }) => {
+    scored.push(shotId);
+    return { result: { ...validResult, shot_id: shotId }, telemetry: { provider: "new" } };
+  } };
+  const result = await runSemanticShadow({
+    root, batch, batchDir,
+    shotPool: { shots: [
+      { id: "done", path: doneFrame, source: "fixture", start: 0, end: 1, duration: 1 },
+      { id: "pending", path: pendingFrame, source: "fixture", start: 0, end: 1, duration: 1 },
+    ] },
+    adapter,
+    config: { providerId: "new-provider", baseUrl: "https://new.test/v1", apiKey: "secret", fastModel: "new-model", candidateModels: [] },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" },
+    ffmpeg: "", extractFrames: async () => [],
+  });
+  assert.deepEqual(scored, ["pending"]);
+  assert.equal(result.evidence.records[0].status, "evidence_reuse");
+  assert.equal(result.evidence.records[0].result.shot_id, "done");
 });

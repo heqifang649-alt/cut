@@ -22,6 +22,24 @@ function textFromResponse(response) {
     .trim();
 }
 
+function responseFromEventStream(body) {
+  const events = body
+    .split(/\r?\n\r?\n/)
+    .flatMap((block) => block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()))
+    .filter((data) => data && data !== "[DONE]")
+    .map((data) => {
+      try { return JSON.parse(data); } catch { return null; }
+    })
+    .filter(Boolean);
+  const failed = events.find((event) => event.type === "response.failed" || event.type === "error");
+  if (failed) throw new Error(failed.response?.error?.message || failed.error?.message || "Model service streaming response failed.");
+  const completed = [...events].reverse().find((event) => event.type === "response.completed" && event.response)?.response || {};
+  const outputText = events
+    .map((event) => event.type === "response.output_text.delta" && typeof event.delta === "string" ? event.delta : "")
+    .join("");
+  return outputText && !textFromResponse(completed) ? { ...completed, output_text: outputText } : completed;
+}
+
 function connectionSettings(config) {
   const model = config.match(/^model\s*=\s*"([^"]+)"/m)?.[1] || "gpt-5.6-terra";
   const baseUrl = config.match(/^\s*base_url\s*=\s*"([^"]+)"/m)?.[1] || "";
@@ -55,12 +73,17 @@ async function probeModelService() {
         max_output_tokens: 16,
         reasoning: { effort: "low" },
         text: { verbosity: "low" },
+        stream: true,
       }),
       signal: controller.signal,
     });
     const body = await response.text();
     let payload = null;
-    try { payload = JSON.parse(body); } catch {}
+    try {
+      payload = response.headers.get("content-type")?.includes("text/event-stream")
+        ? responseFromEventStream(body)
+        : JSON.parse(body);
+    } catch {}
     if (!response.ok) throw new Error(`Model service returned HTTP ${response.status}.`);
     if (textFromResponse(payload) !== "READY") throw new Error("Model service did not return the expected readiness response.");
     return { ready: true, response: "READY" };

@@ -90,8 +90,8 @@ test("production launcher defaults to Hybrid and preserves a one-switch Control 
     assert.match(start, new RegExp(flag));
   }
   assert.match(start, /if \(\$ControlA\) \{ 'false' \} else \{ 'true' \}/);
-  assert.match(start, /\$env:MODEL_FAST = 'gpt-5\.6-sol'/);
-  assert.match(start, /\$env:MODEL_STRONG = 'gpt-5\.6-sol'/);
+  assert.match(start, /\$env:MODEL_FAST = 'gpt-6-astra'/);
+  assert.match(start, /\$env:MODEL_STRONG = 'gpt-6-astra'/);
   assert.match(start, /\$env:ENABLE_ARTIFACT_GATE = 'false'/);
   assert.match(start, /production-path\.json/);
   assert.match(start, /mode = if \(\$ControlA\) \{ 'control_a' \} else \{ 'hybrid' \}/);

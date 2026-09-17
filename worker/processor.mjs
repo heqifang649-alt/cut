@@ -8,7 +8,10 @@ import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool, prepareDeter
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
 import { isQualityGateV2Enabled, validateWithQualityGateV2 } from "./quality-gate-v2.mjs";
-import { createProductViews, isNewSchedulerEnabled, partitionScheduledProducts, scheduleProductView } from "./shot-scheduler.mjs";
+import { createProductViews, isNewSchedulerEnabled, partitionScheduledProducts } from "./shot-scheduler.mjs";
+import { routeProductSchedule, schedulerV2Mode } from "./scheduler-policy-router.mjs";
+import { readExistingShotFrameHashes } from "../lib/scheduler-v2-visual-evidence.mjs";
+import { persistSchedulerRevision } from "./scheduler-revision-store.mjs";
 import { isSemanticShadowEnabled, runSemanticShadow } from "./semantic-shadow.mjs";
 import { groupProductsByFilename, groupProductsByProductDirectory } from "./filename-product-grouper.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
@@ -1111,6 +1114,15 @@ ${prior}${correctionText}
   });
 }
 
+async function semanticProgress(batch, progress) {
+  await throwIfCanceled(batch.id);
+  await update(batch.id, (item) => {
+    item.renderingLabel = `语义分析：已处理 ${progress.processed}/${progress.total}（成功 ${progress.succeeded}，失败 ${progress.failed}）`;
+    item.lastWorkerActivityAt = progress.updatedAt;
+    item.semanticProgress = progress;
+  });
+}
+
 async function runAnalyzeQuality(batch) {
   await throwIfCanceled(batch.id);
   const batchDir = batchDirFor(batch);
@@ -1138,7 +1150,7 @@ async function runAnalyzeQuality(batch) {
     });
   }
   if (isSemanticShadowEnabled()) {
-    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG });
+    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
   }
 }
 
@@ -1223,36 +1235,50 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     });
   }
   if (includeAnalyze && isSemanticShadowEnabled()) {
-    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG });
+    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
   }
   let scheduledProducts = [];
+  let semanticEvidence;
   if (isNewSchedulerEnabled()) {
     const scriptTemplatePath = path.join(batchDir, "script-template.json");
     const scriptTemplate = await readJson(scriptTemplatePath, null);
     const productGroups = await readJson(path.join(batchDir, "product-groups.json"), null);
-    const semanticEvidence = isSemanticShadowEnabled()
+    semanticEvidence = isSemanticShadowEnabled()
       ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
       : undefined;
     if (!scriptTemplate) throw new Error("New Scheduler requires script-template.json");
     if (!Array.isArray(productGroups?.groups)) throw new Error("New Scheduler requires confirmed product-groups.json");
     if (isSemanticShadowEnabled() && !Array.isArray(semanticEvidence?.records)) throw new Error("New Scheduler requires semantic-evidence.v1.json");
+    if (isSemanticShadowEnabled() && semanticEvidence?.complete === false) throw new Error("语义分析未完成，请先重试分析阶段。");
     const productViews = createProductViews({
       shotPool: await loadShotPool(batch.id, batchDir),
       productGroups: productGroups.groups,
     });
-    scheduledProducts = productViews.map((productView) => ({
-      product: productView.product,
-      sourceNamesByShotId: productView.sourceNamesByShotId,
-      scheduleResult: scheduleProductView({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence, allowPartial: true }),
-    }));
+    const schedulerMode = schedulerV2Mode();
+    const upstreamImport = schedulerMode === "off" ? undefined : await readJson(path.join(batchDir, "shot-pool-import.json"), null);
+    const visualEvidence = schedulerMode === "off" ? undefined : await readJson(path.join(batchDir, "scheduler-visual-evidence.v1.json"), null);
+    const frameHashesByShot = schedulerMode === "off" ? {} : await readExistingShotFrameHashes(batchDir, productViews.flatMap((view) => view.shots));
+    scheduledProducts = productViews.map((productView) => {
+      const routed = routeProductSchedule({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence, allowPartial: true,
+        targetDuration: scriptTemplate.totalDuration, durationCap: Math.min(13, Number(batch.durationMax) || 13), upstreamImport, frameHashesByShot,
+        visualReview: visualEvidence?.cases?.find((entry) => entry.batchId === batch.id && entry.productId === productView.product.id),
+      }, { mode: schedulerMode, policyPin: batch.schedulerPolicy });
+      return { product: productView.product, sourceNamesByShotId: productView.sourceNamesByShotId, scheduleResult: routed.selected,
+        ...(schedulerMode !== "off" ? { schedulerPolicy: routed.policyVersion, schedulerRevision: routed.revision, shadow: routed.shadow, shadowError: routed.shadowError } : {}),
+      };
+    });
     const partitioned = partitionScheduledProducts(scheduledProducts);
-    await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), {
+    let scheduleArtifact = {
       isolated: true,
       batchId: batch.id,
       createdAt: new Date().toISOString(),
       products: scheduledProducts,
       excluded_products: partitioned.excludedProducts,
-    });
+    };
+    if (schedulerMode === "enabled" && batch.schedulerPolicy) {
+      scheduleArtifact = await persistSchedulerRevision({ batchDir, revision: batch.schedulerPolicy.revision, artifact: scheduleArtifact });
+    }
+    await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), scheduleArtifact);
   }
   if (isNewRendererEnabled()) {
     if (!isNewSchedulerEnabled()) throw new Error("New Renderer requires ENABLE_NEW_SCHEDULER=true");

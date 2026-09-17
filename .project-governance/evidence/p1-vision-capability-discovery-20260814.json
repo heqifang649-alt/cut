@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "P1_VISION_CAPABILITY_DISCOVERY",
-  "executedAt": "2026-08-17T02:41:16.990Z",
+  "executedAt": "2026-09-17T09:43:08.482Z",
   "taskCard": {
     "id": "TC-P1-VISION-CAPABILITY-DISCOVERY",
     "objective": "Find one verified VLM through a bounded real-image P1 probe.",
@@ -30,10 +30,10 @@
   ],
   "result": {
     "providerReadyForP1": true,
-    "selectedModel": "gpt-5.6-sol",
-    "lastAttemptedModel": "gpt-5.6-sol",
+    "selectedModel": "gpt-6-astra",
+    "lastAttemptedModel": "gpt-6-astra",
     "attemptedModels": [
-      "gpt-5.6-sol"
+      "gpt-6-astra"
     ],
     "unattemptedModels": [
       "gpt-5.6",
@@ -41,35 +41,20 @@
       "gpt-5.4"
     ],
     "selectedModels": {
-      "fastModel": "gpt-5.6-sol",
-      "strongModel": "gpt-5.6-sol"
+      "fastModel": "gpt-6-astra",
+      "strongModel": "gpt-6-astra"
     },
     "discoveredModels": [
       "codex-auto-review",
       "gpt-4o-audio-preview",
       "gpt-4o-realtime-preview",
-      "gpt-5.2",
-      "gpt-5.2-2025-12-11",
-      "gpt-5.2-chat-latest",
-      "gpt-5.2-pro",
-      "gpt-5.2-pro-2025-12-11",
-      "gpt-5.3-codex",
-      "gpt-5.3-codex-spark",
       "gpt-5.4",
-      "gpt-5.4-2026-03-05",
       "gpt-5.4-mini",
-      "gpt-5.4-openai-compact",
       "gpt-5.5",
-      "gpt-5.5-codex-auto-review",
-      "gpt-5.5-openai-compact",
       "gpt-5.6",
-      "gpt-5.6-luna",
       "gpt-5.6-sol",
       "gpt-5.6-terra",
-      "gpt-image",
-      "gpt-image-1",
-      "gpt-image-1.5",
-      "gpt-image-2"
+      "gpt-6-astra"
     ],
     "capabilities": {
       "AUTH": "PASS",
@@ -103,8 +88,8 @@
       {
         "url": "https://sub2.de5.net/v1/responses",
         "httpStatus": 200,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
+        "contentType": "text/event-stream",
+        "model": "gpt-6-astra",
         "capability": "TEXT",
         "protocol": "responses",
         "fallbackAttempted": false,
@@ -115,8 +100,8 @@
       {
         "url": "https://sub2.de5.net/v1/responses",
         "httpStatus": 200,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
+        "contentType": "text/event-stream",
+        "model": "gpt-6-astra",
         "capability": "STRUCTURED_OUTPUT_NATIVE",
         "protocol": "responses",
         "fallbackAttempted": false,
@@ -127,8 +112,8 @@
       {
         "url": "https://sub2.de5.net/v1/responses",
         "httpStatus": 200,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
+        "contentType": "text/event-stream",
+        "model": "gpt-6-astra",
         "capability": "VISION_INPUT",
         "protocol": "responses",
         "fallbackAttempted": false,
@@ -139,8 +124,8 @@
       {
         "url": "https://sub2.de5.net/v1/responses",
         "httpStatus": 200,
-        "contentType": "application/json; charset=utf-8",
-        "model": "gpt-5.6-sol",
+        "contentType": "text/event-stream",
+        "model": "gpt-6-astra",
         "capability": "MULTI_IMAGE",
         "protocol": "responses",
         "fallbackAttempted": false,
@@ -151,7 +136,7 @@
     ],
     "modelMatrix": [
       {
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-astra",
         "dispatched": true,
         "capabilities": {
           "AUTH": "PASS",
@@ -168,14 +153,14 @@
           "STREAMING": "UNSUPPORTED",
           "TIMEOUT_RETRY_GUARD": "PASS"
         },
-        "latencyMs": 4058,
+        "latencyMs": 14672,
         "p1FailureReasons": [],
         "endpointTelemetry": [
           {
             "url": "https://sub2.de5.net/v1/responses",
             "httpStatus": 200,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
+            "contentType": "text/event-stream",
+            "model": "gpt-6-astra",
             "capability": "TEXT",
             "protocol": "responses",
             "fallbackAttempted": false,
@@ -186,8 +171,8 @@
           {
             "url": "https://sub2.de5.net/v1/responses",
             "httpStatus": 200,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
+            "contentType": "text/event-stream",
+            "model": "gpt-6-astra",
             "capability": "STRUCTURED_OUTPUT_NATIVE",
             "protocol": "responses",
             "fallbackAttempted": false,
@@ -198,8 +183,8 @@
           {
             "url": "https://sub2.de5.net/v1/responses",
             "httpStatus": 200,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
+            "contentType": "text/event-stream",
+            "model": "gpt-6-astra",
             "capability": "VISION_INPUT",
             "protocol": "responses",
             "fallbackAttempted": false,
@@ -210,8 +195,8 @@
           {
             "url": "https://sub2.de5.net/v1/responses",
             "httpStatus": 200,
-            "contentType": "application/json; charset=utf-8",
-            "model": "gpt-5.6-sol",
+            "contentType": "text/event-stream",
+            "model": "gpt-6-astra",
             "capability": "MULTI_IMAGE",
             "protocol": "responses",
             "fallbackAttempted": false,
@@ -240,62 +225,33 @@
       "codex-auto-review",
       "gpt-4o-audio-preview",
       "gpt-4o-realtime-preview",
-      "gpt-5.2",
-      "gpt-5.2-2025-12-11",
-      "gpt-5.2-chat-latest",
-      "gpt-5.2-pro",
-      "gpt-5.2-pro-2025-12-11",
-      "gpt-5.3-codex",
-      "gpt-5.3-codex-spark",
       "gpt-5.4",
-      "gpt-5.4-2026-03-05",
       "gpt-5.4-mini",
-      "gpt-5.4-openai-compact",
       "gpt-5.5",
-      "gpt-5.5-codex-auto-review",
-      "gpt-5.5-openai-compact",
       "gpt-5.6",
-      "gpt-5.6-luna",
       "gpt-5.6-sol",
       "gpt-5.6-terra",
-      "gpt-image",
-      "gpt-image-1",
-      "gpt-image-1.5",
-      "gpt-image-2"
+      "gpt-6-astra"
     ],
     "CANDIDATE_ORDER": [
-      "gpt-5.6-sol",
+      "gpt-6-astra",
       "gpt-5.6",
       "gpt-5.5",
       "gpt-5.4"
     ],
     "ACTUALLY_ATTEMPTED_MODELS": [
-      "gpt-5.6-sol"
+      "gpt-6-astra"
     ],
     "UNATTEMPTED_MODELS": [
       "gpt-5.6",
       "gpt-5.5",
       "gpt-5.4"
     ],
-    "FIRST_ATTEMPTED_MODEL": "gpt-5.6-sol",
-    "LAST_ATTEMPTED_MODEL": "gpt-5.6-sol",
-    "SELECTED_MODEL": "gpt-5.6-sol",
-    "PILOT_PRIMARY_VLM": "gpt-5.6-sol",
-    "GPT_5_6_SOL_STATUS": {
-      "AUTH": "PASS",
-      "MODEL": "PASS",
-      "TEXT": "PASS",
-      "RESPONSES_API": "PASS",
-      "CHAT_COMPLETIONS_API": "UNKNOWN",
-      "MODELS_API": "PASS",
-      "VISION_INPUT": "PASS",
-      "MULTI_IMAGE": "PASS",
-      "STRUCTURED_OUTPUT_NATIVE": "PASS",
-      "JSON_FALLBACK": "UNKNOWN",
-      "USAGE_METADATA": "PASS",
-      "STREAMING": "UNSUPPORTED",
-      "TIMEOUT_RETRY_GUARD": "PASS"
-    },
+    "FIRST_ATTEMPTED_MODEL": "gpt-6-astra",
+    "LAST_ATTEMPTED_MODEL": "gpt-6-astra",
+    "SELECTED_MODEL": "gpt-6-astra",
+    "PILOT_PRIMARY_VLM": "gpt-6-astra",
+    "GPT_5_6_SOL_STATUS": "UNATTEMPTED",
     "GPT_5_6_STATUS": "UNATTEMPTED",
     "GPT_5_5_STATUS": "UNATTEMPTED",
     "TERRA_STATUS": "NON_BLOCKING_MODEL_NOT_TESTED",
@@ -323,7 +279,7 @@
     "NEXT_CRITICAL_PATH": "Integrate semantic-evidence.v1 into deterministic Treatment B scheduler, then P2 real semantic evaluation and P3 Control A vs Treatment B."
   },
   "candidateOrder": [
-    "gpt-5.6-sol"
+    "gpt-6-astra"
   ],
   "reliability": {
     "requestGuard": {
