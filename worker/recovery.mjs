@@ -305,6 +305,17 @@ export async function acquireCodexExecution({ root, task, service, workerId }) {
   const currentTime = Date.now();
   return mutateCodexControl(root, (control) => {
     const circuit = control.circuit;
+    // Older releases made an account rate limit permanently manual after five
+    // probes. A provider cooldown is global backpressure, not a Batch failure:
+    // revive that persisted state as an ordinary open circuit and allow only
+    // the existing half-open single probe once its cooldown is due.
+    if (circuit.state === "manual" && circuit.lastKind === "codex_rate_limit") {
+      const lastFailureAt = parseTime(circuit.lastFailureAt);
+      const cooldownEndsAt = lastFailureAt + CODEX_CONCURRENCY_DELAYS_MS.at(-1);
+      circuit.state = "open";
+      circuit.nextRetryAt = new Date(Math.max(currentTime, cooldownEndsAt)).toISOString();
+      circuit.manualAt = undefined;
+    }
     if (circuit.state === "manual") {
       return { state: "manual", message: circuit.lastError || "Codex concurrency backoff requires bounded manual requeue." };
     }
@@ -405,7 +416,7 @@ export async function tripCodexConcurrencyCircuit({ root, message, task, service
     };
     // Keep all five documented account-level backoff windows (1/2/5/10/15
     // minutes). Only the following failure requires manual intervention.
-    if (attempt > MAX_CODEX_CONCURRENCY_ATTEMPTS) {
+    if (kind !== "codex_rate_limit" && attempt > MAX_CODEX_CONCURRENCY_ATTEMPTS) {
       control.circuit = { state: "manual", ...details, manualAt: nowIso() };
       return { state: "manual", attempt };
     }

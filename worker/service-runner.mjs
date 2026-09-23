@@ -141,6 +141,7 @@ async function syncDerivedTasks() {
       continue;
     }
     const version = workflowVersionOf(batch);
+    const marker = await readJson(stageFile(batch), null);
     const manualTask = manualTasks.get(`${batch.id}:${version}`) || null;
     if (manualTask) {
       // A lease can expire while the child process is partitioned rather than
@@ -158,7 +159,8 @@ async function syncDerivedTasks() {
     }
     if (STAGE === "analyze") {
       if (["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products"].includes(batch.status)) {
-        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
+        const operation = batch.status === "detecting_products" && marker?.operation === "regroup" ? "regroup" : "reference";
+        await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation, priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "regroup_queued") {
         await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       } else if (batch.status === "batch_queued") {
@@ -169,13 +171,11 @@ async function syncDerivedTasks() {
       if (batch.status === "revision_queued") {
         await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
-      const marker = await readJson(stageFile(batch), null);
       if (batch.status === "editing" && marker?.next === "clip" && marker.operation === "edit" && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
         await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
     }
     if (STAGE === "render") {
-      const marker = await readJson(stageFile(batch), null);
       if (["editing", "revising"].includes(batch.status) && marker?.next === "render" && ["render", "revision"].includes(marker.operation) && (!marker.workflowVersion || workflowVersionOf(marker) === version)) {
         await enqueueDerivedStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: batch.priority, workflowVersion: version, taskNumber: taskNumberForBatch(batch) });
       }
@@ -350,6 +350,17 @@ async function handleFailure(task, error) {
       return false;
     }
   };
+
+  if (classification.kind === "codex_rate_limit") {
+    const retryAt = codexCircuit?.nextRetryAt || new Date(Date.now() + retryDelayFor(1, classification)).toISOString();
+    await writeBatchState((item) => {
+      item.error = undefined;
+      item.renderingLabel = `Provider 全局退避中，将在 ${new Date(retryAt).toLocaleTimeString("zh-CN", { hour12: false })} 后自动继续`;
+      item.lastWorkerActivityAt = new Date().toISOString();
+      item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_BACKPRESSURE", retryAt, updatedAt: new Date().toISOString() };
+    });
+    return deferStage({ root: ROOT, task, reason: "PROVIDER_BACKPRESSURE", notBefore: retryAt, fairMultiBatch: true });
+  }
 
   const releaseAsManual = async (state, label, recoveryMarker) => {
     if (!(await writeBatchState((item) => { item.status = "failed"; item.error = message; item.renderingLabel = label; }))) return { state: "lost", lost: true };

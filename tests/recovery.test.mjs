@@ -119,6 +119,30 @@ test("Codex concurrency has a global single-slot circuit breaker and five bounde
   }
 });
 
+test("Codex rate limits remain shared backpressure and never become manual Batch failures", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-codex-rate-limit-"));
+  try {
+    const task = { key: "batch-rate-limited:analyze:reference" };
+    let state;
+    for (let attempt = 1; attempt <= MAX_CODEX_CONCURRENCY_ATTEMPTS + 2; attempt += 1) {
+      state = await tripCodexConcurrencyCircuit({
+        root,
+        task,
+        service: "analyze",
+        workerId: "analyze-1",
+        kind: "codex_rate_limit",
+        message: "429 usage limit",
+      });
+      assert.equal(state.state, "open");
+    }
+    const blocked = await acquireCodexExecution({ root, task, service: "analyze", workerId: "analyze-1" });
+    assert.equal(blocked.state, "waiting");
+    assert.ok(Date.parse(blocked.retryAt) > Date.now());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a silent Codex turn is retried through the bounded reconnect path", () => {
   const classification = classifyRecoveryError(Object.assign(new Error("Codex no longer emitted events"), {
     code: "CODEX_TURN_INACTIVITY_TIMEOUT",
