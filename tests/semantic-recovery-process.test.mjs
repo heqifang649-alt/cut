@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,14 @@ import { summarizeSemanticEvents, writeImmutableJson } from "../lib/semantic-obs
 
 const worker = fileURLToPath(new URL("../worker/semantic-verification.mjs", import.meta.url));
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+async function waitFor(predicate, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("Timed out waiting for the injected crash condition.");
+}
 async function hashes(directory) {
   const result = {};
   for (const name of await readdir(directory, { recursive: true })) {
@@ -49,7 +58,7 @@ test("hard-killed Worker resumes with zero Provider redispatch for committed Sho
   let diagnostic = "";
   t.after(() => { if (t.signal.aborted) t.diagnostic(diagnostic); });
   const launch = () => {
-    const child = spawn(process.execPath, [worker, `--manifest=${manifest}`], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, SEMANTIC_TEST_PROVIDER_URL: `http://127.0.0.1:${server.address().port}/v1` } });
+    const child = spawn(process.execPath, [worker, `--manifest=${manifest}`], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CUT_WORK_ROOT: root, SEMANTIC_CONCURRENCY: "1", SEMANTIC_TEST_PROVIDER_URL: `http://127.0.0.1:${server.address().port}/v1` } });
     child.stderr.on("data", (chunk) => { diagnostic += chunk; });
     child.stdout.on("data", (chunk) => { diagnostic += chunk; });
     return child;
@@ -58,6 +67,21 @@ test("hard-killed Worker resumes with zero Provider redispatch for committed Sho
   t.after(() => first.kill("SIGKILL"));
   await Promise.race([secondStarted, once(first, "exit").then(async ([code]) => { throw new Error(`Worker exited before second request (${code}): ${diagnostic}; ${await readFile(path.join(batchDir, "verification-worker-result.json"), "utf8").catch(() => "no result")}`); })]);
   const history = path.join(batchDir, "semantic-history");
+  // Kill only once the request is genuinely in flight: the HTTP start event is
+  // durable and the Provider admission lock (plus its recovery guard) has been
+  // released. Killing a Worker while it still holds that lock is a different,
+  // separately-covered scenario (lock grace recovery) and would turn this
+  // assertion into a 30s stall instead of a crash mid-request.
+  const admissionFiles = [
+    path.join(root, "data", "provider-incidents.json.lock"),
+    path.join(root, "data", "provider-incidents.json.lock.recovery"),
+  ];
+  await waitFor(async () => {
+    const events = await readdir(path.join(history, "events")).catch(() => []);
+    const started = await Promise.all(events.filter((name) => name.endsWith(".json")).map(async (name) => JSON.parse(await readFile(path.join(history, "events", name), "utf8"))));
+    const shot2Started = started.some((value) => value.kind === "request_start" && value.shotId === "shot-2");
+    return shot2Started && admissionFiles.every((file) => !existsSync(file));
+  }, 15000);
   const before = await hashes(history);
   assert.ok(Object.keys(before).some((file) => file.startsWith("shots")));
   const exited = once(first, "exit");

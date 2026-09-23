@@ -2,7 +2,8 @@
 
 import { ChangeEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import type { Batch, BatchStatus, NasScan, ProductDetection, ReferenceProfile, SampleTemplate, TransitionMode, TransitionProfile } from "@/lib/types";
+import type { Batch, BatchStatus, CoveragePolicy, NasScan, ProductDetection, ReferenceProfile, SampleTemplate, TransitionMode, TransitionProfile } from "@/lib/types";
+import { batchNamePrefix, nextBatchSequence } from "@/lib/batch-name.mjs";
 import DashboardOverview, { type DashboardSnapshot } from "./dashboard-overview";
 
 type RecoveryEvent = { at: string; message: string; tone: "active" | "success" | "failed" | "waiting" };
@@ -70,9 +71,14 @@ type ProviderDraft = Omit<ProviderConfig, "providerId" | "providerHealth" | "api
 type NewBatchDraft = {
   expiresAt: number;
   batchName: string;
+  // True once the operator typed a custom name, so picking a NAS folder must
+  // stop overwriting their text.
+  batchNameLocked: boolean;
   requirements: string;
   durationMax: number;
   outputCount: number;
+  targetOutputsPerBatch: number;
+  coveragePolicy: CoveragePolicy;
   cvrText: string;
   hookText: string;
   cvrOverrideEnabled: boolean;
@@ -154,17 +160,26 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.status === "failed") return { label: "失败", detail: batch.error || "任务未完成，请查看失败原因。" };
   if (batch.status === "review") return { label: "等待审核", detail: "成片已生成，等待人工确认。" };
   if (batch.status === "completed") return { label: "已完成", detail: "成片已通过并完成交付。" };
+  if (batch.status === "canceled") return { label: "已取消", detail: "任务已取消。" };
+  if (batch.execution?.state === "review_ready") return { label: "等待审核", detail: "成片与 manifest 已就绪，等待人工确认。" };
+  if (batch.execution?.state === "backpressured") return { label: "资源退避中", detail: batch.renderingLabel || "全局资源暂不可用，任务已保留并会自动继续。" };
+  if (batch.execution?.state === "waiting_continuation") return { label: "等待分片续跑", detail: batch.renderingLabel || "当前 quantum 已保存，Batch 已回到队列环尾。" };
+  if (batch.execution?.state === "retry_wait") return { label: "等待重试", detail: batch.renderingLabel || "当前阶段正在等待自动恢复窗口。" };
+  if (batch.execution?.state === "queued") return { label: "排队中", detail: batch.renderingLabel || "任务已进入全局队列。" };
+  if (batch.execution?.state === "running") return { label: "执行中", detail: batch.renderingLabel || `正在执行 ${batch.execution.stage || "当前"} 阶段。` };
   if (batch.status === "reference_ready") return { label: "等待确认", detail: "产品分组与样片母版等待确认。" };
   if (["reference_queued", "regroup_queued", "batch_queued", "revision_queued"].includes(batch.status)) {
     if (batch.renderingLabel?.includes("Codex 认证")) return { label: "等待模型认证", detail: batch.renderingLabel };
     if (batch.renderingLabel?.includes("自动恢复")) return { label: "自动恢复中", detail: batch.renderingLabel };
     return { label: "等待 Worker", detail: batch.renderingLabel || "任务已进入队列，等待工作机接手。" };
   }
+  if (batch.status === "editing" && batch.renderingLabel?.startsWith("语义分析：")) return { label: batch.renderingLabel.includes("等待自动续跑") ? "等待语义分析续跑" : "语义分析中", detail: batch.renderingLabel };
   if (batch.status === "uploading") return { label: "等待素材上传", detail: "正在接入本批素材。" };
   return { label: statusMeta[batch.status].label, detail: batch.renderingLabel || `已接入 ${batch.files.filter((file) => file.kind === "products").length} 个素材，正在处理。` };
 }
 
 function estimateRemaining(batch: Batch) {
+  if (batch.status === "editing" && batch.renderingLabel?.includes("等待自动续跑")) return "已保存进度，等待下一分段";
   const active = ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"].includes(batch.status);
   if (!active || batch.progress < 5 || batch.progress >= 100) return null;
   const elapsedSeconds = Math.max(1, (Date.now() - new Date(batch.createdAt).getTime()) / 1000);
@@ -479,8 +494,12 @@ function TransitionSummary({ batch }: { batch: Batch }) {
   </div>;
 }
 
-function ProductDetectionPanel({ detection, evidence = [] }: { detection: ProductDetection; evidence?: ProductGroupEvidence[] }) {
+function ProductDetectionPanel({ detection, evidence = [], status, selections, onSelect, onConfirm, confirmPending, unhandledCount, confirmError }: { detection: ProductDetection; evidence?: ProductGroupEvidence[]; status?: string; selections?: Record<string, string>; onSelect?: (file: string, value: string) => void; onConfirm?: () => void; confirmPending?: boolean; unhandledCount?: number; confirmError?: string }) {
   const evidenceByGroup = new Map(evidence.map((item) => [item.groupId, item]));
+  const isEditable = status === "reference_ready" && typeof onSelect === "function";
+  const runningNotice = status && status !== "reference_ready" && status !== "uploading" && status !== "detecting_products"
+    ? "当前阶段分组已锁定，不能修改；人工确认需在开始剪辑前完成。"
+    : null;
   return (
     <div className="detection-panel">
       <div className="profile-head">
@@ -502,7 +521,43 @@ function ProductDetectionPanel({ detection, evidence = [] }: { detection: Produc
           </div>;
         })}
       </div>
-      {!!detection.unassigned.length && <div className="unassigned">待人工确认：{detection.unassigned.join("、")}</div>}
+      {!!detection.unassigned.length && (
+        <div className="unassigned">
+          <div className="unassigned-head">待人工确认（{detection.unassigned.length} 个文件）：请为每个文件选择目标产品，或明确选择「本次不使用」。</div>
+          {isEditable ? (
+            <ul className="unassigned-list">
+              {detection.unassigned.map((file) => (
+                <li key={file} className="unassigned-item">
+                  <span className="unassigned-file" title={file}>{file}</span>
+                  <select
+                    className="unassigned-select"
+                    value={selections?.[file] ?? ""}
+                    onChange={(event) => onSelect?.(file, event.target.value)}
+                    aria-label={`为 ${file} 选择目标产品`}
+                  >
+                    <option value="">请选择目标产品</option>
+                    {detection.groups.map((group) => (
+                      <option key={group.id} value={group.id}>{group.label}（{group.files.length} 个视频 / {Math.round(group.confidence * 100)}%）</option>
+                    ))}
+                    <option value="EXCLUDE">本次不使用（排除）</option>
+                  </select>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="unassigned-static">待人工确认：{detection.unassigned.join("、")}</div>
+          )}
+        </div>
+      )}
+      {isEditable && (
+        <div className="detection-confirm-actions">
+          <button className="primary-button" type="button" onClick={onConfirm} disabled={confirmPending || (unhandledCount ?? 0) > 0}>
+            {confirmPending ? "正在确认…" : (unhandledCount ?? 0) > 0 ? `还有 ${unhandledCount} 项待确认` : "确认产品分组与母版，开始剪辑 →"}
+          </button>
+          {confirmError && <div className="error-banner" role="alert">{confirmError}</div>}
+        </div>
+      )}
+      {runningNotice && <div className="detection-locked-note" role="status">{runningNotice}</div>}
     </div>
   );
 }
@@ -633,9 +688,13 @@ export default function Home() {
   const [nasDirectoriesError, setNasDirectoriesError] = useState("");
 
   const [batchName, setBatchName] = useState(defaultBatchName);
+  // 一旦操作者手改名称就锁定，之后的文件夹切换不再覆盖它。
+  const [batchNameLocked, setBatchNameLocked] = useState(false);
   const [requirements, setRequirements] = useState(defaultRequirements);
   const [durationMax, setDurationMax] = useState(13);
   const [outputCount, setOutputCount] = useState(1);
+  const [targetOutputsPerBatch, setTargetOutputsPerBatch] = useState(5);
+  const [coveragePolicy, setCoveragePolicy] = useState<CoveragePolicy>("all_products_required");
   const [cvrText, setCvrText] = useState("");
   const [hookText, setHookText] = useState("");
   const [cvrOverrideEnabled, setCvrOverrideEnabled] = useState(false);
@@ -826,12 +885,12 @@ export default function Home() {
     if (view !== "new-batch") return;
     const persistDraft = () => {
       const expiresAt = Date.now() + newBatchDraftLifetimeMs;
-      const draft: NewBatchDraft = { batchName, requirements, durationMax, outputCount, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, expiresAt };
+      const draft: NewBatchDraft = { batchName, batchNameLocked, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, expiresAt };
       window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     };
     window.addEventListener("pagehide", persistDraft);
     return () => window.removeEventListener("pagehide", persistDraft);
-  }, [view, batchName, requirements, durationMax, outputCount, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, draftStorageKey]);
+  }, [view, batchName, batchNameLocked, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, draftStorageKey]);
 
   useEffect(() => {
     const ids = authUser && selectedId ? [selectedId] : [];
@@ -877,6 +936,25 @@ export default function Home() {
 
   const selected = useMemo(() => batches.find((batch) => batch.id === selectedId) ?? null, [batches, selectedId]);
   const selectedTemplate = useMemo(() => templates.find((item) => item.id === selectedTemplateId) ?? null, [templates, selectedTemplateId]);
+
+  // Per (batchId + workflowVersion) selections for the reference_ready product
+  // confirmation. Keyed by version so polling reloads never clear in-progress
+  // choices, and a regroup (new version) starts fresh without guessing.
+  const [confirmSelections, setConfirmSelections] = useState<Record<string, Record<string, string>>>({});
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
+  const confirmKey = selected ? `${selected.id}:${selected.workflowVersion ?? 1}` : "";
+  const unhandledCount = selected?.productDetection
+    ? selected.productDetection.unassigned.filter((file) => {
+        const value = confirmKey ? confirmSelections[confirmKey]?.[file] : undefined;
+        return value !== "EXCLUDE" && !(typeof value === "string" && value.length > 0);
+      }).length
+    : 0;
+  const setConfirmSelection = useCallback((file: string, value: string) => {
+    if (!confirmKey) return;
+    setConfirmSelections((prev) => ({ ...prev, [confirmKey]: { ...(prev[confirmKey] || {}), [file]: value } }));
+  }, [confirmKey]);
+
   const reviewBatches = useMemo(() => batches.filter((batch) => ["review", "completed"].includes(batch.status) && batch.files.some((file) => file.kind === "output")), [batches]);
   const reviewBatchGroups = useMemo(() => {
     const groups = new Map<string, { label: string; batches: Batch[] }>();
@@ -900,15 +978,43 @@ export default function Home() {
   const displayedPageTitle = view === "users" ? "用户管理" : view === "ai-provider" ? "AI Provider" : pageTitle;
   const displayedPageDescription = view === "users" ? "仅管理员可创建账号并查看工作区用户。" : view === "ai-provider" ? "仅管理员可配置 Provider；API Key 保存后不会再次显示。" : pageDescription;
 
+  // 一级素材文件夹名，例如 `TT`。批次名称默认就是「该文件夹名 + 当日北京时间 + 批次序号」。
+  const nasSelectedFolderName = nasDirectories.find((directory) => directory.path === nasParentPath)?.name || "";
+  const autoBatchNameRequest = useRef(0);
+
+  // 默认命名规则：TT -> TT26.9.21-1。只在操作者没有手改过名称时生效，
+  // 避免用户自定义的名称被随后的一次文件夹切换悄悄覆盖。
+  function applyAutoBatchName(folderName: string, options?: { force?: boolean }) {
+    if (!folderName) return;
+    if (batchNameLocked && !options?.force) return;
+    const prefix = batchNamePrefix(folderName);
+    setBatchName(`${prefix}-${nextBatchSequence(batches.map((batch) => batch.name), prefix)}`);
+    setBatchNameLocked(false);
+    const requestId = autoBatchNameRequest.current + 1;
+    autoBatchNameRequest.current = requestId;
+    void fetch(`/api/batches/next-name?folder=${encodeURIComponent(folderName)}`, { cache: "no-store" })
+      .then(async (response) => (response.ok ? await response.json() as { name?: string } : null))
+      .then((payload) => {
+        // 序号是团队级共享的（同一个拍摄文件夹可能多人建批次），服务端结果为准，
+        // 但用户已经切换文件夹或手改名称时丢弃这个过期响应。
+        if (!payload?.name || autoBatchNameRequest.current !== requestId) return;
+        setBatchName(payload.name);
+      })
+      .catch(() => undefined);
+  }
+
   function clearNewBatchDraft() {
     window.localStorage.removeItem(draftStorageKey);
   }
 
   function resetNewBatchForm() {
     setBatchName(defaultBatchName);
+    setBatchNameLocked(false);
     setRequirements(defaultRequirements);
     setDurationMax(13);
     setOutputCount(1);
+    setTargetOutputsPerBatch(5);
+    setCoveragePolicy("all_products_required");
     setCvrText("");
     setHookText("");
     setCvrOverrideEnabled(false);
@@ -930,7 +1036,7 @@ export default function Home() {
 
   function cacheNewBatchDraft() {
     const expiresAt = Date.now() + newBatchDraftLifetimeMs;
-    const draft: NewBatchDraft = { batchName, requirements, durationMax, outputCount, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, expiresAt };
+    const draft: NewBatchDraft = { batchName, batchNameLocked, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText, hookText, cvrOverrideEnabled, hookOverrideEnabled, sourceMode, nasPath, selectedTemplateId, colorStrategy, musicSource, transitionMode, expiresAt };
     window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     window.setTimeout(() => {
       try {
@@ -951,9 +1057,13 @@ export default function Home() {
         return;
       }
       if (typeof draft.batchName === "string") setBatchName(draft.batchName);
+      // 旧草稿没有这个字段：只有名称恰好还是历史默认值时，才认为它仍可被自动命名覆盖。
+      setBatchNameLocked(typeof draft.batchNameLocked === "boolean" ? draft.batchNameLocked : draft.batchName !== defaultBatchName);
       if (typeof draft.requirements === "string") setRequirements(draft.requirements);
       if (typeof draft.durationMax === "number") setDurationMax(draft.durationMax);
       if (typeof draft.outputCount === "number") setOutputCount(draft.outputCount);
+      if (typeof draft.targetOutputsPerBatch === "number") setTargetOutputsPerBatch(draft.targetOutputsPerBatch);
+      if (draft.coveragePolicy === "all_products_required" || draft.coveragePolicy === "best_products_allowed") setCoveragePolicy(draft.coveragePolicy);
       if (typeof draft.cvrText === "string") setCvrText(draft.cvrText);
       if (typeof draft.hookText === "string") setHookText(draft.hookText);
       if (typeof draft.cvrOverrideEnabled === "boolean") setCvrOverrideEnabled(draft.cvrOverrideEnabled);
@@ -1268,7 +1378,7 @@ export default function Home() {
       const response = await fetch("/api/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ batchName, requirements, durationMax, outputCount, cvrText: cvrOverrideEnabled ? cvrText : undefined, hookText: hookOverrideEnabled ? hookText : undefined, colorStrategy, musicSource, transitionMode, speed: 1, sourceMode, nasPath: sourceMode === "nas" ? nasPath : undefined, templateId: selectedTemplateId || undefined }),
+        body: JSON.stringify({ batchName, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText: cvrOverrideEnabled ? cvrText : undefined, hookText: hookOverrideEnabled ? hookText : undefined, colorStrategy, musicSource, transitionMode, speed: 1, sourceMode, nasPath: sourceMode === "nas" ? nasPath : undefined, templateId: selectedTemplateId || undefined }),
       });
       const payload = (await response.json()) as { batch?: Batch; error?: string };
       if (!response.ok || !payload.batch) throw new Error(payload.error || "创建批次失败");
@@ -1324,9 +1434,47 @@ export default function Home() {
   }
 
   async function approveProfile() {
-    if (!selected) return;
-    await fetch(`/api/batches/${selected.id}/approve-profile`, { method: "POST" });
-    await loadBatches();
+    if (!selected || confirmPending) return;
+    if (unhandledCount > 0) {
+      setConfirmError(`还有 ${unhandledCount} 个待确认文件未决策，请先为每个文件选择目标产品或「本次不使用」。`);
+      return;
+    }
+    setConfirmError("");
+    setConfirmPending(true);
+    try {
+      const unassigned = selected.productDetection?.unassigned || [];
+      const selections = confirmKey ? confirmSelections[confirmKey] || {} : {};
+      const assignments = unassigned
+        .map((file) => {
+          const raw = selections[file];
+          if (raw === "EXCLUDE") return { file, groupId: null };
+          if (typeof raw === "string" && raw.length > 0) return { file, groupId: raw };
+          return null;
+        })
+        .filter((entry): entry is { file: string; groupId: string | null } => entry !== null);
+      const response = await fetch(`/api/batches/${selected.id}/approve-profile`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ workflowVersion: selected.workflowVersion, assignments }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; batch?: Batch };
+      if (!response.ok) {
+        // Stale version or state change: refresh so the UI reflects reality.
+        if (response.status === 409) await loadBatches();
+        throw new Error(payload.error || "确认失败");
+      }
+      // Reset this version's selections; the batch will reload as batch_queued.
+      setConfirmSelections((prev) => {
+        const next = { ...prev };
+        delete next[confirmKey];
+        return next;
+      });
+      await loadBatches();
+    } catch (caught) {
+      setConfirmError(caught instanceof Error ? caught.message : "确认失败，请重试");
+    } finally {
+      setConfirmPending(false);
+    }
   }
 
   async function submitRevision() {
@@ -1629,7 +1777,7 @@ export default function Home() {
 
             <form onSubmit={createBatch}>
               <div className="field-row two">
-                <label><span>批次名称</span><input value={batchName} onChange={(event) => setBatchName(event.target.value)} required /></label>
+                <label className="batch-name-field"><span>批次名称{sourceMode === "nas" && nasSelectedFolderName ? <button type="button" className="text-button" onClick={() => applyAutoBatchName(nasSelectedFolderName, { force: true })}>按规则重命名</button> : null}</span><input value={batchName} onChange={(event) => { setBatchName(event.target.value); setBatchNameLocked(true); }} placeholder="素材文件夹名+当日日期+批次，例如 TT26.9.21-1" required /></label>
                 <div className="copy-override"><span>CVR文案</span><div className="copy-override-control"><input value={cvrOverrideEnabled ? cvrText : "与样片一致"} onChange={(event) => setCvrText(event.target.value)} placeholder="输入新的 CVR 文案" disabled={!cvrOverrideEnabled} /><button type="button" className="text-button" onClick={() => { setCvrOverrideEnabled((current) => !current); if (cvrOverrideEnabled) setCvrText(""); }}>{cvrOverrideEnabled ? "恢复样片" : "编辑"}</button></div></div>
               </div>
 
@@ -1646,7 +1794,7 @@ export default function Home() {
                   {sourceMode === "nas" ? (
                     <div className="nas-source">
                       <p className="nas-root-note">固定素材根目录：<code>{nasRootPath || "正在读取…"}</code></p>
-                      <div className="nas-input"><select value={nasParentPath} onChange={(event) => { const parent = event.target.value; setNasParentPath(parent); setNasPath(""); setNasSubdirectories([]); setNasScan(null); }} disabled={nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 一级文件夹"><option value="">{nasDirectoriesLoading ? "正在读取一级文件夹…" : "先选择一级文件夹"}</option>{nasDirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><select value={nasPath} onChange={(event) => { setNasPath(event.target.value); setNasScan(null); }} disabled={!nasParentPath || nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 具体批次文件夹"><option value="">{nasParentPath ? (nasSubdirectories.length ? "再选择具体批次文件夹" : "该目录下没有子文件夹") : "先选择一级文件夹"}</option>{nasSubdirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><button type="button" onClick={scanNasDirectory} disabled={scanningNas || nasDirectoriesLoading || !nasPath}>{scanningNas ? "检查中…" : "检查并扫描"}</button></div>
+                      <div className="nas-input"><select value={nasParentPath} onChange={(event) => { const parent = event.target.value; setNasParentPath(parent); setNasPath(""); setNasSubdirectories([]); setNasScan(null); applyAutoBatchName(nasDirectories.find((directory) => directory.path === parent)?.name || ""); }} disabled={nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 一级文件夹"><option value="">{nasDirectoriesLoading ? "正在读取一级文件夹…" : "先选择一级文件夹"}</option>{nasDirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><select value={nasPath} onChange={(event) => { setNasPath(event.target.value); setNasScan(null); }} disabled={!nasParentPath || nasDirectoriesLoading || Boolean(nasDirectoriesError)} aria-label="选择 NAS 具体批次文件夹"><option value="">{nasParentPath ? (nasSubdirectories.length ? "再选择具体批次文件夹" : "该目录下没有子文件夹") : "先选择一级文件夹"}</option>{nasSubdirectories.map((directory) => <option key={directory.path} value={directory.path}>{directory.name}</option>)}</select><button type="button" onClick={scanNasDirectory} disabled={scanningNas || nasDirectoriesLoading || !nasPath}>{scanningNas ? "检查中…" : "检查并扫描"}</button></div>
                       {nasDirectoriesError ? <div className="nas-directory-error"><span>!</span><div><strong>无法读取 NAS 文件夹</strong><small>{nasDirectoriesError}</small></div><button type="button" onClick={() => void loadNasDirectories()} disabled={nasDirectoriesLoading}>重试</button></div> : nasScan ? <div className="nas-result"><span>✓</span><div><strong>目录可读 · {nasScan.fileCount} 个视频 · {nasScan.imageCount || 0} 张产品图 · {formatSize(nasScan.totalSize)}</strong><small>{nasScan.speedMBps ? `实测读取约 ${nasScan.speedMBps} MB/s · ` : ""}视频和产品图均留在 NAS，仅在本机建立分析索引</small></div></div> : <p>先选择一级目录（例如 TT），再选择其中的具体批次文件夹。</p>}
                     </div>
                   ) : <FileDrop label="选择本次拍摄全部视频" hint="备用方式：视频将逐个上传到剪辑工作机" files={productFiles} accept="video/*" multiple directory onChange={setProductFiles} />}
@@ -1664,7 +1812,8 @@ export default function Home() {
 
               <div className="field-row settings">
                 <label><span>最长时长</span><div className="unit-input"><input type="number" min="6" max="30" value={durationMax} onChange={(event) => setDurationMax(Number(event.target.value))} /><em>秒</em></div></label>
-                <label><span>每款输出</span><div className="unit-input"><input type="number" min="1" max="5" value={outputCount} onChange={(event) => setOutputCount(Number(event.target.value))} /><em>条</em></div></label>
+                <label><span>本批目标输出</span><div className="unit-input"><input type="number" min="1" max="100" value={targetOutputsPerBatch} onChange={(event) => setTargetOutputsPerBatch(Number(event.target.value))} /><em>条</em></div><small>预计总输出：{targetOutputsPerBatch} 条</small></label>
+                <label><span>产品覆盖策略</span><select value={coveragePolicy} onChange={(event) => setCoveragePolicy(event.target.value as CoveragePolicy)}><option value="all_products_required">全部产品必须覆盖（默认）</option><option value="best_products_allowed">允许优先最佳产品</option></select><small>{coveragePolicy === "all_products_required" ? "目标数少于可渲染产品数时将停止，不会漏产。" : "目标不足时按排片质量稳定选择产品。"}</small></label>
                 <div className="copy-override"><span>Hook文案</span><div className="copy-override-control"><input value={hookOverrideEnabled ? hookText : "与样片一致"} onChange={(event) => setHookText(event.target.value)} placeholder="输入新的 Hook 文案" disabled={!hookOverrideEnabled} /><button type="button" className="text-button" onClick={() => { setHookOverrideEnabled((current) => !current); if (hookOverrideEnabled) setHookText(""); }}>{hookOverrideEnabled ? "恢复样片" : "编辑"}</button></div></div>
                 <label><span>颜色策略</span><select value={colorStrategy} onChange={(event) => setColorStrategy(event.target.value as "none" | "sample" | "lut")}><option value="none">保持原色视频（默认）</option><option value="sample">复刻母版颜色</option><option value="lut">品牌 LUT</option></select></label>
               </div>
@@ -1703,7 +1852,7 @@ export default function Home() {
             {selected.referenceProfile ? <ProfilePanel profile={selected.referenceProfile} /> : (
               <div className={`analysis-placeholder ${activeStatuses.includes(selected.status) && selected.status !== "failed" ? "is-working" : ""}`}><div className="radar"><i/><i/><span>AI</span></div><div><strong>{selected.status === "failed" ? "任务失败" : "等待样片识别结果"}{activeStatuses.includes(selected.status) && selected.status !== "failed" ? <span className="live-dots" /> : null}</strong><p>{selected.error || "剪辑工作机会读取样片，提取镜头时长、转场、字幕安全区、色彩和CVR样式。"}{selected.lastWorkerActivityAt && activeStatuses.includes(selected.status) && selected.status !== "failed" ? <> <span className={activityClass(activityAgeSec(selected.lastWorkerActivityAt))}>已分析 {activityAgeSec(selected.lastWorkerActivityAt)} 秒</span></> : null}</p></div></div>
             )}
-            {selected.productDetection ? <ProductDetectionPanel detection={selected.productDetection} evidence={selected.status === "reference_ready" ? productGroupEvidenceByBatch[selected.id] : undefined} /> : selected.referenceProfile && (
+            {selected.productDetection ? <ProductDetectionPanel detection={selected.productDetection} evidence={selected.status === "reference_ready" ? productGroupEvidenceByBatch[selected.id] : undefined} status={selected.status} selections={confirmKey ? confirmSelections[confirmKey] : undefined} onSelect={setConfirmSelection} onConfirm={approveProfile} confirmPending={confirmPending} unhandledCount={unhandledCount} confirmError={confirmError} /> : selected.referenceProfile && (
               <div className="analysis-placeholder compact is-working"><div className="radar"><i/><i/><span>衣</span></div><div><strong>正在自动识别产品<span className="live-dots" /></strong><p>无需文件夹分类，系统正在比较所有视频中的衣服底色、图案、号码、袖口与正反面关系。{selected.lastWorkerActivityAt ? <> <span className={activityClass(activityAgeSec(selected.lastWorkerActivityAt))}>已分析 {activityAgeSec(selected.lastWorkerActivityAt)} 秒</span></> : null}</p></div></div>
             )}
             {artifactEvidenceByBatch[selected.id]?.sources?.length ? <section className="artifact-review-panel">
@@ -1720,10 +1869,15 @@ export default function Home() {
             </section> : null}
             <TransitionSummary batch={selected} />
             {selected.revisionHistory?.length ? <section className="revision-history"><div><span>REVISION HISTORY</span><strong>成片修改记录</strong></div>{[...selected.revisionHistory].reverse().map((revision) => <article key={revision.id}><b>v{revision.version}</b><p>{revision.command}</p><small>{formatTime(revision.submittedAt)} · {revision.status === "queued" ? "等待处理" : revision.status === "processing" ? "处理中" : revision.status === "review" ? "已生成新成片，等待审核" : `失败：${revision.error || "请查看诊断"}`}</small>{revision.previousOutputs?.length ? <small>保留上一版 {revision.previousOutputs.length} 条成片</small> : null}</article>)}</section> : null}
-            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedProducts}款 · 质量门禁全部通过</strong>{selected.renderSummary.productVisualReview?.status === "passed" && <p>画面审查通过：已逐段核对成片镜头与对应产品图，未发现混款。</p>}{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
+            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedOutputs ?? selected.renderSummary.renderedProducts} 条{selected.renderSummary.renderedProductCount ? ` · 覆盖 ${selected.renderSummary.renderedProductCount} 款` : ""} · 质量门禁全部通过</strong>{selected.renderSummary.productVisualReview?.status === "passed" && <p>画面审查通过：已逐段核对成片镜头与对应产品图，未发现混款。</p>}{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
             <div className="detail-actions">
               {cancelableStatuses.includes(selected.status) && selected.status !== "cancel_requested" && <button className="cancel-button" onClick={() => cancelBatch(selected)}>取消当前任务</button>}
-              {selected.status === "reference_ready" && selected.productDetection && <><input value={groupCommand} onChange={(event) => setGroupCommand(event.target.value)} placeholder="分组有误？例如：第02和03组是同一款，请合并"/><button className="secondary-button" onClick={submitRegroup} disabled={!groupCommand.trim()}>重新分组</button><button className="primary-button" onClick={approveProfile}>确认产品分组与母版，开始剪辑 →</button></>}
+              {selected.status === "reference_ready" && selected.productDetection && (
+                <>
+                  <input value={groupCommand} onChange={(event) => setGroupCommand(event.target.value)} placeholder="分组有误？例如：第02和03组是同一款，请合并" />
+                  <button className="secondary-button" onClick={submitRegroup} disabled={!groupCommand.trim() || confirmPending}>重新分组</button>
+                </>
+              )}
               {["review", "completed"].includes(selected.status) && <><input value={revision} onChange={(event) => setRevision(event.target.value)} placeholder="例如：整批肤色再冷一点，Hook向下移动20px"/><button className="secondary-button" onClick={submitRevision} disabled={!revision.trim() || revisionPending}>{revisionPending ? "提交中…" : "提交整批修改"}</button></>}
               {["failed", "canceled"].includes(selected.status) && <button className="secondary-button" onClick={() => fetch(`/api/batches/${selected.id}/queue-reference`, { method: "POST" }).then(loadBatches)}>重新加入队列</button>}
             </div>

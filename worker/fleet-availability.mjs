@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock } from "../lib/atomic-json.mjs";
 import { FLEET_MEMBERS } from "./fleet-supervisor.mjs";
+import { workPaths } from "../lib/work-paths.mjs";
 
 const FLEET_HEARTBEAT_MAX_AGE_MS = 15_000;
 const FLEET_START_TIMEOUT_MS = 20_000;
@@ -41,11 +42,12 @@ async function waitForFleet(root, { timeoutMs = FLEET_START_TIMEOUT_MS, isAlive 
 
 async function fleetEnvironment(root) {
   const production = await readJson(path.join(root, "data", "production-path.json"), null);
+  const work = workPaths();
   const env = {
     ...process.env,
     CODEX_HOME: process.env.CODEX_HOME || "D:\\codex\\.codex",
-    CUTFLOW_WORKER_TEMP_ROOT: process.env.CUTFLOW_WORKER_TEMP_ROOT || "D:\\codex\\tmp\\cutflow-workers",
-    CUTFLOW_WORKER_CACHE_ROOT: process.env.CUTFLOW_WORKER_CACHE_ROOT || "D:\\codex\\cache\\cutflow-workers",
+    CUTFLOW_WORKER_TEMP_ROOT: work.worker_scratch,
+    CUTFLOW_WORKER_CACHE_ROOT: path.join(work.cache, "workers"),
     NODE_OPTIONS: process.env.NODE_OPTIONS || "--openssl-legacy-provider",
   };
   for (const [flag, value] of Object.entries(production?.flags || {})) env[flag] = String(value);

@@ -20,9 +20,12 @@ import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { assertLegacyEditPlanReady, editPlanPrerequisiteError } from "./edit-plan-readiness.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
-import { batchWorkspacePath, batchWorkspacePathForId, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
-import { createCodexClient } from "../lib/codex-client.mjs";
+import { batchWorkspacePath, batchWorkspacePathForId, resolveBatchFile, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
+import { resolveProductGroupsForConsumption } from "../lib/product-confirmation.mjs";
+import { createCodexClient, isCodexReconnectNotice } from "../lib/codex-client.mjs";
 import { productReferenceForGroup } from "../lib/product-reference-match.mjs";
+import { isApiAnalysisEnabled, createVisualAnalyzer, analyzeVisualReference, groupVisualProducts, validateGrouping } from "./visual-analysis.mjs";
+import { batchArtifactWritePath, batchWorkPaths, resolveBatchArtifactPath, resolveBatchArtifactRecord, storedArtifactPath } from "../lib/work-paths.mjs";
 
 const ROOT = process.cwd();
 const STORE = path.join(ROOT, "data", "batches.json");
@@ -106,20 +109,10 @@ function turnFailedError(failure, context) {
 
 const batchDirFor = (batch) => batchWorkspacePath(ROOT, batch);
 const cancelFlagFor = async (id) => path.join(await batchWorkspacePathForId(ROOT, id), "cancel.request");
-function isInsideNasRoot(root, candidate) {
-  const relative = path.win32.relative(path.win32.resolve(root), path.win32.resolve(candidate));
-  return relative !== "" && !relative.startsWith("..") && !path.win32.isAbsolute(relative);
-}
-function resolveFilePath(batch, file) {
-  if (!file) throw new Error("Batch file is missing");
-  if (batch.storageVersion !== 2) return file.absolutePath || (path.isAbsolute(file.storagePath) ? file.storagePath : path.join(ROOT, file.storagePath));
-  if (file.sourceType === "nas") {
-    const source = file.absolutePath || file.storagePath;
-    if (typeof batch.nasPath !== "string" || !source || !isInsideNasRoot(batch.nasPath, source)) throw new Error("NAS source escapes the Batch claim");
-    return source;
-  }
-  return resolveStoredWorkspaceFile(ROOT, batchDirFor(batch), file.storagePath);
-}
+// Shared with the API routes via lib/tenant-paths.mjs: resolveBatchFile mirrors
+// the historical local resolveFilePath exactly, so path construction no longer
+// diverges between the worker and the approve-profile route.
+const resolveFilePath = (batch, file) => resolveBatchFile(ROOT, batch, file);
 const ACTIVE_BATCH_STATUSES = new Set(["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"]);
 const RUNNABLE_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
 const CODEX_DEPENDENT_BATCH_STATUSES = new Set(["reference_queued", "analyzing_reference", "detecting_products", "regroup_queued", "batch_queued", "editing", "revision_queued", "revising"]);
@@ -146,6 +139,7 @@ function hasConfirmedDeterministicInputs(batch) {
 
 function isCodexRequiredForBatch(batch) {
   if (!CODEX_DEPENDENT_BATCH_STATUSES.has(batch?.status)) return false;
+  if (isApiAnalysisEnabled() && ["reference_queued", "analyzing_reference", "creating_proxies", "detecting_products", "regroup_queued"].includes(batch?.status)) return false;
   // Product IDs in filenames are already deterministic evidence. Let the
   // grouping worker execute that path even when Codex is unavailable; only
   // the visual fallback needs a model session.
@@ -161,7 +155,7 @@ function isCodexRequiredForBatch(batch) {
 async function validateProductSource(batch, batchDir, file) {
   const videoPath = resolveFilePath(batch, file);
   if (isQualityGateV2Enabled()) {
-    return validateWithQualityGateV2({ root: ROOT, batch, batchDir, file, ffmpeg: FFMPEG });
+    return validateWithQualityGateV2({ root: ROOT, batch, batchDir, artifactDir: batchArtifactWritePath(batch, "qualityEvidence"), sourceBatchDir: batchDir, file, ffmpeg: FFMPEG });
   }
   // This flag is deliberately off by default. When explicitly enabled it uses
   // the existing Validator entry point; ShotPool remains separately gated.
@@ -171,6 +165,7 @@ async function validateProductSource(batch, batchDir, file) {
     batchId: batch.id,
     batchDir,
     source: { id: file.id, name: file.name },
+    analyzerOptions: { evidenceDir: batchArtifactWritePath(batch, "artifactEvidence", undefined, file.id) },
     ffmpeg: FFMPEG,
   });
 }
@@ -223,7 +218,7 @@ function legacyTransitionProfileForBatch(batch) {
 async function analyzeSelectedTemplateTransitions(batch) {
   if (batch.transitionMode !== "template_transition") return null;
   const batchDir = batchDirFor(batch);
-  const editDir = path.join(batchDir, "edit");
+  const editDir = batchArtifactWritePath(batch, "edit");
   const outputPath = path.join(editDir, "transition-plan.v1.json");
   await mkdir(editDir, { recursive: true });
   try {
@@ -558,6 +553,7 @@ async function runTurn(thread, batchId, prompt, options = {}) {
         failure = event.error;
         break;
       } else if (event.type === "error") {
+        if (isCodexReconnectNotice(event)) continue;
         failure = event.error || { message: event.message || "Codex SDK stream error." };
         break;
       }
@@ -608,7 +604,7 @@ async function runTurn(thread, batchId, prompt, options = {}) {
   }
 }
 
-const profileSchema = {
+export const profileSchema = {
   type: "object",
   properties: {
     summary: { type: "string" },
@@ -666,7 +662,7 @@ const profileSchema = {
   additionalProperties: false,
 };
 
-const productDetectionSchema = {
+export const productDetectionSchema = {
   type: "object",
   properties: {
     summary: { type: "string" },
@@ -726,6 +722,7 @@ function createThread(batch) {
     // This is a hard tenant boundary for every Codex turn. Do not use the
     // project root or another account's workspace as an additional directory.
     workingDirectory: batchDir,
+    additionalDirectories: [batchWorkPaths(batch).intermediate, batchWorkPaths(batch).renders],
     skipGitRepoCheck: true,
     sandboxMode: "workspace-write",
     approvalPolicy: "never",
@@ -855,7 +852,7 @@ function cacheEvidenceJpeg(input, output, kind) {
 
 export async function cacheManualGroupingEvidence(batch, batchDir, groups, productFiles, productReferenceFiles) {
   const snapshot = buildGroupEvidenceSnapshot(groups, productFiles, productReferenceFiles);
-  const evidenceDir = path.join(batchDir, "group-evidence");
+  const evidenceDir = batchArtifactWritePath(batch, "groupEvidence");
   if (existsSync(FFMPEG)) {
     await mkdir(evidenceDir, { recursive: true });
     for (const [index, group] of snapshot.groups.entries()) {
@@ -863,15 +860,15 @@ export async function cacheManualGroupingEvidence(batch, batchDir, groups, produ
       const originalVideo = group.video && productFiles.find((file) => normalizedRelativePath(file.relativePath) === normalizedRelativePath(group.video.relativePath));
       const originalImage = group.productImage && productReferenceFiles.find((file) => normalizedRelativePath(file.relativePath) === normalizedRelativePath(group.productImage.relativePath));
       if (originalVideo) {
-        const relativeThumbnail = path.posix.join("group-evidence", `${prefix}-video.jpg`);
-        await cacheEvidenceJpeg(resolveFilePath(batch, originalVideo), path.join(batchDir, relativeThumbnail), "video")
-          .then(() => { group.video.thumbnailPath = relativeThumbnail; })
+        const thumbnailPath = path.join(evidenceDir, `${prefix}-video.jpg`);
+        await cacheEvidenceJpeg(resolveFilePath(batch, originalVideo), thumbnailPath, "video")
+          .then(() => { group.video.thumbnailPath = storedArtifactPath(ROOT, thumbnailPath); })
           .catch((error) => console.warn(`[group-evidence] ${batch.id}/${group.groupId} video thumbnail unavailable: ${error.message}`));
       }
       if (originalImage) {
-        const relativeThumbnail = path.posix.join("group-evidence", `${prefix}-product.jpg`);
-        await cacheEvidenceJpeg(resolveFilePath(batch, originalImage), path.join(batchDir, relativeThumbnail), "image")
-          .then(() => { group.productImage.thumbnailPath = relativeThumbnail; })
+        const thumbnailPath = path.join(evidenceDir, `${prefix}-product.jpg`);
+        await cacheEvidenceJpeg(resolveFilePath(batch, originalImage), thumbnailPath, "image")
+          .then(() => { group.productImage.thumbnailPath = storedArtifactPath(ROOT, thumbnailPath); })
           .catch((error) => console.warn(`[group-evidence] ${batch.id}/${group.groupId} product-image thumbnail unavailable: ${error.message}`));
       }
     }
@@ -880,15 +877,16 @@ export async function cacheManualGroupingEvidence(batch, batchDir, groups, produ
   return snapshot;
 }
 
-async function createReadOnlyNasVideoProxy({ batchId, sourcePath, outputPath }) {
+async function createReadOnlyNasVideoProxy({ batch, batchId = batch?.id, sourcePath, outputPath }) {
   if (!existsSync(FFMPEG)) throw new Error(`找不到视频代理工具：${FFMPEG}`);
   // Windows FFmpeg installations can reject a UNC input even when the Worker
   // account is authorized to read it. Copy only this Batch's declared source
   // to a short-lived local input, transcode the proxy, then remove that input.
   // Codex receives only the final proxy and never gains NAS access.
   const inputExtension = path.extname(sourcePath) || ".media";
-  const localInput = `${outputPath}.source-${crypto.randomUUID()}${inputExtension}`;
-  await mkdir(path.dirname(outputPath), { recursive: true });
+  const tempDirectory = path.join(batchWorkPaths(batch).temp, "nas-source");
+  const localInput = path.join(tempDirectory, `${crypto.randomUUID()}${inputExtension}`);
+  await Promise.all([mkdir(path.dirname(outputPath), { recursive: true }), mkdir(tempDirectory, { recursive: true })]);
   try {
     await copyFile(sourcePath, localInput);
     await runFfmpeg([
@@ -911,7 +909,7 @@ async function createAnalysisProxies(batch, { status = "creating_proxies", progr
     item.progress = progressStart;
     item.error = undefined;
   });
-  const proxyDir = path.join(batchDirFor(batch), "proxies");
+  const proxyDir = batchArtifactWritePath(batch, "proxy");
   await mkdir(proxyDir, { recursive: true });
 
   for (let index = 0; index < nasFiles.length; index += 1) {
@@ -919,8 +917,8 @@ async function createAnalysisProxies(batch, { status = "creating_proxies", progr
     const file = nasFiles[index];
     const output = path.join(proxyDir, `${file.id}.mp4`);
     const existing = await stat(output).catch(() => null);
-    if (!existing?.size) await createReadOnlyNasVideoProxy({ batchId: batch.id, sourcePath: resolveFilePath(batch, file), outputPath: output });
-    const proxyPath = path.relative(ROOT, output);
+    if (!existing?.size) await createReadOnlyNasVideoProxy({ batch, sourcePath: resolveFilePath(batch, file), outputPath: output });
+    const proxyPath = storedArtifactPath(ROOT, output);
     await update(batch.id, (item) => {
       const record = item.files.find((candidate) => candidate.id === file.id);
       if (record) record.proxyPath = proxyPath;
@@ -941,7 +939,7 @@ function fallbackHardCutTransitionPlan() {
 }
 
 async function prepareEditWorkspaceContext(batch, batchDir, profile, hook, cvr, { root = ROOT } = {}) {
-  const editDir = path.join(batchDir, "edit");
+  const editDir = batchArtifactWritePath(batch, "edit");
   await mkdir(editDir, { recursive: true });
   const products = [];
   for (const file of batch.files.filter((item) => item.kind === "products")) {
@@ -949,12 +947,10 @@ async function prepareEditWorkspaceContext(batch, batchDir, profile, hook, cvr, 
     let proxyPath = null;
     if (file.sourceType === "nas") {
       if (!file.proxyPath) throw editPlanPrerequisiteError(`NAS 素材尚未生成本地代理：${file.relativePath || file.name}`);
-      const resolvedProxy = resolveStoredWorkspaceFile(root, batchDir, file.proxyPath);
-      const relativeProxy = path.relative(batchDir, resolvedProxy);
-      if (!relativeProxy || relativeProxy.startsWith("..") || path.isAbsolute(relativeProxy)) throw editPlanPrerequisiteError(`NAS 代理越出当前 Batch workspace：${file.relativePath || file.name}`);
+      const resolvedProxy = resolveBatchArtifactRecord(root, batch, file.proxyPath);
       const info = await stat(resolvedProxy).catch(() => null);
       if (!info?.isFile() || !info.size) throw editPlanPrerequisiteError(`NAS 素材本地代理不可读：${file.relativePath || file.name}`);
-      proxyPath = relativeProxy.replaceAll("\\", "/");
+      proxyPath = resolvedProxy;
     }
     products.push({
       file_id: file.id,
@@ -981,6 +977,16 @@ async function prepareEditWorkspaceContext(batch, batchDir, profile, hook, cvr, 
   return context;
 }
 
+async function visualAnalyzerForBatch(batch) {
+  return createVisualAnalyzer({ root: ROOT, directory: batchDirFor(batch), cacheDirectory: batchArtifactWritePath(batch, "apiAnalysis"), legacyCacheDirectory: path.join(batchDirFor(batch), "api-analysis-v1"), ffmpeg: FFMPEG,
+    check: async () => {
+      await throwIfCanceled(batch.id);
+      if (leaseGuard && !(await leaseGuard())) throw new Error("Lease lost; refusing analysis write");
+    },
+    progress: label => update(batch.id, item => { item.renderingLabel = label; item.lastWorkerActivityAt = new Date().toISOString(); }),
+  });
+}
+
 async function analyzeReference(batch) {
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => { item.status = "analyzing_reference"; item.progress = 18; item.error = undefined; });
@@ -992,6 +998,16 @@ async function analyzeReference(batch) {
     return detectProducts({ ...batch, referenceProfile: savedProfile });
   }
   const reference = batch.files.find((file) => file.kind === "reference");
+  if (isApiAnalysisEnabled()) {
+    if (!reference) throw new Error("未找到可分析的样片，请选择已确认母版或提供样片");
+    const analyzer = await visualAnalyzerForBatch(batch);
+    const profile = await analyzeVisualReference({ analyzer, source: resolveFilePath(batch, reference), schema: profileSchema, requirements: batch.requirements });
+    await analyzer.check();
+    await writeJsonAtomic(path.join(batchDir, "reference-profile.json"), profile);
+    await update(batch.id, item => { item.referenceProfile = profile; item.progress = 24; });
+    await analyzeSelectedTemplateTransitions(batch);
+    return detectProducts({ ...batch, referenceProfile: profile });
+  }
   const thread = createThread(batch);
   const transitionInstruction = batch.transitionMode === undefined
     ? `转场检测必须逐个切点检查视觉证据：普通硬切、自然运镜延续和单纯BGM卡点都不是特殊转场。仅当样片明确使用短暂视觉转场时，才在 transition_plan 中 enabled=true；最多复刻2个，时长只能是0.06–0.20秒，且只能使用 Schema 提供的 effect。不能稳定复刻或没有明确特殊转场时，必须 enabled=false、placements=[]，并在 reason 中说明；绝不可为了“更炫”自行添加转场。`
@@ -1014,6 +1030,29 @@ ${transitionInstruction}
   await update(batch.id, (item) => { item.progress = 24; item.referenceProfile = profile; item.threadId = thread.id || item.threadId; });
   await analyzeSelectedTemplateTransitions(batch);
   await detectProducts({ ...batch, referenceProfile: profile, threadId: thread.id || batch.threadId }, thread);
+}
+
+function mergeFilenameAndVisualDetection(filenameDetection, visualDetection, productNames) {
+  const groups = [...filenameDetection.groups];
+  const usedIds = new Set(groups.map((group) => String(group.id).toUpperCase()));
+  for (const group of visualDetection.groups || []) {
+    const baseId = String(group.id || "VISUAL").trim() || "VISUAL";
+    let id = baseId;
+    let suffix = 2;
+    while (usedIds.has(id.toUpperCase())) id = `${baseId}_${suffix++}`;
+    usedIds.add(id.toUpperCase());
+    groups.push({ ...group, id, label: group.label || id });
+  }
+  return validateGrouping({
+    summary: `已优先采用文件名分组；视觉 API 仅处理未命名素材。`,
+    groups,
+    unassigned: visualDetection.unassigned || [],
+    confidence: groups.length ? Math.min(...groups.map((group) => Number(group.confidence) || 0)) : 0,
+    groupingMethod: "filename_then_visual",
+    autoApproved: false,
+    deterministicGroups: filenameDetection.groups.length,
+    visualGroups: (visualDetection.groups || []).length,
+  }, productNames);
 }
 
 async function detectProducts(batch, activeThread = null, correction = "") {
@@ -1058,11 +1097,8 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     autoApproved: false,
     ...(directoryDetection?.reasons?.length ? { reasons: directoryDetection.reasons } : {}),
   };
-  if (filenameDetection.groups.length) {
+  if (filenameDetection.groups.length && !filenameDetection.unassigned.length) {
     await writeFile(path.join(batchDir, "product-groups.json"), JSON.stringify(filenameDetection, null, 2), "utf8");
-    // Evidence is advisory only. A corrupt source, inaccessible NAS asset or
-    // missing ffmpeg must never prevent the established human-confirmation
-    // fallback from continuing.
     await cacheManualGroupingEvidence(batch, batchDir, filenameDetection.groups, productFiles, productReferenceFiles)
       .catch((error) => console.warn(`[group-evidence] ${batch.id} unavailable: ${error.message}`));
     await update(batch.id, (item) => {
@@ -1070,9 +1106,44 @@ async function detectProducts(batch, activeThread = null, correction = "") {
       item.progress = 38;
       item.productDetection = filenameDetection;
       item.recoveryAttempts = 0;
-      item.renderingLabel = filenameDetection.unassigned.length
-        ? `已按文件名生成 ${filenameDetection.groups.length} 个 Session；${filenameDetection.unassigned.length} 条未命名素材待人工确认`
-        : `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
+      item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
+      item.lastWorkerActivityAt = new Date().toISOString();
+    });
+    return;
+  }
+  if (isApiAnalysisEnabled() && filenameDetection.unassigned.length) {
+    const analyzer = await visualAnalyzerForBatch(batch);
+    const visualFiles = productFiles.filter((file) => filenameDetection.unassigned.includes(file.relativePath));
+    const visualDetection = await groupVisualProducts({ analyzer, schema: productDetectionSchema, correction, prior: batch.productDetection,
+      files: visualFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file) })),
+      references: productReferenceFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file), reference: true })),
+    });
+    const detection = filenameDetection.groups.length
+      ? { ...mergeFilenameAndVisualDetection(filenameDetection, visualDetection, productFiles.map(file => file.relativePath)), groupingMethod: "filename_then_visual", autoApproved: false }
+      : { ...visualDetection, groupingMethod: "visual", autoApproved: false };
+    await analyzer.check();
+    await writeJsonAtomic(path.join(batchDir, "product-groups.json"), detection);
+    await cacheManualGroupingEvidence(batch, batchDir, detection.groups, productFiles, productReferenceFiles).catch(() => undefined);
+    await update(batch.id, item => {
+      item.status = "reference_ready"; item.progress = 38; item.productDetection = detection;
+      item.recoveryAttempts = 0; item.error = undefined;
+      item.renderingLabel = filenameDetection.groups.length
+        ? `已优先使用文件名分组 ${filenameDetection.groups.length} 款，视觉 API 仅处理 ${visualFiles.length} 条未命名素材；请确认`
+        : `视觉 API 已完成 ${detection.groups.length} 款分组，${detection.unassigned.length} 条待核对，请确认`;
+      item.lastWorkerActivityAt = new Date().toISOString();
+    });
+    return;
+  }
+  if (filenameDetection.groups.length) {
+    await writeFile(path.join(batchDir, "product-groups.json"), JSON.stringify(filenameDetection, null, 2), "utf8");
+    await cacheManualGroupingEvidence(batch, batchDir, filenameDetection.groups, productFiles, productReferenceFiles)
+      .catch((error) => console.warn(`[group-evidence] ${batch.id} unavailable: ${error.message}`));
+    await update(batch.id, (item) => {
+      item.status = "reference_ready";
+      item.progress = 38;
+      item.productDetection = filenameDetection;
+      item.recoveryAttempts = 0;
+      item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
       item.lastWorkerActivityAt = new Date().toISOString();
     });
     return;
@@ -1117,7 +1188,7 @@ ${prior}${correctionText}
 async function semanticProgress(batch, progress) {
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => {
-    item.renderingLabel = `语义分析：已处理 ${progress.processed}/${progress.total}（成功 ${progress.succeeded}，失败 ${progress.failed}）`;
+    item.renderingLabel = `语义分析：已完成 ${progress.completed ?? progress.succeeded}/${progress.total} · 第 ${progress.segment || 1} 段${progress.waitingForContinuation ? " · 等待自动续跑" : " · 处理中"}（失败 ${progress.failed}）`;
     item.lastWorkerActivityAt = progress.updatedAt;
     item.semanticProgress = progress;
   });
@@ -1150,7 +1221,7 @@ async function runAnalyzeQuality(batch) {
     });
   }
   if (isSemanticShadowEnabled()) {
-    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
+    return await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
   }
 }
 
@@ -1199,7 +1270,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => { item.status = "editing"; item.progress = 45; item.error = undefined; });
   const batchDir = batchDirFor(batch);
-  const outputDir = path.join(batchDir, "output");
+  const outputDir = batchArtifactWritePath(batch, "renders");
   await mkdir(outputDir, { recursive: true });
   let validationResults = [];
   if (includeAnalyze && isNewValidatorEnabled()) {
@@ -1235,19 +1306,24 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     });
   }
   if (includeAnalyze && isSemanticShadowEnabled()) {
-    await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
+    const semantic = await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
+    if (semantic.continuation) return semantic;
   }
   let scheduledProducts = [];
   let semanticEvidence;
   if (isNewSchedulerEnabled()) {
     const scriptTemplatePath = path.join(batchDir, "script-template.json");
     const scriptTemplate = await readJson(scriptTemplatePath, null);
-    const productGroups = await readJson(path.join(batchDir, "product-groups.json"), null);
+    const fileProductGroups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
+    // Prefer the batch's human-confirmed productDetection (single source of
+    // truth) when present; otherwise fall back to the on-disk artifact. This
+    // keeps consumption consistent even if the artifact write lags.
+    const productGroups = { groups: resolveProductGroupsForConsumption(batch.productDetection, fileProductGroups) };
     semanticEvidence = isSemanticShadowEnabled()
       ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
       : undefined;
     if (!scriptTemplate) throw new Error("New Scheduler requires script-template.json");
-    if (!Array.isArray(productGroups?.groups)) throw new Error("New Scheduler requires confirmed product-groups.json");
+    if (!Array.isArray(productGroups?.groups) || productGroups.groups.length === 0) throw new Error("New Scheduler requires confirmed product-groups.json");
     if (isSemanticShadowEnabled() && !Array.isArray(semanticEvidence?.records)) throw new Error("New Scheduler requires semantic-evidence.v1.json");
     if (isSemanticShadowEnabled() && semanticEvidence?.complete === false) throw new Error("语义分析未完成，请先重试分析阶段。");
     const productViews = createProductViews({
@@ -1257,7 +1333,8 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     const schedulerMode = schedulerV2Mode();
     const upstreamImport = schedulerMode === "off" ? undefined : await readJson(path.join(batchDir, "shot-pool-import.json"), null);
     const visualEvidence = schedulerMode === "off" ? undefined : await readJson(path.join(batchDir, "scheduler-visual-evidence.v1.json"), null);
-    const frameHashesByShot = schedulerMode === "off" ? {} : await readExistingShotFrameHashes(batchDir, productViews.flatMap((view) => view.shots));
+    const semanticFrameDir = await resolveBatchArtifactPath(ROOT, batch, "semanticFrames");
+    const frameHashesByShot = schedulerMode === "off" ? {} : await readExistingShotFrameHashes(batchDir, productViews.flatMap((view) => view.shots), semanticFrameDir);
     scheduledProducts = productViews.map((productView) => {
       const routed = routeProductSchedule({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence, allowPartial: true,
         targetDuration: scriptTemplate.totalDuration, durationCap: Math.min(13, Number(batch.durationMax) || 13), upstreamImport, frameHashesByShot,
@@ -1304,6 +1381,8 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       root: ROOT,
       batch: refreshed,
       batchDir,
+      editDir: batchArtifactWritePath(refreshed, "edit"),
+      outputDir: batchArtifactWritePath(refreshed, "renders"),
       ffmpeg: FFMPEG,
       scheduledProducts: renderable,
       excludedProducts,
@@ -1330,7 +1409,11 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     });
     return;
   }
-  const edlPath = path.join(batchDir, "edit", "batch-edl.json");
+  const editDir = batchArtifactWritePath(batch, "edit");
+  const legacyEditDir = path.join(batchDir, "edit");
+  const preferredEdlPath = path.join(editDir, "batch-edl.json");
+  const legacyEdlPath = path.join(legacyEditDir, "batch-edl.json");
+  const edlPath = (await stat(preferredEdlPath).catch(() => null)) ? preferredEdlPath : ((await stat(legacyEdlPath).catch(() => null)) ? legacyEdlPath : preferredEdlPath);
   const referenceProfile = await resolveLegacyEditProfile(batch, batchDir);
   const hook = recordedTextOrManualOverride(batch, referenceProfile, "hookText", "hook_text", "Hook");
   const cvr = recordedTextOrManualOverride(batch, referenceProfile, "cvrText", "cvr_text", "CVR");
@@ -1354,7 +1437,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     : "转场规则：这是未记录 transition_plan 的历史母版；本批次必须采用硬切。请在 batch-edl.json 的 master.transition_plan 写入 {\"enabled\":false,\"reason\":\"历史母版未记录可复用转场，已降级为硬切\",\"placements\":[]}，且每个 segment 的 transition_out=\"hard_cut\"。不得新增随机转场、不得更改 speed=1.0、不得用转场替代卡点或镜头选择。";
   const prompt = `继续使用 video-use 技能。样片母版已经由团队确认。
 
-先读取本地剪辑上下文：${path.join(batchDir, "edit", "analysis-context.v1.json")}
+先读取本地剪辑上下文：${path.join(editDir, "analysis-context.v1.json")}
 样片母版：${path.join(batchDir, "reference-profile.json")}
 产品自动分组与同款证据：${path.join(batchDir, "product-groups.json")}
 已确认的优秀视频标准：${GOLD_STANDARD}
@@ -1381,7 +1464,7 @@ ${transitionInstruction}
       item.lastWorkerActivityAt = new Date().toISOString();
     });
   }
-  await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, agentResponse: resumeFromEdl ? undefined : result.finalResponse });
+  await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, editDir: path.dirname(edlPath), agentResponse: resumeFromEdl ? undefined : result.finalResponse });
   if (!render) {
     await markRenderQueued(batch, "render");
     return { renderReady: true };
@@ -1391,6 +1474,8 @@ ${transitionInstruction}
     root: ROOT,
     batch: refreshed,
     batchDir,
+    editDir: path.dirname(edlPath),
+    outputDir: batchArtifactWritePath(refreshed, "renders"),
     ffmpeg: FFMPEG,
     isCanceled: () => isCanceled(batch.id),
     onProgress: async (done, total, label) => update(batch.id, (item) => {
@@ -1420,7 +1505,7 @@ async function runRenderBatch(batch) {
   await throwIfCanceled(batch.id);
   const batchDir = batchDirFor(batch);
   const runtimeConfig = await loadRenderRuntimeConfig(ROOT);
-  if (!isNewRendererEnabled()) await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT });
+  if (!isNewRendererEnabled()) await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, editDir: await resolveBatchArtifactPath(ROOT, batch, "edit") });
   const progressStart = batch.status === "revising" ? 86 : 50;
   const progressSpan = batch.status === "revising" ? 11 : 47;
   const onProgress = async (done, total, label) => update(batch.id, (item) => {
@@ -1439,11 +1524,15 @@ async function runRenderBatch(batch) {
   const partitioned = isNewRendererEnabled()
     ? partitionScheduledProducts(scheduleArtifact?.products || [])
     : null;
+  const editDir = await resolveBatchArtifactPath(ROOT, refreshed, "edit");
+  const outputDir = batchArtifactWritePath(refreshed, "renders");
   const rendered = isNewRendererEnabled()
     ? await renderBatchFromRenderPlans({
       root: ROOT,
       batch: refreshed,
       batchDir,
+      editDir,
+      outputDir,
       ffmpeg: runtimeConfig.ffmpegPath,
       scheduledProducts: partitioned.renderable,
       excludedProducts: Array.isArray(scheduleArtifact?.excluded_products) ? scheduleArtifact.excluded_products : partitioned.excludedProducts,
@@ -1451,7 +1540,7 @@ async function runRenderBatch(batch) {
       onProgress,
       onActivity,
     })
-    : await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, ffmpeg: runtimeConfig.ffmpegPath, isCanceled: () => isCanceled(batch.id), onProgress, onActivity });
+    : await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, editDir, outputDir, ffmpeg: runtimeConfig.ffmpegPath, isCanceled: () => isCanceled(batch.id), onProgress, onActivity });
   const { files, summary } = rendered;
   if (!files.length) await captureLegacyFailure(batch, new Error("未生成任何可审核的 MP4 成片。"), "视频渲染");
   await update(batch.id, (item) => {
@@ -1488,19 +1577,21 @@ async function runRevision(batch, { render = true } = {}) {
   const command = batch.commands.at(-1)?.text || "按最新反馈统一调整整批成片。";
   const thread = createThread(batch);
   const batchDir = batchDirFor(batch);
-  const result = await runTurn(thread, batch.id, `读取当前批次的文件化上下文并执行团队的整批修改指令：${command}\n优秀视频标准：${GOLD_STANDARD}\n样片母版：${path.join(batchDir, "reference-profile.json")}\n产品分组：${path.join(batchDir, "product-groups.json")}\n现有EDL：${path.join(batchDir, "edit", "batch-edl.json")}\n保持已经确认的样片母版和v1优秀视频标准，只改指令涉及的部分，并更新${path.join(batchDir, "edit", "batch-edl.json")}。不要依赖旧对话线程，不要自行调用编码器。`);
+  const editDir = await resolveBatchArtifactPath(ROOT, batch, "edit");
+  const edlPath = path.join(editDir, "batch-edl.json");
+  const result = await runTurn(thread, batch.id, `读取当前批次的文件化上下文并执行团队的整批修改指令：${command}\n优秀视频标准：${GOLD_STANDARD}\n样片母版：${path.join(batchDir, "reference-profile.json")}\n产品分组：${path.join(batchDir, "product-groups.json")}\n现有EDL：${edlPath}\n保持已经确认的样片母版和v1优秀视频标准，只改指令涉及的部分，并更新${edlPath}。不要依赖旧对话线程，不要自行调用编码器。`);
   await update(batch.id, (item) => {
     item.threadId = thread.id || item.threadId;
     item.lastAgentResponse = result.finalResponse;
     item.lastWorkerActivityAt = new Date().toISOString();
   });
-  await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, agentResponse: result.finalResponse });
+  await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, editDir, agentResponse: result.finalResponse });
   if (!render) {
     await markRenderQueued(batch, "revision");
     return { renderReady: true };
   }
   const refreshed = (await readBatches()).find((item) => item.id === batch.id) || batch;
-  const { files, summary } = await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, ffmpeg: FFMPEG, isCanceled: () => isCanceled(batch.id), onActivity: async (label) => update(batch.id, (item) => { item.renderingLabel = label; item.lastWorkerActivityAt = new Date().toISOString(); }), onProgress: async (done, total, label) => update(batch.id, (item) => { item.progress = 86 + Math.round((done / total) * 11); item.renderingLabel = `${label}（${done}/${total}）`; item.lastWorkerActivityAt = new Date().toISOString(); }) });
+  const { files, summary } = await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, editDir, outputDir: batchArtifactWritePath(refreshed, "renders"), ffmpeg: FFMPEG, isCanceled: () => isCanceled(batch.id), onActivity: async (label) => update(batch.id, (item) => { item.renderingLabel = label; item.lastWorkerActivityAt = new Date().toISOString(); }), onProgress: async (done, total, label) => update(batch.id, (item) => { item.progress = 86 + Math.round((done / total) * 11); item.renderingLabel = `${label}（${done}/${total}）`; item.lastWorkerActivityAt = new Date().toISOString(); }) });
   if (!files.length) await captureLegacyFailure(batch, new Error("修改任务未生成任何可审核的 MP4 成片。"), "修改渲染");
   await update(batch.id, (item) => {
     const priorOutputs = item.files.filter((file) => file.kind === "output");
@@ -1524,7 +1615,7 @@ async function scanOutputs(directory) {
       if (!name.toLowerCase().endsWith(".mp4")) continue;
       const full = path.join(directory, name);
       const info = await stat(full);
-      records.push({ id: crypto.randomUUID(), kind: "output", name, relativePath: name, storagePath: path.relative(ROOT, full), size: info.size, createdAt: new Date().toISOString() });
+      records.push({ id: crypto.randomUUID(), kind: "output", name, relativePath: name, storagePath: storedArtifactPath(ROOT, full), size: info.size, createdAt: new Date().toISOString() });
     }
   } catch {}
   return records;

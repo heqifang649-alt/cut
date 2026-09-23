@@ -105,6 +105,7 @@ async function probeExecutor() {
   let completed = false;
   let finalResponse = "";
   let turnFailure = null;
+  let deadlineTimer;
   const run = (async () => {
     const streamed = await thread.runStreamed("This is a connection check. Do not call tools or change files. Reply with exactly: READY", { signal: controller.signal });
     for await (const event of streamed.events) {
@@ -121,7 +122,7 @@ async function probeExecutor() {
   try {
     const result = await Promise.race([
       run,
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Codex executor probe timed out.")), EXECUTOR_PROBE_TIMEOUT_MS + 250)),
+      new Promise((_, reject) => { deadlineTimer = setTimeout(() => reject(new Error("Codex executor probe timed out.")), EXECUTOR_PROBE_TIMEOUT_MS + 250); }),
     ]);
     if (turnFailure) throw new Error(turnFailure.message || "Codex turn failed.");
     if (!result.completed) {
@@ -140,6 +141,7 @@ async function probeExecutor() {
     throw error;
   } finally {
     clearTimeout(timeout);
+    clearTimeout(deadlineTimer);
   }
 }
 
@@ -183,9 +185,13 @@ const thread = codex.startThread({
 });
 
 try {
-  const service = await probeModelService();
+  // ChatGPT credentials belong to the CLI. Never send OAuth tokens to the
+  // configured API endpoint or require an API key for a ChatGPT login.
+  const chatgptLogin = authForExecutor.auth_mode === "chatgpt";
+  const loginProbe = chatgptLogin ? await probeExecutor() : null;
+  const service = chatgptLogin ? { ready: loginProbe.ready } : await probeModelService();
   try {
-    const executor = await probeExecutor();
+    const executor = loginProbe || await probeExecutor();
     const executorReady = executor.ready;
     const state = probeStatus({ apiReady: service.ready, executorReady });
     console.log(JSON.stringify({

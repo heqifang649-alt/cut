@@ -1,17 +1,23 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { assertWorkRootReady, workPaths, workerInstancePaths } from "../lib/work-paths.mjs";
+
+// The fleet can be launched directly by recovery or scheduled-task tooling,
+// bypassing the PowerShell launcher that normally injects this setting. Keep
+// .env.local as the single source of truth while preserving explicitly passed
+// process environment values.
+process.loadEnvFile(".env.local");
 
 const ROOT = process.cwd();
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_FLEET_RESTART_DELAY_MS) || 3_000);
 const HEARTBEAT_MS = 5_000;
 const runtimeFile = path.join(ROOT, "data", "fleet-runtime.json");
-const logFile = path.join(ROOT, "logs", "fleet-supervisor.log");
-const tempRoot = process.env.CUTFLOW_WORKER_TEMP_ROOT || path.join(os.tmpdir(), "cutflow-workers");
-const cacheRoot = process.env.CUTFLOW_WORKER_CACHE_ROOT || path.join(os.tmpdir(), "cutflow-worker-cache");
+const logFile = path.join(workPaths().worker_scratch, "logs", "fleet-supervisor.log");
+const canaryFile = path.join(ROOT, "data", "multi-batch-canary.json");
+let canaryEnvironment = {};
 
 export const FLEET_MEMBERS = [
   ...["analyze", "clip", "render"].flatMap((service) => [1, 2, 3].map((index) => ({
@@ -51,8 +57,19 @@ async function writeHeartbeat() {
     status: stopping ? "stopping" : "running",
     pid: process.pid,
     at: new Date().toISOString(),
+    canaryBatchIds: canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS?.split(",") || [],
     members: FLEET_MEMBERS.map((member) => ({ name: member.name, pid: children.get(member.name)?.pid || null })),
   });
+}
+
+async function loadCanaryEnvironment() {
+  const canary = await readJson(canaryFile, null);
+  const batchIds = Array.isArray(canary?.batchIds) ? canary.batchIds.filter((value) => typeof value === "string" && value) : [];
+  if (canary?.status !== "running" || canary?.fairSchedulerEnabled !== true || batchIds.length < 3 || batchIds.length > 5) return {};
+  return {
+    ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true",
+    CUTFLOW_CANARY_BATCH_IDS: batchIds.join(","),
+  };
 }
 
 async function adoptLiveMembers() {
@@ -78,22 +95,20 @@ async function repairAdoptedMembers() {
 }
 
 function memberEnvironment(member) {
-  const workerTemp = path.join(tempRoot, member.name);
-  const workerCache = path.join(cacheRoot, member.name);
+  const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
   return {
     ...process.env,
     TEMP: workerTemp,
     TMP: workerTemp,
     TMPDIR: workerTemp,
     XDG_CACHE_HOME: workerCache,
-    ...(member.script === "service-supervisor.mjs" ? { CUTFLOW_SERVICE_INSTANCE: member.name } : {}),
+    ...(member.script === "service-supervisor.mjs" ? { CUTFLOW_SERVICE_INSTANCE: member.name, ...canaryEnvironment } : {}),
   };
 }
 
 async function launchMember(member) {
   if (stopping || children.has(member.name)) return;
-  const workerTemp = path.join(tempRoot, member.name);
-  const workerCache = path.join(cacheRoot, member.name);
+  const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
   await mkdir(workerTemp, { recursive: true });
   await mkdir(workerCache, { recursive: true });
   const child = spawn(process.execPath, [path.join(ROOT, "worker", member.script), ...member.args], {
@@ -128,6 +143,10 @@ async function stop() {
 }
 
 async function main() {
+  const health = await assertWorkRootReady({ maxAgeMs: 0 });
+  canaryEnvironment = await loadCanaryEnvironment();
+  await log(`CUT_WORK_ROOT ready: ${health.root}; free ${(health.freeBytes / 2 ** 30).toFixed(2)} GiB.`);
+  if (canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS) await log(`Canary isolation active for ${canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS}.`);
   process.once("SIGINT", () => { stop().catch(() => undefined); });
   process.once("SIGTERM", () => { stop().catch(() => undefined); });
   await adoptLiveMembers();

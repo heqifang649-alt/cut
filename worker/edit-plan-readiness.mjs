@@ -126,8 +126,7 @@ function validateProductContract(plan, { root, batch, batchDir, groups }) {
   return null;
 }
 
-async function writeEvidence(batchDir, readiness) {
-  const editDir = path.join(batchDir, "edit");
+async function writeEvidence(batchDir, readiness, editDir = path.join(batchDir, "edit")) {
   await mkdir(editDir, { recursive: true });
   await writeJsonAtomic(path.join(editDir, READINESS_FILE), readiness);
 }
@@ -135,11 +134,11 @@ async function writeEvidence(batchDir, readiness) {
 // A completed Codex turn is not evidence that a plan exists. This gate is used
 // by both Clip and Render and is intentionally based only on the current Batch
 // workspace; it never searches a legacy/global workspace for an EDL.
-export async function assertLegacyEditPlanReady(batchDir, { agentResponse, batch, root = process.cwd() } = {}) {
-  const file = path.join(batchDir, "edit", EDL_FILE);
+export async function assertLegacyEditPlanReady(batchDir, { agentResponse, batch, root = process.cwd(), editDir = path.join(batchDir, "edit") } = {}) {
+  const file = path.join(editDir, EDL_FILE);
   const base = { schemaVersion: 1, checkedAt: new Date().toISOString(), edlPath: file, ready: false, checks: {} };
   try {
-    if (!pathInside(batchDir, file)) throw editPlanError("EDL path escapes the current Batch workspace", { file });
+    if (!pathInside(editDir, file)) throw editPlanError("EDL path escapes the current Batch edit workspace", { file });
     const plan = await readPlan(file);
     const shapeError = checkPlanShape(plan);
     if (shapeError) throw editPlanError(shapeError, { file, plan });
@@ -148,13 +147,13 @@ export async function assertLegacyEditPlanReady(batchDir, { agentResponse, batch
     const contractError = validateProductContract(plan, { root, batch, batchDir, groups });
     if (contractError) throw editPlanError(contractError, { file, plan });
     const readiness = { ...base, ready: true, checks: { file: "present", json: "valid", schema: "valid", plan_status: "renderable", products: plan.products.length, source_mapping: batch ? "valid" : "not_checked" } };
-    if (batch) await writeEvidence(batchDir, readiness);
+    if (batch) await writeEvidence(batchDir, readiness, editDir);
     return plan;
   } catch (error) {
     const summary = agentSummary(agentResponse);
     const reason = error instanceof Error ? error.message.replace(/^Edit Plan Not Ready:\s*/, "") : String(error);
     const readiness = { ...base, ready: false, reason, ...(summary ? { agentResponse: summary } : {}), checks: { file: "failed", json: "not_ready", schema: "not_ready", source_mapping: batch ? "not_ready" : "not_checked" } };
-    if (batch) await writeEvidence(batchDir, readiness).catch(() => undefined);
+    if (batch) await writeEvidence(batchDir, readiness, editDir).catch(() => undefined);
     if (error?.code === "EDIT_PLAN_NOT_READY") {
       error.readiness = readiness;
       if (summary && !String(error.message).includes("Codex response:")) error.message += ` Codex response: ${summary}`;

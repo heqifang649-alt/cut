@@ -26,6 +26,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     item.status = "regroup_queued";
     item.progress = 30;
     item.error = undefined;
+    item.execution = { state: "queued", stage: "analyze", updatedAt: new Date().toISOString() };
   });
   await enqueueStage({ root, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: batch.workflowVersion, taskNumber: taskNumberForBatch(batch) });
   return NextResponse.json({ batch });

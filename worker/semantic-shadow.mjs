@@ -1,7 +1,7 @@
 import { assertProviderAvailable } from '../lib/provider-incident.mjs';
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, mkdir, readFile, stat } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { AiProviderAdapter, ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
@@ -9,6 +9,7 @@ import { resolveProviderConfig, safeProviderError } from "../lib/ai-provider-con
 import { SEMANTIC_SHOT_SCHEMA_VERSION } from "../lib/semantic-shot.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
+import { batchArtifactWritePath, resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 import { productReferencesForGroup } from "../lib/product-reference-match.mjs";
 import { preserveSemanticSnapshot, shotEvidencePath, startSemanticObservation, writeImmutableJson } from "../lib/semantic-observation.mjs";
 
@@ -37,7 +38,7 @@ function cleanText(value, maximum = 10_000) {
 }
 
 function sourcePath(root, batch, batchDir, file) {
-  if (file.sourceType === "nas" && file.proxyPath) return resolveStoredWorkspaceFile(root, batchDir, file.proxyPath);
+  if (file.sourceType === "nas" && file.proxyPath) return resolveBatchArtifactRecord(root, batch, file.proxyPath);
   if (file.storagePath) return path.isAbsolute(file.storagePath) ? file.storagePath : path.resolve(root, file.storagePath);
   return file.absolutePath || "";
 }
@@ -123,16 +124,18 @@ function groupForShot(shot, groups) {
   })) || null;
 }
 
-export async function extractRepresentativeFrames({ root = process.cwd(), batch, batchDir, shot, ffmpeg = process.env.FFMPEG_PATH, extract = runFfmpeg } = {}) {
+export async function extractRepresentativeFrames({ root = process.cwd(), batch, batchDir, shot, env = process.env, ffmpeg = process.env.FFMPEG_PATH, extract = runFfmpeg, maxImages = 3, candidateLimit = 3 } = {}) {
   const source = sourcePath(root, batch, batchDir, { storagePath: shot.path, sourceType: "upload" });
   if (!source || /\.(jpe?g|png|webp)$/i.test(source)) return source ? [source] : [];
   if (!ffmpeg) return [];
   const duration = Math.max(0.1, Number(shot.end) - Number(shot.start) || Number(shot.duration) || 0.1);
   const positions = [...new Set([0.08, 0.5, 0.92].map((ratio) => Math.max(0, Number(shot.start || 0) + duration * ratio).toFixed(3)))];
-  const frameDirectory = path.join(batchDir, "semantic-frames");
+  const frameDirectory = batchArtifactWritePath(batch, "semanticFrames", env);
   await mkdir(frameDirectory, { recursive: true });
   const files = [];
+  let usable = 0;
   for (const [index, position] of positions.entries()) {
+    if (files.length >= candidateLimit || usable >= maxImages) break;
     const target = path.join(frameDirectory, `${hash(`${shot.id}:${position}`).slice(0, 24)}-${index + 1}.jpg`);
     const existing = await stat(target).catch(() => null);
     if (!existing?.size) {
@@ -143,6 +146,7 @@ export async function extractRepresentativeFrames({ root = process.cwd(), batch,
       }
     }
     files.push(target);
+    if (await existingDataUrl(target)) usable += 1;
   }
   return files.slice(0, 3);
 }
@@ -154,11 +158,13 @@ async function frameInputs(root, batch, batchDir, shot, options = {}) {
     || sourcePath(root, batch, batchDir, file) === shot.path
   ));
   const source = matchingFile ? sourcePath(root, batch, batchDir, matchingFile) : sourcePath(root, batch, batchDir, { storagePath: shot.path, sourceType: "upload" });
+  const prefix = [batchArtifactWritePath(batch, "groupEvidence", options.env, `${shot.id}.jpg`), path.join(batchDir, "group-evidence", `${shot.id}.jpg`), source && /\.(jpe?g|png|webp)$/i.test(source) ? source : null].filter(Boolean);
+  const prefixImages = (await Promise.all(prefix.map(existingDataUrl))).filter(Boolean).length;
+  const remainingImages = Math.max(0, (options.maxImages ?? 3) - prefixImages);
   const candidates = [
-    path.join(batchDir, "group-evidence", `${shot.id}.jpg`),
-    source && /\.(jpe?g|png|webp)$/i.test(source) ? source : null,
-    ...await extractRepresentativeFrames({ root, batch, batchDir, shot, ffmpeg: options.ffmpeg, extract: options.extractFrames }),
-  ].filter(Boolean);
+    ...prefix,
+    ...((options.legacy || remainingImages > 0) ? await extractRepresentativeFrames({ root, batch, batchDir, shot, env: options.env, ffmpeg: options.ffmpeg, extract: options.extractFrames, maxImages: options.legacy ? 3 : remainingImages, candidateLimit: options.legacy ? 3 : Math.max(0, 3 - prefix.length) }) : []),
+  ];
   const values = await Promise.all(candidates.slice(0, 3).map(async (file) => ({ dataUrl: await existingDataUrl(file), hash: await hashFile(file) })));
   return {
     images: values.map((item) => item.dataUrl).filter(Boolean),
@@ -169,7 +175,7 @@ async function frameInputs(root, batch, batchDir, shot, options = {}) {
 
 function emptyCache(batchId) { return { schemaVersion: 1, batchId, entries: {}, updatedAt: new Date().toISOString() }; }
 
-export async function runSemanticShadow({ root = process.cwd(), batch, batchDir, shotPool, env = process.env, adapter, config, configSource = "PROVIDED_CONFIG", ffmpeg, extractFrames, onProgress, shotBudgetMs = 90_000, stageBudgetMs = 15 * 60_000 } = {}) {
+export async function runSemanticShadow({ root = process.cwd(), batch, batchDir, shotPool, env = process.env, adapter, config, configSource = "PROVIDED_CONFIG", ffmpeg, extractFrames, onProgress, shotBudgetMs = 90_000, stageBudgetMs, quantumShotLimit = 8, concurrency = Number(env.SEMANTIC_CONCURRENCY || 2) } = {}) {
   if (!isSemanticShadowEnabled(env)) return { ran: false, reason: "feature_flag_off" };
   if (!batch || !batchDir || !shotPool?.shots) throw new TypeError("Semantic shadow requires batch, batchDir, and ShotPool.");
   const resolved = config ? { config, source: configSource } : await resolveProviderConfig(root, env);
@@ -197,7 +203,8 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
       requestTimeoutMs: resolved.config.requestTimeoutMs,
     }),
   });
-  const cacheFile = path.join(batchDir, SEMANTIC_CACHE_FILE);
+  const cacheFile = batchArtifactWritePath(batch, "semanticCache", env);
+  const legacyCacheFile = path.join(batchDir, SEMANTIC_CACHE_FILE);
   const evidenceFile = path.join(batchDir, SEMANTIC_EVIDENCE_FILE);
   const referenceFiles = batch.files.filter((file) => file.kind === "product_refs");
   const productGroups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
@@ -213,13 +220,37 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   };
   const version = templateVersion(batch);
   const records = [];
+  const fairMultiBatch = env.ENABLE_FAIR_MULTI_BATCH_SCHEDULER === "true";
+  stageBudgetMs = Number.isFinite(Number(stageBudgetMs))
+    ? Math.max(0, Number(stageBudgetMs))
+    : fairMultiBatch ? 3 * 60_000 : 15 * 60_000;
+  quantumShotLimit = Math.max(1, Math.floor(Number(quantumShotLimit) || 8));
+  concurrency = Math.max(1, Math.min(2, Math.floor(concurrency) || 1));
+  const controlFile = path.join(root, "data", "semantic-throughput-control.json");
+  const controlScope = hash(`${resolved.config.baseUrl}:${model}`);
+  const control = await readJson(controlFile, null);
+  if (!fairMultiBatch && control?.scope === controlScope && control.concurrency === 1) concurrency = 1;
+  const segmentFile = path.join(batchDir, "semantic-segment.v1.json");
+  const identity = hash(JSON.stringify({ workflowVersion: batch.workflowVersion, version, model, provider: resolved.config.baseUrl, requirements: batch.requirements, shots: shotPool.shots }));
+  const priorSegment = await readJson(segmentFile, null);
+  const continuing = priorSegment?.identity === identity && priorSegment.waitingForContinuation;
+  const segment = continuing ? priorSegment.segment + 1 : 1;
+  const previousCompleted = continuing ? Number(priorSegment.completed) || 0 : 0;
+  const shotOrder = new Map(shotPool.shots.map((shot, index) => [shot.id, index]));
+  let commitTail = Promise.resolve();
+  const serialize = (action) => { const next = commitTail.then(action); commitTail = next.catch(() => undefined); return next; };
   let cacheReset = false;
   const startedAt = Date.now();
   let stopReason = null;
+  let providerRetryAt = null;
+  let quantumAdmissions = 0;
   let consecutiveErrors = 0;
   let observation;
   const publish = async () => {
-    const progress = { processed: records.length, total: shotPool.shots.length, succeeded: records.filter((r) => r.result).length, failed: records.filter((r) => r.status === "error").length, elapsedMs: Date.now() - startedAt, stopReason, updatedAt: new Date().toISOString() };
+    records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
+    const completed = Math.max(previousCompleted, records.filter((r) => r.result).length);
+    const waitingForContinuation = ["SEMANTIC_STAGE_BUDGET_EXCEEDED", "SEMANTIC_QUANTUM_EXHAUSTED", "SEMANTIC_PENDING_SHOTS", "PROVIDER_BACKPRESSURE"].includes(stopReason);
+    const progress = { processed: records.length, completed, total: shotPool.shots.length, succeeded: completed, failed: records.filter((r) => r.status === "error").length, segment, concurrency, waitingForContinuation, state: waitingForContinuation ? "waiting" : completed === shotPool.shots.length ? "completed" : "running", elapsedMs: Date.now() - startedAt, stopReason, updatedAt: new Date().toISOString() };
     await writeJsonAtomic(path.join(batchDir, "semantic-progress.v1.json"), progress);
     await onProgress?.(progress);
   };
@@ -236,10 +267,10 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
     const reusableEvidenceByShot = new Map((canReuseRecoveryEvidence ? previousAttempts?.records || [] : [])
       .filter((record) => record?.shotId && record?.result)
       .map((record) => [record.shotId, record]));
-    observation = await startSemanticObservation({ batchDir, batchId: batch.id, provider: `external:${hash(resolved.config.baseUrl).slice(0, 16)}`, model, shotIds: shotPool.shots.map((shot) => shot.id) });
+    observation = await startSemanticObservation({ batchDir, batchId: batch.id, provider: `external:${hash(resolved.config.baseUrl).slice(0, 16)}`, model, concurrency, shotIds: shotPool.shots.map((shot) => shot.id) });
     let cache;
     try {
-      cache = await readJson(cacheFile, emptyCache(batch.id));
+      cache = await readJson(cacheFile, null) ?? await readJson(legacyCacheFile, emptyCache(batch.id));
     } catch {
       cache = emptyCache(batch.id);
       cacheReset = true;
@@ -248,81 +279,179 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
       cache = emptyCache(batch.id);
       cacheReset = true;
     }
-    for (const shot of shotPool.shots) {
-      if (Date.now() - startedAt >= stageBudgetMs) { stopReason = "SEMANTIC_STAGE_BUDGET_EXCEEDED"; break; }
+    const committedDirectory = path.join(batchDir, "semantic-history", "shots");
+    const committedNames = await readdir(committedDirectory).catch((error) => { if (error.code === "ENOENT") return []; throw error; });
+    const committedRecords = await Promise.all(committedNames.filter((name) => name.endsWith(".json")).map(async (name) => (await readJson(path.join(committedDirectory, name), null))?.record));
+    const historicalRecords = new Map([...(previousEvidence?.records || []), ...(previousAttempts?.records || []), ...committedRecords.filter(Boolean)].map((record) => [record.shotId, record]));
+    let providerInFlight = 0;
+    let degradationOwner = null;
+    let providerDrained = Promise.resolve();
+    let resolveProviderDrained = null;
+    const enterProvider = () => {
+      if (providerInFlight === 0) providerDrained = new Promise((resolve) => { resolveProviderDrained = resolve; });
+      providerInFlight += 1;
+    };
+    const leaveProvider = () => {
+      providerInFlight = Math.max(0, providerInFlight - 1);
+      if (providerInFlight === 0) { resolveProviderDrained?.(); resolveProviderDrained = null; }
+    };
+    const processShot = async (shot) => {
       const references = await referencesForShot(shot);
-      const frames = await frameInputs(root, batch, batchDir, shot, { ffmpeg, extractFrames });
-      const key = cacheKey({ config: resolved.config, model, shot, frameHashes: frames.hashes, productHashes: references.hashes, templateVersion: version });
+      const historical = historicalRecords.get(shot.id);
+      const frameMode = historical && historical.frameMode !== "request_slots" ? "legacy" : "request_slots";
+      const frames = await frameInputs(root, batch, batchDir, shot, { env, ffmpeg, extractFrames, legacy: frameMode === "legacy", maxImages: 3 - references.images.length });
+      const prompt = semanticPrompt({ shot, hardMetrics: { productVisibility: shot.productVisibility, productCentered: shot.productCentered, motionEnergy: shot.motionEnergy, duration: shot.duration, tags: shot.tags }, requirements: batch.requirements });
+      const inputFingerprint = hash(prompt);
+      const legacyKey = cacheKey({ config: resolved.config, model, shot, frameHashes: frames.hashes, productHashes: references.hashes, templateVersion: version });
+      const storedFingerprint = cache.entries[legacyKey]?.inputFingerprint || historical?.inputFingerprint;
+      const key = storedFingerprint && storedFingerprint !== inputFingerprint ? hash(`${legacyKey}:${inputFingerprint}`) : legacyKey;
       // The immutable evidence is the commit boundary. It can restore a score
       // even if a process was killed before updating the aggregate cache.
       const committed = await readJson(shotEvidencePath(batchDir, key), null);
-      if (committed?.record?.result) cache.entries[key] = { result: committed.record.result, telemetry: committed.record.telemetry, storedAt: committed.performance?.endAt || committed.committedAt };
-      const reusable = reusableEvidenceByShot.get(shot.id);
+      if (committed?.record?.result) cache.entries[key] = { result: committed.record.result, telemetry: committed.record.telemetry, inputFingerprint: committed.record.inputFingerprint || cache.entries[key]?.inputFingerprint, storedAt: committed.performance?.endAt || committed.committedAt };
+      const candidateReuse = reusableEvidenceByShot.get(shot.id);
+      const reusable = candidateReuse && (!candidateReuse.inputFingerprint || candidateReuse.inputFingerprint === inputFingerprint) ? candidateReuse : null;
       if (!cache.entries[key]?.result && reusable?.result) {
         cache.entries[key] = { result: reusable.result, telemetry: reusable.telemetry, storedAt: new Date().toISOString(), reusedFromCacheKey: reusable.cacheKey };
       }
       const cached = cache.entries[key];
       if (cached?.result) {
-        records.push({ shotId: shot.id, status: reusable && cached.reusedFromCacheKey ? "evidence_reuse" : "cache_hit", cacheKey: key, result: cached.result, telemetry: cached.telemetry, reusedFromCacheKey: cached.reusedFromCacheKey });
+        cache.entries[key].inputFingerprint = inputFingerprint;
+        records.push({ shotId: shot.id, frameMode, inputFingerprint, status: reusable && cached.reusedFromCacheKey ? "evidence_reuse" : "cache_hit", cacheKey: key, result: cached.result, telemetry: cached.telemetry, reusedFromCacheKey: cached.reusedFromCacheKey });
         consecutiveErrors = 0;
-        await publish();
-        continue;
+        await serialize(publish);
+        return;
       }
       if (!frames.hasRepresentativeFrame) {
         records.push({ shotId: shot.id, status: "skipped_no_shot_frame", cacheKey: key });
-        await publish();
-        continue;
+        await serialize(publish);
+        return;
+      }
+      if (fairMultiBatch && quantumAdmissions >= quantumShotLimit) {
+        stopReason ||= "SEMANTIC_QUANTUM_EXHAUSTED";
+        return;
+      }
+      // The stage deadline closes admission. Already dispatched requests drain
+      // under their own unchanged deadline; a segment boundary is not a failure.
+      if (stopReason || Date.now() - startedAt >= stageBudgetMs) {
+        stopReason ||= "SEMANTIC_STAGE_BUDGET_EXCEEDED";
+        return;
       }
       const controller = new AbortController();
-      const remainingMs = stageBudgetMs - (Date.now() - startedAt);
-      const budgetMs = Math.max(1, Math.min(shotBudgetMs, remainingMs));
-      const budgetCode = remainingMs <= shotBudgetMs ? "SEMANTIC_STAGE_BUDGET_EXCEEDED" : "SEMANTIC_SHOT_BUDGET_EXCEEDED";
-      const timer = setTimeout(() => controller.abort(new ProviderAdapterError(budgetCode, { code: budgetCode, retryable: false })), budgetMs);
-      const shotStartedAt = Date.now();
+      quantumAdmissions += 1;
+      const budgetMs = Math.max(1, shotBudgetMs);
+      const budgetCode = "SEMANTIC_SHOT_BUDGET_EXCEEDED";
       const evaluation = await observation.beginShot(shot.id, key);
+      const shotStartedAt = Date.now();
+      const timer = setTimeout(() => controller.abort(new ProviderAdapterError(budgetCode, { code: budgetCode, retryable: false })), budgetMs);
       let performance;
       let providerCompleted = false;
+      enterProvider();
       try {
         const scored = await runner.scoreShot({
           model,
-          prompt: semanticPrompt({ shot, hardMetrics: { productVisibility: shot.productVisibility, productCentered: shot.productCentered, motionEnergy: shot.motionEnergy, duration: shot.duration, tags: shot.tags }, requirements: batch.requirements }),
+          prompt,
           images: [...references.images, ...frames.images].slice(0, 3),
           shotId: shot.id,
           signal: controller.signal,
-          onRequestEvent: (event) => evaluation.onRequestEvent(event),
+          beforeDispatch: async (phase) => {
+            if (phase === "acquire") {
+              while (concurrency === 1 && degradationOwner && degradationOwner !== shot.id) {
+                controller.signal.throwIfAborted();
+                await new Promise((resolve) => setTimeout(resolve, 10));
+              }
+            }
+            if (Date.now() - startedAt >= stageBudgetMs) {
+              stopReason ||= "SEMANTIC_STAGE_BUDGET_EXCEEDED";
+              throw new ProviderAdapterError("Semantic stage budget closed before Provider dispatch.", { code: "SEMANTIC_STAGE_BUDGET_EXCEEDED", retryable: false });
+            }
+          },
+          onRequestEvent: async (event) => {
+            await evaluation.onRequestEvent(event);
+            if (!fairMultiBatch && concurrency === 2 && event.phase === "end" && (event.httpStatus === 429 || event.timeout)) {
+              degradationOwner ||= shot.id;
+              concurrency = 1;
+              await writeJsonAtomic(controlFile, { scope: controlScope, concurrency: 1, reason: "REQUEST_DEGRADATION", status: event.httpStatus || null, at: new Date().toISOString() });
+            }
+          },
         });
         controller.signal.throwIfAborted();
         providerCompleted = true;
         clearTimeout(timer);
         const telemetry = { ...scored.telemetry, provider: "external", baseUrlFingerprint: hash(resolved.config.baseUrl).slice(0, 16), at: new Date().toISOString() };
         performance = evaluation.metric("success");
-        const record = { shotId: shot.id, status: "scored", cacheKey: key, result: scored.result, telemetry };
+        const record = { shotId: shot.id, frameMode, inputFingerprint, status: "scored", cacheKey: key, result: scored.result, telemetry };
         await writeImmutableJson(shotEvidencePath(batchDir, key), { batchId: batch.id, record, performance, committedAt: performance.endAt });
-        cache.entries[key] = { result: scored.result, telemetry, storedAt: performance.endAt };
+        cache.entries[key] = { result: scored.result, telemetry, inputFingerprint, storedAt: performance.endAt };
         records.push(record);
         consecutiveErrors = 0;
       } catch (error) {
         if (providerCompleted) throw error;
         if (controller.signal.aborted) error = controller.signal.reason;
+        if (error?.code === "SEMANTIC_STAGE_BUDGET_EXCEEDED") {
+          stopReason ||= "SEMANTIC_STAGE_BUDGET_EXCEEDED";
+          return;
+        }
         const normalized = error instanceof ProviderAdapterError
           ? new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]), { code: error.code, status: error.status, retryable: error.retryable })
           : new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]));
-        records.push({ shotId: shot.id, status: "error", cacheKey: key, elapsedMs: Date.now() - shotStartedAt, error: { code: normalized.code, status: normalized.status || null, message: normalized.message } });
-        performance = evaluation.metric("error", normalized.code);
-        consecutiveErrors += 1;
-        if (Date.now() - startedAt >= stageBudgetMs) stopReason = "SEMANTIC_STAGE_BUDGET_EXCEEDED";
-        else if (consecutiveErrors >= 3) stopReason = "SEMANTIC_REPEATED_FAILURES";
-        else if ([401, 403].includes(normalized.status) || ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PILOT_REQUEST_CAP_REACHED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code)) stopReason = normalized.code;
+        if (fairMultiBatch && (normalized.code === "PROVIDER_BACKPRESSURE" || normalized.status === 429)) {
+          stopReason = "PROVIDER_BACKPRESSURE";
+          providerRetryAt = error?.retryAt || new Date(Date.now() + Math.max(30_000, Number(error?.retryAfterMs) || 0)).toISOString();
+          performance = evaluation.metric("backpressured", normalized.code);
+        } else {
+          records.push({ shotId: shot.id, status: "error", cacheKey: key, elapsedMs: Date.now() - shotStartedAt, error: { code: normalized.code, status: normalized.status || null, message: normalized.message } });
+          performance = evaluation.metric("error", normalized.code);
+        }
+        // Conservative rollout: the first rate limit or timeout removes the
+        // extra lane durably. Do not cancel another already in-flight Shot.
+        if (!fairMultiBatch && concurrency === 2 && (normalized.status === 429 || ["PROVIDER_TIMEOUT", "SEMANTIC_SHOT_BUDGET_EXCEEDED"].includes(normalized.code))) {
+          degradationOwner ||= shot.id;
+          concurrency = 1;
+          await writeJsonAtomic(controlFile, { scope: controlScope, concurrency: 1, reason: normalized.code, status: normalized.status || null, at: new Date().toISOString() });
+        }
+        if (stopReason !== "PROVIDER_BACKPRESSURE") {
+          consecutiveErrors += 1;
+          if ([401, 403].includes(normalized.status) || ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PILOT_REQUEST_CAP_REACHED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code)) stopReason = normalized.code;
+          else if (consecutiveErrors >= 3) stopReason = "SEMANTIC_REPEATED_FAILURES";
+        }
       } finally {
+        if (degradationOwner === shot.id) degradationOwner = null;
+        leaveProvider();
         clearTimeout(timer);
       }
-      cache.updatedAt = new Date().toISOString();
-      await writeJsonAtomic(cacheFile, cache);
       await evaluation.finish(performance);
-      await writeJsonAtomic(path.join(batchDir, "semantic-attempts.v1.json"), { batchId: batch.id, records, updatedAt: cache.updatedAt });
-      await publish();
-      if (stopReason) break;
+      await serialize(async () => {
+        cache.updatedAt = new Date().toISOString();
+        await writeJsonAtomic(cacheFile, cache);
+        records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
+        await writeJsonAtomic(path.join(batchDir, "semantic-attempts.v1.json"), { batchId: batch.id, records, updatedAt: cache.updatedAt });
+        await publish();
+      });
+    };
+    let cursor = 0;
+    let fatalError;
+    const consume = async (lane) => {
+      while (cursor < shotPool.shots.length && !fatalError && lane < concurrency) {
+        if (stopReason) break;
+        if (lane > 0) {
+          const latestControl = fairMultiBatch ? null : await readJson(controlFile, null);
+          if (latestControl?.scope === controlScope && latestControl.concurrency === 1) { concurrency = 1; break; }
+        }
+        if (cursor >= shotPool.shots.length || fatalError) break;
+        const shot = shotPool.shots[cursor++];
+        try { await processShot(shot); } catch (error) { fatalError ||= error; }
+        if (concurrency === 1 && providerInFlight > 0 && !degradationOwner) await providerDrained;
+      }
+    };
+    await Promise.all(Array.from({ length: concurrency }, (_, lane) => consume(lane)));
+    await commitTail;
+    if (fatalError) throw fatalError;
+    if (!stopReason && records.some((record) => record.status === "error")) {
+      stopReason = segment < 3 ? "SEMANTIC_PENDING_SHOTS" : "SEMANTIC_INCOMPLETE";
     }
+    if (!stopReason && records.some((record) => record.status === "skipped_no_shot_frame")) stopReason = "SEMANTIC_MISSING_SHOT_FRAME";
+    records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
     cache.updatedAt = new Date().toISOString();
     await writeJsonAtomic(cacheFile, cache);
   }, { staleMs: 0 });
@@ -355,6 +484,9 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   }
   await observation.finish(stopReason);
   await publish();
+  const waitingForContinuation = ["SEMANTIC_STAGE_BUDGET_EXCEEDED", "SEMANTIC_QUANTUM_EXHAUSTED", "SEMANTIC_PENDING_SHOTS", "PROVIDER_BACKPRESSURE"].includes(stopReason);
+  await writeJsonAtomic(segmentFile, { identity, segment, completed: records.filter((r) => r.result).length, waitingForContinuation, updatedAt: new Date().toISOString() });
+  if (waitingForContinuation) return { ran: true, complete: false, evidence, continuation: { reason: stopReason, segment, completed: records.filter((r) => r.result).length, total: shotPool.shots.length, remaining: shotPool.shots.length - records.filter((r) => r.result).length, nextRunAt: providerRetryAt || new Date(Date.now() + 1000).toISOString() } };
   if (stopReason) {
     const error = new Error(`语义分析已暂停：${stopReason}；已处理 ${records.length}/${shotPool.shots.length}，成功评分已保存，可重试接续。`);
     error.code = "SEMANTIC_ANALYSIS_PAUSED";

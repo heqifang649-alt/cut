@@ -39,6 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     item.status = "revision_queued";
     item.progress = 82;
     item.error = undefined;
+    item.execution = { state: "queued", stage: "clip", updatedAt: new Date().toISOString() };
   });
   await enqueueStage({ root, batchId: batch.id, stage: "clip", operation: "revision", priority: batch.priority, workflowVersion: batch.workflowVersion, taskNumber: taskNumberForBatch(batch) });
   return NextResponse.json({ batch });

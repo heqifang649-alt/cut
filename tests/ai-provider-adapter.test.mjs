@@ -467,9 +467,12 @@ test("adapter aborts a timed-out request and retries malformed semantic output b
 test("capability probe propagates an overall deadline and cancels the active upstream request", async () => {
   const controller = new AbortController();
   let observedAbortReason = null;
+  let markDispatched;
+  const dispatched = new Promise((resolve) => { markDispatched = resolve; });
   const adapter = new AiProviderAdapter({ ...config, requestTimeoutMs: 10_000, retryLimit: 0, protocolMode: "responses" }, {
     fetchImpl: async (url, init) => {
       if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-5.6-sol" }] });
+      markDispatched();
       return new Promise((_resolve, reject) => {
         init.signal.addEventListener("abort", () => {
           observedAbortReason = init.signal.reason;
@@ -484,7 +487,12 @@ test("capability probe propagates an overall deadline and cancels the active ups
     imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="],
     signal: controller.signal,
   });
-  setTimeout(() => controller.abort(new ProviderAdapterError("probe deadline", { code: "PROVIDER_PROBE_TIMEOUT", retryable: true })), 20);
+  // The deadline must interrupt a request that is genuinely in flight. Firing it
+  // on a wall-clock guess would race the dispatch itself (incident lock + model
+  // discovery), which is host-dependent and would make this case measure the
+  // machine instead of deadline propagation.
+  await dispatched;
+  controller.abort(new ProviderAdapterError("probe deadline", { code: "PROVIDER_PROBE_TIMEOUT", retryable: true }));
   await assert.rejects(() => probe, (error) => error.code === "PROVIDER_PROBE_TIMEOUT" && error.message === "probe deadline");
   assert.equal(observedAbortReason?.code, "PROVIDER_PROBE_TIMEOUT");
 });

@@ -85,6 +85,15 @@ export type ProductDetection = {
   groupingMethod?: ProductGroupingMethod;
   autoApproved?: boolean;
   reasons?: string[];
+  // Files the human explicitly excluded during reference_ready confirmation.
+  excluded?: string[];
+  // Audit trail written by the approve-profile route. Never mutates AI confidence.
+  humanConfirmation?: {
+    at: string;
+    by?: string;
+    sourceVersion: number;
+    assignments: Array<{ file: string; groupId: string | null }>;
+  };
 };
 
 export type ProductGroupEvidence = {
@@ -123,6 +132,10 @@ export type TransitionMode = (typeof TRANSITION_MODES)[number];
 export const STABLE_TRANSITION_TYPES = ["hard_cut", "fade", "fadeblack", "dissolve", "slideleft", "slideright", "wipeleft", "wiperight", "pixelize"] as const;
 export type StableTransitionType = (typeof STABLE_TRANSITION_TYPES)[number];
 
+export const COVERAGE_POLICIES = ["all_products_required", "best_products_allowed"] as const;
+export type CoveragePolicy = (typeof COVERAGE_POLICIES)[number];
+export type BatchExecutionState = "queued" | "running" | "backpressured" | "waiting_continuation" | "retry_wait" | "review_ready";
+
 export type SampleTemplate = {
   id: string;
   ownerId: string;
@@ -160,6 +173,10 @@ export type Batch = {
   requirements: string;
   durationMax: number;
   outputCount: number;
+  // Legacy meaning is intentionally retained: variants for every Product.
+  // New Batches prefer a Batch-wide target with an explicit coverage policy.
+  targetOutputsPerBatch?: number;
+  coveragePolicy?: CoveragePolicy;
   cvrText?: string;
   hookText?: string;
   colorStrategy?: "none" | "sample" | "lut";
@@ -185,6 +202,13 @@ export type Batch = {
   groupCommands: Array<{ text: string; createdAt: string }>;
   error?: string;
   renderingLabel?: string;
+  execution?: {
+    state: BatchExecutionState;
+    stage?: "analyze" | "clip" | "render";
+    reason?: string;
+    retryAt?: string;
+    updatedAt: string;
+  };
   lastWorkerActivityAt?: string;
   recoveryAttempts?: number;
   delivery?: {
@@ -195,6 +219,9 @@ export type Batch = {
   };
   renderSummary?: {
     renderedProducts: number;
+    renderedProductCount?: number;
+    requestedOutputs?: number;
+    renderedOutputs?: number;
     excludedProducts: Array<{ product_id: string; reason: string }>;
     qualityGates: Record<string, string>;
     productVisualReview?: { status: "passed" | "failed" | "not_run"; threshold?: number; products?: Array<{ product_id: string; reviewed_segments: number; passed_segments: number; min_product_match?: number | null }>; failures?: Array<{ product_id: string; shot_id?: string | null; reason: string }> };

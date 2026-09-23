@@ -69,8 +69,17 @@ test("Product View fails closed when a source belongs to multiple product groups
 test("Worker schedules Product Views before the gated RenderPlan renderer", async () => {
   const source = await readFile(new URL("../worker/processor.mjs", import.meta.url), "utf8");
   assert.match(source, /createProductViews/);
-  assert.match(source, /scheduleProductView/);
+  // The Worker reaches the scheduler through the policy router, so the symbol
+  // that must appear here is the router entry point, not the legacy scheduler.
+  assert.match(source, /routeProductSchedule/);
   assert.match(source, /renderBatchFromRenderPlans/);
   assert.doesNotMatch(source, /scheduleShotPool/);
-  assert.ok(source.indexOf("if (isNewRendererEnabled())") < source.indexOf('const edlPath = path.join(batchDir, "edit", "batch-edl.json")'));
+  // The gated new-renderer branch must return before the legacy EDL path is
+  // computed. The legacy marker is the work-root aware form introduced by the
+  // D/E migration, and both markers are located explicitly: a literal that no
+  // longer exists yields -1, and `a < -1` is false, so the comparison would
+  // otherwise report a failure without saying which side is missing.
+  const newRendererBranch = source.indexOf("if (isNewRendererEnabled())");
+  const legacyEdlBranch = source.indexOf('const legacyEditDir = path.join(batchDir, "edit")');
+  assert.ok(newRendererBranch > -1 && legacyEdlBranch > -1 && newRendererBranch < legacyEdlBranch);
 });

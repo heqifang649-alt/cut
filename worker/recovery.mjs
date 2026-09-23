@@ -425,6 +425,14 @@ export function classifyRecoveryError(error, context = {}) {
   const errorCode = String(error && typeof error === "object" ? error.code || "" : "").toLowerCase();
   const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;
   if (context.canceled) return { category: "fatal", kind: "canceled", recoverable: false, label: "任务已取消" };
+  if (errorCode === "visual_analysis_invalid") return { category: "business", kind: "visual_analysis_invalid", recoverable: false, label: "视觉 API 返回无效结果，等待核对" };
+  if (errorCode.startsWith("provider_")) {
+    const recoverable = error?.retryable === true || ["provider_timeout", "provider_rate_limited", "provider_circuit_open"].includes(errorCode);
+    return { category: recoverable ? "recoverable" : "business", kind: "visual_api_provider", recoverable, label: recoverable ? "视觉 API 暂时不可用，正在退避重试" : "视觉 API 连接需要处理" };
+  }
+  if (errorCode === "codex_executor_unavailable" || /spawn .*[/\\]codex(?:\.exe)? enoent/.test(message)) {
+    return { category: "recoverable", kind: "codex_executor_crashed", failureClass: "executor_crashed", recoverable: true, label: "Codex 程序正在更新或路径失效，正在重新检测" };
+  }
   if (errorCode === "semantic_analysis_paused") return { category: "business", kind: "semantic_analysis_paused", recoverable: false, label: "语义分析已暂停，评分已保存" };
   if (errorCode === "codex_circuit_manual") {
     return { category: "business", kind: "codex_circuit_manual", recoverable: false, label: "Codex 并发熔断等待人工处理" };

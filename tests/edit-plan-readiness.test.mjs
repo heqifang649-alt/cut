@@ -1,13 +1,23 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { assertLegacyEditPlanReady, editPlanPrerequisiteError } from "../worker/edit-plan-readiness.mjs";
+
+// 这些用例通过临时 root 模拟批次，但工作产物的落点由 CUT_WORK_ROOT 决定。
+// 若继承真实环境变量，证据文件会写进生产工作根并在 finally 之外残留，
+// 因此这里把工作根固定到当前用例的临时目录，结束后再还原。
+const previousWorkRoot = process.env.CUT_WORK_ROOT;
+after(() => {
+  if (previousWorkRoot === undefined) delete process.env.CUT_WORK_ROOT;
+  else process.env.CUT_WORK_ROOT = previousWorkRoot;
+});
 
 const slots = ["hook", "outfit_interest", "front_reason", "sleeve_fabric_reason", "back_or_best_reason"];
 
 async function fixture(write) {
   const root = await mkdtemp(path.join("D:\\codex\\tmp", "cutflow-edit-plan-"));
+  process.env.CUT_WORK_ROOT = root;
   const edit = path.join(root, "edit");
   await mkdir(edit, { recursive: true });
   if (write !== undefined) await writeFile(path.join(edit, "batch-edl.json"), write, "utf8");
@@ -60,6 +70,7 @@ test("edit plan readiness rejects invalid, blocked, schema-less and empty plans"
 
 test("current owner workspace EDL validates only confirmed source mappings and records proof", async () => {
   const root = await mkdtemp(path.join("D:\\codex\\tmp", "cutflow-edit-plan-owner-"));
+  process.env.CUT_WORK_ROOT = root;
   const ownerId = "11111111-1111-4111-8111-111111111111";
   const batchId = "22222222-2222-4222-8222-222222222222";
   const batchDir = path.join(root, "storage", "users", ownerId, "batches", batchId);

@@ -7,6 +7,7 @@ import { releaseWorkerLeases } from "./service-queue.mjs";
 import { MAX_RECOVERY_ATTEMPTS, markManualRequired, scheduleRecovery } from "./recovery.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { update } from "./processor.mjs";
+import { workerInstancePaths } from "../lib/work-paths.mjs";
 
 const ROOT = process.cwd();
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "render";
@@ -16,7 +17,7 @@ const HEARTBEAT_TIMEOUT_MS = Math.max(15_000, Number(process.env.CUTFLOW_SERVICE
 const HEARTBEAT_CHECK_MS = Math.max(3_000, Math.min(5_000, Math.floor(HEARTBEAT_TIMEOUT_MS / 3)));
 const runnerPath = path.join(ROOT, "worker", "service-runner.mjs");
 const runtimeFile = path.join(ROOT, "data", "service-runtime", `${SERVICE}-${INSTANCE}.json`);
-const logFile = path.join(ROOT, "logs", `${INSTANCE}.supervisor.log`);
+const logFile = path.join(workerInstancePaths(INSTANCE).logs, `${INSTANCE}.supervisor.log`);
 const heartbeatFile = path.join(ROOT, "data", "service-heartbeats", `${SERVICE}-${INSTANCE}.json`);
 
 let child = null;

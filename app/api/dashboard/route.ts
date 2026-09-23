@@ -6,6 +6,7 @@ import { queueOverview } from "../../../worker/service-queue.mjs";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { batchWorkspacePath } from "@/lib/tenant-paths.mjs";
+import { resolveBatchArtifactPath } from "@/lib/work-paths.mjs";
 import { readCodexExecutionState } from "../../../worker/recovery.mjs";
 
 export const runtime = "nodejs";
@@ -77,10 +78,11 @@ export async function GET() {
   const codex = await readCodexExecutionState(process.cwd());
   const artifacts = await Promise.all(batches.map(async (batch) => {
     const batchDir = batchWorkspacePath(process.cwd(), batch);
+    const renderDir = await resolveBatchArtifactPath(process.cwd(), batch, "renders");
     const [validation, schedule, render] = await Promise.all([
       readJson(path.join(batchDir, "validation-results.json")),
       readJson(path.join(batchDir, "schedule-result.json")),
-      readJson(path.join(batchDir, "output", "render-manifest.json")),
+      readJson(path.join(renderDir, "render-manifest.json")),
     ]);
     return { batch, validation, schedule, render };
   }));

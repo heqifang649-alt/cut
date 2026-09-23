@@ -35,6 +35,7 @@ test("a Codex turn stays alive when the SDK stream continues to make real progre
         events: (async function* events() {
           thread.id = "thread-real-progress";
           yield { type: "thread.started", thread_id: thread.id };
+          yield { type: "error", message: "Reconnecting... 2/5 (unexpected status 403 Forbidden)" };
           await delay(16);
           yield { type: "item.started", item: { type: "command_execution", status: "in_progress" } };
           await delay(16);

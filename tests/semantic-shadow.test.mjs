@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { runSemanticShadow } from "../worker/semantic-shadow.mjs";
+import { ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
 import { semanticShotJsonSchema } from "../lib/semantic-shot.mjs";
 
 const validResult = { schema_version: "semantic-shot.v1", shot_id: "shot-1", shot_type: "front_full_body", product_match: 0.9, clothing_visibility: 0.9, visual_quality: 0.8, hook_value: 0.7, usable: true, confidence: 0.91 };
@@ -19,7 +20,7 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
   const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, signal }) => {
     calls.push(shotId);
     if (stall && shotId !== "shot-1") {
-      const cache = JSON.parse(await readFile(path.join(root, "semantic-cache.v1.json"), "utf8"));
+      const cache = JSON.parse(await readFile(path.join(root, "cache", "legacy", "budget", "semantic-cache.v1.json"), "utf8"));
       assert.equal(Object.values(cache.entries)[0].result.shot_id, "shot-1");
       return new Promise((resolve, reject) => {
         if (signal.aborted) reject(signal.reason);
@@ -29,7 +30,7 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
     return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
   } };
   const progress = [];
-  const options = { root, batchDir: root, batch: { id: "budget", files: [], referenceProfile: {} }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, shotBudgetMs: 25, stageBudgetMs: 5000, onProgress: (value) => progress.push(value) };
+  const options = { root, concurrency: 1, batchDir: root, batch: { id: "budget", files: [], referenceProfile: {} }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, shotBudgetMs: 250, stageBudgetMs: 15000, onProgress: (value) => progress.push(value) };
   await assert.rejects(runSemanticShadow(options), { code: "SEMANTIC_ANALYSIS_PAUSED" });
   assert.deepEqual(calls, ["shot-1", "shot-2", "shot-3", "shot-4"]);
   const snapshots = await readdir(path.join(root, "semantic-history/snapshots"));
@@ -43,8 +44,204 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
   assert.deepEqual(calls, ["shot-2", "shot-3", "shot-4", "shot-5"]);
   assert.equal(progress.at(-1).succeeded, 5);
   stall = true;
-  await assert.rejects(runSemanticShadow({ ...options, stageBudgetMs: 0 }), { code: "SEMANTIC_ANALYSIS_PAUSED" });
-  assert.equal(progress.at(-1).stopReason, "SEMANTIC_STAGE_BUDGET_EXCEEDED");
+  const cached = await runSemanticShadow({ ...options, stageBudgetMs: 0 });
+  assert.equal(cached.evidence.complete, true, "cached scores need no stage budget");
+});
+
+test("two-shot pool drains at segment boundary and resumes only unfinished shots", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-segments-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 6 }, (_, i) => ({ id: `segment-${i}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  let active = 0, peak = 0;
+  const calls = [];
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    active++; peak = Math.max(peak, active); calls.push(shotId);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    active--;
+    return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+  } };
+  const options = { root, batchDir: root, batch: { id: "segments", files: [], workflowVersion: 1 }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, stageBudgetMs: 100, shotBudgetMs: 5000 };
+  const first = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "SEMANTIC_STAGE_BUDGET_EXCEEDED");
+  assert.equal(first.evidence.records.filter((r) => r.status === "error").length, 0);
+  assert.ok(peak <= 2);
+  const final = await runSemanticShadow({ ...options, stageBudgetMs: 10000 });
+  assert.equal(final.evidence.complete, true);
+  assert.equal(peak, 2);
+  assert.equal(calls.length, 6);
+  assert.equal(new Set(calls).size, 6);
+  assert.deepEqual(final.evidence.records.map((r) => r.shotId), shots.map((s) => s.id));
+  const progress = JSON.parse(await readFile(path.join(root, "semantic-progress.v1.json"), "utf8"));
+  assert.equal(progress.segment, 2);
+  assert.equal(progress.succeeded, 6);
+});
+
+test("fair semantic quantum admits at most eight new shots and resumes from committed Evidence", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-quantum-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 10 }, (_, index) => ({ id: `quantum-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = [];
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    calls.push(shotId);
+    return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+  } };
+  const options = {
+    root,
+    batchDir: root,
+    batch: { id: "fair-quantum", files: [], workflowVersion: 1 },
+    shotPool: { shots },
+    adapter,
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 60_000,
+    shotBudgetMs: 5_000,
+    quantumShotLimit: 8,
+  };
+  const first = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "SEMANTIC_QUANTUM_EXHAUSTED");
+  assert.equal(calls.length, 8);
+  assert.equal(first.evidence.records.filter((record) => record.result).length, 8);
+
+  const final = await runSemanticShadow(options);
+  assert.equal(final.evidence.complete, true);
+  assert.equal(calls.length, 10);
+  assert.equal(new Set(calls).size, 10);
+  assert.deepEqual(final.evidence.records.map((record) => record.shotId), shots.map((shot) => shot.id));
+});
+
+test("new video requests extract only sent slots and keep cached input identity", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-frame-slots-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const ref = path.join(root, "ref.jpg"); await writeFile(ref, "ref");
+  let extractions = 0, requests = 0;
+  const options = { root, batchDir: root, batch: { id: "slots", files: [1, 2].map(() => ({ kind: "product_refs", storagePath: ref })) }, shotPool: { shots: [{ id: "slot", path: path.join(root, "video.mp4"), source: "fixture", start: 0, end: 1 }] }, adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ images }) => { requests++; assert.equal(images.length, 3); return { result: { ...validResult, shot_id: "slot" }, telemetry: {} }; } }, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, ffmpeg: "fixture", extractFrames: async (_, args) => { extractions++; await writeFile(args.at(-1), "frame"); } };
+  await runSemanticShadow(options); await runSemanticShadow(options);
+  assert.equal(extractions, 1); assert.equal(requests, 1);
+});
+
+test("75-shot permanent failure preserves 74 scores and ends fail-closed", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-incomplete-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 75 }, (_, index) => ({ id: `fault-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = new Map();
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    calls.set(shotId, (calls.get(shotId) || 0) + 1);
+    if (shotId === "fault-75") throw new ProviderAdapterError("permanent fixture failure", { code: "FIXTURE_PERMANENT", retryable: false });
+    return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+  } };
+  const options = { root, batchDir: root, batch: { id: "incomplete-75", files: [], workflowVersion: 1 }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, stageBudgetMs: 60_000, shotBudgetMs: 5_000 };
+  const first = await runSemanticShadow(options);
+  const second = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal(second.continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  await assert.rejects(runSemanticShadow(options), (error) => error.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(error.message));
+  const snapshots = await Promise.all((await readdir(path.join(root, "semantic-history/snapshots"))).map(async (name) => JSON.parse(await readFile(path.join(root, "semantic-history/snapshots", name), "utf8"))));
+  const incomplete = snapshots.find((snapshot) => snapshot.stopReason === "SEMANTIC_INCOMPLETE");
+  assert.equal(incomplete?.complete, false);
+  assert.equal(incomplete?.records.filter((record) => record.result).length, 74);
+  assert.equal(incomplete?.records.filter((record) => record.status === "error").length, 1);
+  assert.equal([...calls.entries()].filter(([shotId, count]) => shotId !== "fault-75" && count !== 1).length, 0, "completed shots must never be requested twice");
+  assert.equal(calls.get("fault-75"), 3, "only the unfinished shot is retried across bounded segments");
+  await assert.rejects(readFile(path.join(root, "semantic-evidence.v1.json"), "utf8"), { code: "ENOENT" });
+});
+
+test("first 429 degrades two lanes to one, drains the peer, and persists across restart", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-degrade-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 8 }, (_, index) => ({ id: `degrade-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  let active = 0;
+  let peak = 0;
+  let firstFailure = true;
+  let degraded = false;
+  const afterDegradeActive = [];
+  let releasePair;
+  const pairReady = new Promise((resolve) => { releasePair = resolve; });
+  const calls = [];
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    calls.push(shotId);
+    if (active === 2) releasePair();
+    try {
+      if (["degrade-1", "degrade-2"].includes(shotId)) await pairReady;
+      if (shotId === "degrade-2") await new Promise((resolve) => setTimeout(resolve, 300));
+      if (shotId === "degrade-1" && firstFailure) {
+        firstFailure = false;
+        degraded = true;
+        throw new ProviderAdapterError("rate limited", { code: "PROVIDER_RATE_LIMITED", status: 429, retryable: true });
+      }
+      if (degraded && !["degrade-1", "degrade-2"].includes(shotId)) afterDegradeActive.push(active);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } finally { active -= 1; }
+  } };
+  const options = { root, batchDir: root, batch: { id: "degrade", files: [], workflowVersion: 1 }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, stageBudgetMs: 60_000, shotBudgetMs: 5_000 };
+  const first = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal(peak, 2);
+  assert.ok(afterDegradeActive.every((count) => count <= 1), "new requests after degradation must be serial");
+  const control = JSON.parse(await readFile(path.join(root, "data/semantic-throughput-control.json"), "utf8"));
+  assert.equal(control.concurrency, 1);
+  const beforeRestart = calls.length;
+  const final = await runSemanticShadow(options);
+  assert.equal(final.evidence.complete, true);
+  assert.deepEqual(calls.slice(beforeRestart), ["degrade-1"]);
+  const progress = JSON.parse(await readFile(path.join(root, "semantic-progress.v1.json"), "utf8"));
+  assert.equal(progress.concurrency, 1, "persisted degradation must survive a new run");
+});
+
+test("first timeout degrades two lanes to one while the peer finishes", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-timeout-degrade-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 5 }, (_, index) => ({ id: `timeout-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  let active = 0;
+  let peak = 0;
+  let timeoutOnce = true;
+  let releasePair;
+  const pairReady = new Promise((resolve) => { releasePair = resolve; });
+  let peerFinished = false;
+  const laterActive = [];
+  const calls = [];
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    calls.push(shotId);
+    if (active === 2) releasePair();
+    try {
+      if (["timeout-1", "timeout-2"].includes(shotId)) await pairReady;
+      if (shotId === "timeout-1" && timeoutOnce) {
+        timeoutOnce = false;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        throw new ProviderAdapterError("provider timeout", { code: "PROVIDER_TIMEOUT", retryable: true });
+      }
+      if (shotId === "timeout-2") await new Promise((resolve) => setTimeout(resolve, 300));
+      if (!["timeout-1", "timeout-2"].includes(shotId)) laterActive.push(active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      if (shotId === "timeout-2") peerFinished = true;
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } finally { active -= 1; }
+  } };
+  const options = { root, batchDir: root, batch: { id: "timeout-degrade", files: [], workflowVersion: 1 }, shotPool: { shots }, adapter, config: { baseUrl: "https://timeout-provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, stageBudgetMs: 60_000, shotBudgetMs: 5_000 };
+  const first = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal(peak, 2);
+  assert.equal(peerFinished, true);
+  assert.ok(laterActive.every((count) => count <= 1));
+  const beforeRestart = calls.length;
+  const final = await runSemanticShadow(options);
+  assert.equal(final.evidence.complete, true);
+  assert.deepEqual(calls.slice(beforeRestart), ["timeout-1"]);
+  assert.equal(JSON.parse(await readFile(path.join(root, "semantic-progress.v1.json"), "utf8")).concurrency, 1);
 });
 
 test("semantic JSON schema declares a type for the const schema version", () => {
@@ -68,7 +265,7 @@ test("semantic shadow writes isolated evidence and reuses cache without mutating
   const shotPool = { shots: [{ id: "shot-1", path: frame, source: "fixture", start: 0, end: 1, duration: 1, tags: ["front"], productVisibility: 0.9, productCentered: true, motionEnergy: "low" }] };
   let calls = 0;
   const adapter = { guard: { snapshot: () => ({ started: calls }) }, scoreShot: async () => { calls += 1; return { result: validResult, telemetry: { model: "fixture" } }; } };
-  const options = { root, batch, batchDir, shotPool, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, ffmpeg: "", extractFrames: async () => [] };
+  const options = { root, batch, batchDir, shotPool, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, ffmpeg: "", extractFrames: async () => [] };
   await runSemanticShadow(options);
   const before = await readFile(path.join(batchDir, "semantic-evidence.v1.json"), "utf8");
   await runSemanticShadow(options);
@@ -99,7 +296,7 @@ test("semantic shadow reserves a shot frame when product references fill the inp
   const shotPool = { shots: [{ id: "shot-2", path: shotFile, source: "fixture", start: 0, end: 1, duration: 1 }] };
   let receivedImages = [];
   const adapter = { guard: { snapshot: () => ({}) }, scoreShot: async ({ images }) => { receivedImages = images; return { result: { ...validResult, shot_id: "shot-2" }, telemetry: {} }; } };
-  await runSemanticShadow({ root, batch, batchDir, shotPool, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, ffmpeg: "", extractFrames: async () => [] });
+  await runSemanticShadow({ root, batch, batchDir, shotPool, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, ffmpeg: "", extractFrames: async () => [] });
   assert.equal(receivedImages.length, 3);
   assert.match(Buffer.from(receivedImages.at(-1).split(",")[1], "base64").toString(), /shot-frame/);
 });
@@ -138,7 +335,7 @@ test("semantic shadow sends each product group only its matching references", as
     shotPool,
     adapter,
     config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] },
-    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root },
     ffmpeg: "fixture-ffmpeg",
     extractFrames: async (_ffmpeg, args) => {
       const target = args.at(-1);
@@ -161,7 +358,7 @@ test("semantic shadow rebuilds malformed cache without failing Control A", async
   const batch = { id: "batch-3", requirements: "sell shirt", files: [{ kind: "products", storagePath: frame, sourceType: "upload" }, { kind: "product_refs", storagePath: frame, sourceType: "upload" }] };
   const shotPool = { shots: [{ id: "shot-3", path: frame, source: "fixture", start: 0, end: 1, duration: 1 }] };
   const adapter = { guard: { snapshot: () => ({}) }, scoreShot: async () => ({ result: { ...validResult, shot_id: "shot-3" }, telemetry: {} }) };
-  const result = await runSemanticShadow({ root, batch, batchDir, shotPool, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" }, ffmpeg: "", extractFrames: async () => [] });
+  const result = await runSemanticShadow({ root, batch, batchDir, shotPool, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture", candidateModels: [] }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, ffmpeg: "", extractFrames: async () => [] });
   assert.equal(result.ran, true);
   assert.equal(result.evidence.cacheReset, true);
 });
@@ -198,7 +395,7 @@ test("semantic shadow invalidates cached scores when scoring identities change",
     batchDir,
     shotPool,
     adapter,
-    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root },
     ffmpeg: "",
     extractFrames: async () => [],
   };
@@ -251,7 +448,7 @@ test("verified Provider recovery reuses completed Evidence and scores only unfin
     ] },
     adapter,
     config: { providerId: "new-provider", baseUrl: "https://new.test/v1", apiKey: "secret", fastModel: "new-model", candidateModels: [] },
-    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root },
     ffmpeg: "", extractFrames: async () => [],
   });
   assert.deepEqual(scored, ["pending"]);

@@ -50,6 +50,8 @@ import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { taskMatchesBatchVersion, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
 import { taskNumberForBatch } from "../lib/task-number.mjs";
+import { assertWorkRootReady } from "../lib/work-paths.mjs";
+import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from "./resource-governor.mjs";
 
 const ROOT = process.cwd();
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "analyze";
@@ -60,6 +62,7 @@ const ONCE = process.argv.includes("--once");
 const IDLE_MS = Math.max(500, Number(process.env.CUTFLOW_SERVICE_POLL_MS) || 1500);
 const LEASE_MS = Math.max(30_000, Number(process.env.CUTFLOW_SERVICE_LEASE_MS) || 120_000);
 const HEARTBEAT_MS = Math.min(30_000, Math.max(5_000, Math.floor(LEASE_MS / 3)));
+const CANARY_BATCH_IDS = new Set(String(process.env.CUTFLOW_CANARY_BATCH_IDS || "").split(",").map((value) => value.trim()).filter(Boolean));
 const DERIVED_ACTIVE_BATCH_STATUSES = new Set([
   "reference_queued", "analyzing_reference", "creating_proxies", "detecting_products",
   "regroup_queued", "batch_queued", "editing", "revision_queued", "revising",
@@ -124,6 +127,7 @@ async function syncDerivedTasks() {
     if (task.status === "manual") manualTasks.set(`${task.batchId}:${workflowVersionOf(task)}`, task);
   }
   for (const batch of batches) {
+    if (CANARY_BATCH_IDS.size && !CANARY_BATCH_IDS.has(batch.id)) continue;
     if (await fileExists(cancelFile(batch))) {
       if (batch.status === "cancel_requested") {
         await cancelBatchStages({ root: ROOT, batchId: batch.id });
@@ -181,6 +185,12 @@ async function syncDerivedTasks() {
 
 async function loadBatch(batchId) {
   return (await readBatches()).find((batch) => batch.id === batchId) || null;
+}
+
+async function setExecution(batchId, state, stage, reason, retryAt) {
+  await update(batchId, (item) => {
+    item.execution = { state, stage, reason, retryAt, updatedAt: new Date().toISOString() };
+  });
 }
 
 async function runTask(task) {
@@ -243,6 +253,7 @@ async function runTask(task) {
     codexSucceeded = Boolean(task.codexSlot);
 
     if (!(await assertLease({ root: ROOT, task })) || !(await taskCanFinalize(task))) return { lost: true };
+    if (outcome?.continuation) return { deferred: true, retryAt: outcome.continuation.nextRunAt, reason: outcome.continuation.reason };
     if (outcome?.skipped) return { completed: true, skipped: true };
     // Artifact analysis failure is a manual-quality state, not a worker failure.
     // Do not advance it to clip/render or send it into recovery retries.
@@ -250,6 +261,7 @@ async function runTask(task) {
     if (task.stage === "analyze" && task.operation === "quality") {
       await markStage(ROOT, batch, "clip", "edit");
       await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: task.priority, workflowVersion: workflowVersionOf(batch), taskNumber: taskNumberForBatch(batch) });
+      await setExecution(batch.id, "queued", "clip");
     } else if (task.stage === "clip" && ["edit", "revision"].includes(task.operation)) {
       if (outcome?.renderReady !== true) {
         const error = new Error("Edit Plan Not Ready: clip stage completed without a render-ready edit plan.");
@@ -258,8 +270,10 @@ async function runTask(task) {
       }
       await markStage(ROOT, batch, "render", "render");
       await enqueueStage({ root: ROOT, batchId: batch.id, stage: "render", operation: "render", priority: task.priority, workflowVersion: workflowVersionOf(batch), taskNumber: taskNumberForBatch(batch) });
+      await setExecution(batch.id, "queued", "render");
     } else if (task.stage === "render") {
       await markStage(ROOT, batch, null, "render");
+      await setExecution(batch.id, "review_ready", "render");
     }
     return { completed: true };
   } finally {
@@ -464,17 +478,35 @@ async function markServiceRecoverySucceeded(task) {
 
 async function processOnce() {
   let task;
+  let renderPermit;
   try {
+    await assertWorkRootReady({ maxAgeMs: 10_000 });
     await promoteRetries({ root: ROOT, stage: STAGE });
     await syncDerivedTasks();
-    task = await claimStage({ root: ROOT, stage: STAGE, workerId: WORKER_ID, leaseMs: LEASE_MS });
+    task = await claimStage({ root: ROOT, stage: STAGE, workerId: WORKER_ID, leaseMs: LEASE_MS, allowedBatchIds: CANARY_BATCH_IDS.size ? CANARY_BATCH_IDS : undefined });
   } catch (error) {
     console.error(`[${SERVICE}/${WORKER_ID}] Queue cycle failed; continuing to listen:`, error);
     return false;
   }
   if (!task) return false;
+  if (STAGE === "render" && process.env.ENABLE_FAIR_MULTI_BATCH_SCHEDULER === "true") {
+    const result = await acquireRenderPermit({ root: ROOT, batchId: task.batchId, taskKey: task.key, workerId: WORKER_ID, leaseMs: LEASE_MS });
+    if (result.state === "waiting") {
+      await deferStage({ root: ROOT, task, reason: "RENDER_CAPACITY_BACKPRESSURE", notBefore: result.retryAt, fairMultiBatch: true });
+      await update(task.batchId, (item) => {
+        item.error = undefined;
+        item.renderingLabel = "Render 资源池繁忙，任务已保留并自动轮转";
+        item.execution = { state: "backpressured", stage: "render", reason: "RENDER_CAPACITY_BACKPRESSURE", retryAt: result.retryAt, updatedAt: new Date().toISOString() };
+        item.lastWorkerActivityAt = new Date().toISOString();
+      }).catch(() => undefined);
+      return true;
+    }
+    renderPermit = result.permit;
+  }
+  await setExecution(task.batchId, "running", task.stage).catch(() => undefined);
   const heartbeat = setInterval(() => {
     heartbeatLease({ root: ROOT, task, leaseMs: LEASE_MS }).catch(() => undefined);
+    if (renderPermit) heartbeatRenderPermit({ root: ROOT, permit: renderPermit, leaseMs: LEASE_MS }).catch(() => undefined);
     if (task.codexSlot) heartbeatCodexExecution({ root: ROOT, slot: task.codexSlot }).catch(() => undefined);
   }, HEARTBEAT_MS);
   setLeaseGuard(async () => (await assertLease({ root: ROOT, task })) && (await taskStillCurrent(task)));
@@ -488,6 +520,7 @@ async function processOnce() {
     const result = await runTask(task);
     if (result.deferred) {
       await deferStage({ root: ROOT, task, reason: result.reason, notBefore: result.retryAt });
+      await setExecution(task.batchId, String(result.reason || "").startsWith("SEMANTIC_") ? "waiting_continuation" : "backpressured", task.stage, result.reason, result.retryAt).catch(() => undefined);
       return true;
     }
     if (result.canceled || result.lost) return true;
@@ -502,8 +535,22 @@ async function processOnce() {
     }
   } catch (error) {
     if (await isCanceled(task.batchId).catch(() => false)) return true;
+    if (error?.code === "PROVIDER_BACKPRESSURE") {
+      const retryAt = typeof error.retryAt === "string"
+        ? error.retryAt
+        : new Date(Date.now() + Math.max(30_000, Number(error.retryAfterMs) || 0)).toISOString();
+      await update(task.batchId, (item) => {
+        item.error = undefined;
+        item.renderingLabel = `Provider 全局退避中，将在 ${new Date(retryAt).toLocaleTimeString("zh-CN", { hour12: false })} 后自动继续`;
+        item.lastWorkerActivityAt = new Date().toISOString();
+        item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_BACKPRESSURE", retryAt, updatedAt: new Date().toISOString() };
+      }).catch(() => undefined);
+      await deferStage({ root: ROOT, task, reason: "PROVIDER_BACKPRESSURE", notBefore: retryAt });
+      return true;
+    }
     try {
-      await handleFailure(task, error);
+      const handled = await handleFailure(task, error);
+      if (handled?.state === "retry") await setExecution(task.batchId, "retry_wait", task.stage, error instanceof Error ? error.message : String(error), handled.notBefore).catch(() => undefined);
     } catch (failureError) {
       // Failure handling is itself isolated: no single Batch can ever take
       // down the long-running service process.
@@ -513,6 +560,7 @@ async function processOnce() {
     setFailureContext(null);
     setLeaseGuard(null);
     clearInterval(heartbeat);
+    if (renderPermit) await releaseRenderPermit({ root: ROOT, permit: renderPermit }).catch(() => undefined);
   }
   return true;
 }

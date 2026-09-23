@@ -3,9 +3,10 @@ import { copyFile, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createBatch, listBatchesForOwners, mutateBatch } from "@/lib/store";
 import { getSharedTemplate } from "@/lib/template-store";
-import { isTransitionMode, type BatchFile } from "@/lib/types";
+import { COVERAGE_POLICIES, isTransitionMode, type BatchFile } from "@/lib/types";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
+import { validateNasPath } from "@/lib/nas";
 import { batchFileRoot, resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
 
 export const runtime = "nodejs";
@@ -29,6 +30,22 @@ export async function POST(request: Request) {
   const requestedMusicSource = ["template", "library", "upload"].includes(input.musicSource) ? input.musicSource : "template";
   const musicSource = requestedMusicSource === "template" && !template?.bgm ? "library" : requestedMusicSource;
   const transitionMode = isTransitionMode(input.transitionMode) ? input.transitionMode : "standard";
+  // The scan endpoint already gates the path, but a client can post a Batch
+  // directly. Re-checking here keeps an absolute path, a `..` escape, or a UNC
+  // path on another share from ever being stored as a Batch's NAS claim — the
+  // worker later treats `batch.nasPath` as the root it may read from.
+  let nasPath: string | undefined;
+  if (input.sourceMode === "nas") {
+    try {
+      nasPath = validateNasPath(String(input.nasPath || ""));
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "NAS 素材目录无效" }, { status: 400 });
+    }
+  }
+  const targetOutputsPerBatch = Number.isSafeInteger(Number(input.targetOutputsPerBatch)) && Number(input.targetOutputsPerBatch) > 0
+    ? Math.min(100, Number(input.targetOutputsPerBatch))
+    : undefined;
+  const coveragePolicy = COVERAGE_POLICIES.includes(input.coveragePolicy) ? input.coveragePolicy : "all_products_required";
   if (transitionMode === "template_transition" && !template?.file) {
     return NextResponse.json({ error: "复刻母版转场仅支持选择已就绪的样片母版；请先将母版保存到样片母版库。" }, { status: 400 });
   }
@@ -38,14 +55,16 @@ export async function POST(request: Request) {
     requirements: String(input.requirements),
     durationMax: Math.min(30, Math.max(6, Number(input.durationMax) || 13)),
     outputCount: Math.min(5, Math.max(1, Number(input.outputCount) || 1)),
+    targetOutputsPerBatch,
+    coveragePolicy,
     cvrText: typeof input.cvrText === "string" && input.cvrText.trim() ? input.cvrText.trim() : undefined,
     hookText: typeof input.hookText === "string" && input.hookText.trim() ? input.hookText.trim() : undefined,
     colorStrategy,
     musicSource,
     speed: 1,
     autoDetectProducts: true,
-    sourceMode: input.sourceMode === "nas" ? "nas" : "upload",
-    nasPath: input.sourceMode === "nas" ? String(input.nasPath || "") : undefined,
+    sourceMode: nasPath ? "nas" : "upload",
+    nasPath,
     templateId: template?.id,
     templateName: template?.name,
     referenceProfile: template?.profile,

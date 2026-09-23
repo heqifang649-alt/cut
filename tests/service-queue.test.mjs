@@ -6,6 +6,90 @@ import test from "node:test";
 import { assertLease, cancelBatchStages, cancelStage, claimStage, completeStage, deferStage, enqueueStage, heartbeatLease, promoteRetries, queueOverview, releaseWorkerLeases, resetBatchStagesForExplicitRetry, retryStage } from "../worker/service-queue.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 
+test("semantic continuation requeues without incrementing attempts or advancing to clip", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-continuation-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await enqueueStage({ root, batchId: "batch-continuation", stage: "analyze", operation: "quality", workflowVersion: 1 });
+  const task = await claimStage({ root, stage: "analyze", workerId: "analyze-continuation" });
+  const notBefore = new Date(Date.now() + 20).toISOString();
+  const deferred = await deferStage({ root, task, reason: "SEMANTIC_STAGE_BUDGET_EXCEEDED", notBefore });
+  assert.equal(deferred.state, "retry");
+  assert.equal(deferred.attempt, 0);
+  let queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+  assert.equal(queue.tasks.filter((entry) => entry.stage === "clip").length, 0);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(await promoteRetries({ root, stage: "analyze" }), 1);
+  const resumed = await claimStage({ root, stage: "analyze", workerId: "analyze-continuation-restarted" });
+  assert.equal(resumed.key, task.key);
+  assert.equal(resumed.attempt, 0);
+  await completeStage({ root, task: resumed });
+  queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+  assert.equal(queue.tasks.filter((entry) => entry.stage === "clip").length, 0);
+});
+
+test("fair claims rotate ready Batches and cap one Batch at two consecutive quanta", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-fair-claims-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const operation of ["a-1", "a-2", "a-3", "a-4"]) {
+    await enqueueStage({ root, batchId: "batch-a", stage: "analyze", operation });
+  }
+  await enqueueStage({ root, batchId: "batch-b", stage: "analyze", operation: "b-1" });
+  await enqueueStage({ root, batchId: "batch-c", stage: "analyze", operation: "c-1" });
+
+  const order = [];
+  for (let index = 0; index < 6; index += 1) {
+    const task = await claimStage({ root, stage: "analyze", workerId: `fair-${index}`, fairMultiBatch: true });
+    order.push(task.batchId);
+    await completeStage({ root, task });
+  }
+  assert.deepEqual(order.slice(0, 3), ["batch-a", "batch-b", "batch-c"]);
+  assert.deepEqual(order, ["batch-a", "batch-b", "batch-c", "batch-a", "batch-a", "batch-a"]);
+});
+
+test("a fair semantic continuation returns at the Batch ring tail", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-fair-tail-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await enqueueStage({ root, batchId: "batch-a", stage: "analyze", operation: "quality" });
+  await enqueueStage({ root, batchId: "batch-b", stage: "analyze", operation: "quality" });
+  const first = await claimStage({ root, stage: "analyze", workerId: "fair-tail-1", fairMultiBatch: true });
+  assert.equal(first.batchId, "batch-a");
+  await deferStage({
+    root,
+    task: first,
+    reason: "SEMANTIC_QUANTUM_EXHAUSTED",
+    notBefore: new Date(Date.now() + 10).toISOString(),
+    fairMultiBatch: true,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  await promoteRetries({ root, stage: "analyze" });
+  const second = await claimStage({ root, stage: "analyze", workerId: "fair-tail-2", fairMultiBatch: true });
+  assert.equal(second.batchId, "batch-b");
+});
+
+test("fair scheduling ages an old low-priority Batch above fresh normal work", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-fair-aging-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await enqueueStage({ root, batchId: "old-low", stage: "analyze", priority: "LOW" });
+  await enqueueStage({ root, batchId: "fresh-normal", stage: "analyze", priority: "NORMAL" });
+  const queueFile = path.join(root, "data", "service-queue.json");
+  const queue = await readJson(queueFile, { tasks: [] });
+  queue.tasks.find((task) => task.batchId === "old-low").readyAt = new Date(Date.now() - 31 * 60_000).toISOString();
+  await writeJsonAtomic(queueFile, queue);
+  const task = await claimStage({ root, stage: "analyze", workerId: "fair-aging", fairMultiBatch: true });
+  assert.equal(task.batchId, "old-low");
+});
+
+test("canary workers claim only allowlisted Batches", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-canary-allowlist-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await enqueueStage({ root, batchId: "production-peer", stage: "analyze" });
+  await enqueueStage({ root, batchId: "canary-a", stage: "analyze" });
+  const task = await claimStage({ root, stage: "analyze", workerId: "canary-worker", fairMultiBatch: true, allowedBatchIds: ["canary-a"] });
+  assert.equal(task.batchId, "canary-a");
+  const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+  assert.equal(queue.tasks.find((item) => item.batchId === "production-peer").status, "queued");
+});
+
 test("stage queue honors priority and versioned leases", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-service-queue-"));
   try {
@@ -110,6 +194,21 @@ test("the manual retry route resumes the recorded stage instead of always restar
   assert.match(route, /manualStageForBatch/);
   assert.match(route, /restartPlan\(existing, manualTask, marker, recovery\)/);
   assert.match(route, /enqueueStage\(/);
+});
+
+test("concurrent enqueues for the same key never create a duplicate task", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-dedup-concurrent-"));
+  try {
+    // Fire a burst of identical enqueues at the same key with no await between
+    // them, so multiple calls can read the queue before any holds the lock.
+    const tasks = await Promise.all(Array.from({ length: 12 }, () =>
+      enqueueStage({ root, batchId: "batch-dedup", stage: "analyze", operation: "quality", workflowVersion: 5 }),
+    ));
+    const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+    const matching = queue.tasks.filter((item) => item.key === "batch-dedup:analyze:quality");
+    assert.equal(matching.length, 1, `expected exactly one task, got ${matching.length}`);
+    assert.equal(tasks.every((task) => task.workflowVersion === 5), true);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test("a newer Batch workflow version fences and replaces an old queued task", async () => {

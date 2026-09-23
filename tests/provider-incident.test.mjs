@@ -58,11 +58,11 @@ test('three HTTP 200 empty outputs accumulate across adapters; fourth sends no H
   }
   await assert.rejects(assertProviderAvailable(config, 'm', { root }), { code: 'PROVIDER_INCIDENT_OPEN' }); assert.equal(requests, 3);
 });
-test('incident opened after telemetry starts still prevents HTTP dispatch', async () => {
+test('incident opened after request admission starts still prevents HTTP dispatch', async () => {
   const root = await temp(); let dispatches = 0;
   const a = new AiProviderAdapter(config, { root, fetchImpl: async () => { dispatches++; return new Response('{}'); } });
-  await assert.rejects(a.complete({ model:'m', prompt:'x', onRequestEvent: async event => {
-    if(event.phase === 'start') await openProviderIncident(config,{root});
+  await assert.rejects(a.complete({ model:'m', prompt:'x', beforeDispatch: async phase => {
+    if(phase === 'acquire') await openProviderIncident(config,{root});
   } }), {code:'PROVIDER_INCIDENT_OPEN'});
   assert.equal(dispatches,0);
 });

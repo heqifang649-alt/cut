@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getBatchForOwners } from "@/lib/store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, unauthenticated } from "@/lib/auth";
-import { batchWorkspacePath, resolveStoredWorkspaceFile } from "@/lib/tenant-paths.mjs";
+import { resolveBatchArtifactRecord } from "@/lib/work-paths.mjs";
 import { fileReadStream, parseByteRange } from "@/lib/media-stream";
 
 export const runtime = "nodejs";
@@ -17,7 +17,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const file = batch && [...batch.files, ...(batch.outputHistory || [])].find((item) => item.id === fileId && item.kind === "output");
   if (!file) return NextResponse.json({ error: "成片不存在" }, { status: 404 });
   let filePath: string;
-  try { filePath = resolveStoredWorkspaceFile(process.cwd(), batchWorkspacePath(process.cwd(), batch), file.storagePath); }
+  try { filePath = resolveBatchArtifactRecord(process.cwd(), batch, file.storagePath); }
   catch { return NextResponse.json({ error: "成片文件不可用" }, { status: 404 }); }
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) return NextResponse.json({ error: "成片文件不可用" }, { status: 404 });

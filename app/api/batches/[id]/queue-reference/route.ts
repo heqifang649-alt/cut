@@ -79,6 +79,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       item.workflowVersion = Math.max(1, Number(item.workflowVersion) || 1) + 1;
       item.error = undefined;
       item.renderingLabel = undefined;
+      item.execution = { state: "queued", stage: plan.stage, updatedAt: new Date().toISOString() };
     });
     const plan: Pick<RestartPlan, "stage" | "operation"> = planned || (batch.status === "regroup_queued"
       ? { stage: "analyze", operation: "regroup" }

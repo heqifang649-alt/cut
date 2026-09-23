@@ -9,7 +9,9 @@ const serviceRunner = fileURLToPath(new URL("../worker/service-runner.mjs", impo
 
 function runRenderWorker(root) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [serviceRunner, "--service=render", "--once"], { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    // See service-analyze-flow.integration.test.mjs: the worker asserts an
+    // explicitly configured local work root before it will claim a stage.
+    const child = spawn(process.execPath, [serviceRunner, "--service=render", "--once"], { cwd: root, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CUT_WORK_ROOT: root, CUTFLOW_MIN_FREE_BYTES: "0" } });
     let output = "";
     child.stdout.on("data", (chunk) => { output += chunk; });
     child.stderr.on("data", (chunk) => { output += chunk; });

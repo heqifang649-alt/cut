@@ -51,7 +51,7 @@ export function mutateBatch(id: string, mutate: (batch: Batch) => Batch | void) 
   return task;
 }
 
-export async function createBatch(input: Pick<Batch, "ownerId" | "name" | "requirements" | "durationMax" | "outputCount" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "cvrText" | "hookText" | "colorStrategy" | "musicSource" | "templateId" | "templateName" | "referenceProfile" | "transitionMode" | "transitionProfile">>) {
+export async function createBatch(input: Pick<Batch, "ownerId" | "name" | "requirements" | "durationMax" | "outputCount" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "targetOutputsPerBatch" | "coveragePolicy" | "cvrText" | "hookText" | "colorStrategy" | "musicSource" | "templateId" | "templateName" | "referenceProfile" | "transitionMode" | "transitionProfile">>) {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
   const batch: Batch = { ...input, id, taskNumber: taskNumberForBatch({ id, createdAt: now }), storageVersion: 2, workflowVersion: 1, status: "uploading", progress: 2, files: [], commands: [], groupCommands: [], createdAt: now, updatedAt: now, revisionHistory: [] };

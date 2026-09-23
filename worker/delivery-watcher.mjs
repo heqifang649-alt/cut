@@ -3,7 +3,8 @@ import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
-import { batchWorkspacePath, resolveStoredWorkspaceFile, tenantDeliveryRoot } from "../lib/tenant-paths.mjs";
+import { batchWorkspacePath, tenantDeliveryRoot } from "../lib/tenant-paths.mjs";
+import { resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 
 const ROOT = process.cwd();
 await loadRenderRuntimeConfig(ROOT);
@@ -37,7 +38,7 @@ function safeFolderName(batch) {
 }
 
 function sourcePath(batch, file) {
-  return resolveStoredWorkspaceFile(ROOT, batchWorkspacePath(ROOT, batch), file.storagePath);
+  return resolveBatchArtifactRecord(ROOT, batch, file.storagePath);
 }
 
 async function deliverBatch(batch, deliveries) {

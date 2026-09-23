@@ -2,12 +2,14 @@ import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createHash, randomInt } from "node:crypto";
 import path from "node:path";
+import { storedArtifactPath } from "../lib/work-paths.mjs";
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertLegacyEditPlanReady } from "./edit-plan-readiness.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { reviewScheduledProductVisualConsistency } from "../lib/product-visual-review.mjs";
+import { resolveOutputAllocation } from "../lib/output-allocation.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
 
 const DEFAULT_PYTHON = "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
@@ -698,7 +700,7 @@ function concatPath(value) {
 
 async function buildOutputRecord(root, filePath, metadata = {}) {
   const info = await stat(filePath);
-  return { id: crypto.randomUUID(), kind: "output", name: path.basename(filePath), relativePath: path.basename(filePath), storagePath: path.relative(root, filePath), size: info.size, createdAt: new Date().toISOString(), ...metadata };
+  return { id: crypto.randomUUID(), kind: "output", name: path.basename(filePath), relativePath: path.basename(filePath), storagePath: storedArtifactPath(root, filePath), size: info.size, createdAt: new Date().toISOString(), ...metadata };
 }
 
 async function writeChatCutManifest({ root, outputDir, batch, master, product, record, musicPath, musicOffset, textLayout }) {
@@ -759,14 +761,22 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
     created_at: new Date().toISOString(),
   };
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
-  return path.relative(root, manifestPath);
+  return storedArtifactPath(root, manifestPath);
 }
 
-export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) {
     throw new Error("Render Plan Not Ready: schedule-result.json has no renderable Product View");
   }
-  const editDir = path.join(batchDir, "edit");
+  const editDir = suppliedEditDir || path.join(batchDir, "edit");
+  const outputAllocation = resolveOutputAllocation(batch, scheduledProducts);
+  const selectedProductIds = new Set(outputAllocation.selectedProductIds);
+  const allocatedProducts = scheduledProducts.filter((entry) => selectedProductIds.has(String(entry?.product?.id || entry?.product?.product_id)));
+  const coverageExclusions = scheduledProducts
+    .filter((entry) => !selectedProductIds.has(String(entry?.product?.id || entry?.product?.product_id)))
+    .map((entry) => ({ product_id: String(entry?.product?.id || entry?.product?.product_id), reason: "coverage_policy:best_products_allowed" }));
+  await mkdir(editDir, { recursive: true });
+  await writeJsonAtomic(path.join(editDir, "output-allocation.v1.json"), { ...outputAllocation, generatedAt: new Date().toISOString() });
   const legacyEdlPath = path.join(editDir, "batch-edl.json");
   const legacyEdl = JSON.parse(await readFile(legacyEdlPath, "utf8").catch(() => "{}"));
   const storedReferenceProfile = await readJson(path.join(batchDir, "reference-profile.json"), null);
@@ -781,20 +791,19 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg
     batchProfile: batch.referenceProfile,
     storedProfile: storedReferenceProfile,
   });
-  const master = buildRenderPlanMaster({ batch, legacyMaster: legacyEdl.master || {}, referenceProfile, scheduledProducts });
+  const master = buildRenderPlanMaster({ batch, legacyMaster: legacyEdl.master || {}, referenceProfile, scheduledProducts: allocatedProducts });
   if (!Object.hasOwn(master, "transition_plan") && referenceProfile?.transition_plan) master.transition_plan = referenceProfile.transition_plan;
   const transitionRuntime = resolveBatchTransitionRuntime(batch, batch.transitionProfile);
   const renderPlanEdl = renderPlansToEdl({
     master,
-    scheduledProducts,
-    excludedProducts,
+    scheduledProducts: allocatedProducts,
+    excludedProducts: [...excludedProducts, ...coverageExclusions],
     transitionProfile: transitionRuntime.transitionProfile,
     featureEnabled: transitionRuntime.featureEnabled,
   });
   const renderPlanEdlPath = path.join(editDir, "render-plan-edl.json");
-  await mkdir(editDir, { recursive: true });
   await writeFile(renderPlanEdlPath, JSON.stringify(renderPlanEdl, null, 2), "utf8");
-  const productVisualReview = reviewScheduledProductVisualConsistency({ scheduledProducts, semanticEvidence });
+  const productVisualReview = reviewScheduledProductVisualConsistency({ scheduledProducts: allocatedProducts, semanticEvidence });
   if (productVisualReview.status === "failed") {
     await writeFile(path.join(editDir, "product-visual-review.json"), JSON.stringify(productVisualReview, null, 2), "utf8");
     throw new Error(`Product visual consistency gate failed: ${productVisualReview.failures.map((item) => `${item.product_id}/${item.shot_id}`).join(", ")}`);
@@ -804,6 +813,8 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg
     root,
     batch,
     batchDir,
+    editDir,
+    outputDir: suppliedOutputDir,
     ffmpeg,
     onProgress,
     onActivity,
@@ -812,13 +823,14 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, ffmpeg
     edlPath: renderPlanEdlPath,
     validateLegacyProductConsistency: false,
     productVisualReview,
+    outputAllocation,
   });
 }
 
-export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null }) {
+export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null, outputAllocation: suppliedOutputAllocation = null }) {
   const assertActive = async () => { if (await isCanceled()) throw new Error("任务已取消"); };
   await assertActive();
-  const editDir = path.join(batchDir, "edit");
+  const editDir = suppliedEditDir || path.join(batchDir, "edit");
   const edlPath = suppliedEdlPath || path.join(editDir, "batch-edl.json");
   // Render is the second independent artifact gate. It checks the exact
   // owner-scoped workspace and Batch source mapping before FFmpeg is started.
@@ -861,7 +873,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
 
   const overlayDir = path.join(editDir, "overlays");
   const clipsDir = path.join(editDir, "clips_graded");
-  const outputDir = path.join(batchDir, "output");
+  const outputDir = suppliedOutputDir || path.join(batchDir, "output");
   await Promise.all([mkdir(overlayDir, { recursive: true }), mkdir(clipsDir, { recursive: true }), mkdir(outputDir, { recursive: true })]);
   const checkpointPath = path.join(outputDir, "render-recovery-checkpoint.json");
   const renderCheckpoint = await readJson(checkpointPath, initialRenderCheckpoint());
@@ -871,14 +883,17 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
   const hookOverlayPath = await requireRenderFile("hook overlay", path.join(overlayDir, "hook.png"));
   const cvrOverlayPath = await requireRenderFile("CVR overlay", path.join(overlayDir, "cvr.png"));
 
-  const products = limit > 0 ? edl.products.slice(0, limit) : edl.products;
-  const outputVariants = Math.max(1, Math.floor(Number(batch.outputCount) || 1));
-  const totalOutputs = products.length * outputVariants;
+  const allocation = suppliedOutputAllocation || resolveOutputAllocation(batch, edl.products);
+  const selectedProductIds = new Set(allocation.selectedProductIds);
+  const allocatedProducts = edl.products.filter((product) => selectedProductIds.has(String(product.product_id)));
+  const products = limit > 0 ? allocatedProducts.slice(0, limit) : allocatedProducts;
+  const totalOutputs = products.reduce((total, product) => total + Math.max(0, Number(allocation.variantsByProduct[product.product_id]) || 0), 0);
   if (!templateMusicPath && musicPool.length < products.length) throw new Error(`Render resource unavailable: music library has ${musicPool.length} tracks for ${products.length} products`);
   const results = [];
   const musicAssignments = [];
   const renderedTimelines = [];
   if (!templateMusicPath && musicPool.length < totalOutputs) throw new Error(`Music library has ${musicPool.length} tracks but ${totalOutputs} unique outputs were requested.`);
+  let outputOrdinal = 0;
   for (let productIndex = 0; productIndex < products.length; productIndex += 1) {
     await assertActive();
     let product = products[productIndex];
@@ -957,8 +972,9 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     }
     renderedTimelines.push(product);
 
+    const outputVariants = Math.max(0, Number(allocation.variantsByProduct[product.product_id]) || 0);
     for (let variantIndex = 0; variantIndex < outputVariants; variantIndex += 1) {
-    const outputOrdinal = productIndex * outputVariants + variantIndex;
+    const currentOutputOrdinal = outputOrdinal++;
     const suffix = outputVariants > 1 ? `-${String(variantIndex + 1).padStart(2, "0")}` : "";
     const revisionVersion = Math.max(0, Number(batch.revisionVersion) || 0);
     const revisionSuffix = revisionVersion ? `-r${String(revisionVersion).padStart(2, "0")}` : "";
@@ -967,7 +983,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
     const renderSignature = renderHash({ product, master, colorStrategy, transitionProfile, variantIndex });
     const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
-    const musicPath = savedOutput.musicPath || templateMusicPath || musicPool[outputOrdinal];
+    const musicPath = savedOutput.musicPath || templateMusicPath || musicPool[currentOutputOrdinal];
     await assertActive();
     const musicOffset = Number.isFinite(savedOutput.musicOffset)
       ? savedOutput.musicOffset
@@ -996,7 +1012,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
       await writeJsonAtomic(checkpointPath, renderCheckpoint);
       results.push(record);
       musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: path.basename(musicPath), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
-      await onProgress(outputOrdinal + 1, totalOutputs, product.display_name);
+      await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
       continue;
     }
     const audioEnd = Math.max(0, productDuration - 0.03).toFixed(3);
@@ -1019,14 +1035,19 @@ export async function renderBatchFromEdl({ root, batch, batchDir, ffmpeg, onProg
     musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: path.basename(musicPath), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
     renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", record };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
-    await onProgress(outputOrdinal + 1, totalOutputs, product.display_name);
+    await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
     await assertActive();
     }
   }
 
   const transitionSummary = summarizeTransitions(renderedTimelines, transitionProfile);
   const summary = {
+    // Keep the historical field compatible: approval previously interpreted
+    // renderedProducts as the number of output files, despite its name.
     renderedProducts: results.length,
+    renderedProductCount: new Set(results.map((item) => item.productId)).size,
+    requestedOutputs: totalOutputs,
+    renderedOutputs: results.length,
     excludedProducts: Array.isArray(edl.excluded_products) ? edl.excluded_products : [],
     qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed" },
     ...(productVisualReview ? { productVisualReview } : {}),

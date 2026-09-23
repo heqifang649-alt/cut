@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { workerInstancePaths } from "../lib/work-paths.mjs";
 
 const ROOT = process.cwd();
 const workerName = process.argv.find((arg) => arg.startsWith("--worker="))?.slice("--worker=".length);
@@ -33,7 +34,7 @@ const HEARTBEAT_TIMEOUT_MS = Math.max(20_000, Number(process.env.CUTFLOW_AUX_HEA
 // wedged in filesystem I/O and must be restarted before it blocks the portal.
 const LOCK_MAX_HOLD_MS = Math.max(30_000, Number(process.env.CUTFLOW_AUX_LOCK_MAX_HOLD_MS) || 30_000);
 const runtimeFile = path.join(ROOT, "data", "auxiliary-runtime", `${workerName}.json`);
-const logFile = path.join(ROOT, "logs", `${workerName}.auxiliary-supervisor.log`);
+const logFile = path.join(workerInstancePaths(workerName).logs, `${workerName}.auxiliary-supervisor.log`);
 const workerPath = path.join(ROOT, "worker", config.script);
 const heartbeatFile = path.join(ROOT, "data", config.heartbeat);
 const guardedLockFile = path.join(ROOT, "data", config.guardedLock);

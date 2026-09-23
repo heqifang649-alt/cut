@@ -85,6 +85,7 @@ test("shared Codex turn guard accepts a completed stream and preserves its respo
     async runStreamed() {
       return { events: (async function* () {
         yield { type: "thread.started", thread_id: "thread-complete" };
+        yield { type: "error", message: "Reconnecting... 1/5 (connection reset)" };
         yield { type: "item.completed", item: { type: "agent_message", text: "READY" } };
         yield { type: "turn.completed", usage: { input_tokens: 1 } };
       })() };

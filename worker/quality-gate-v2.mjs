@@ -7,6 +7,7 @@ import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { resolveProviderConfig, safeProviderError } from "../lib/ai-provider-config.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
+import { resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 import { orderProductReferencesForEvidence, productReferenceType, representativeProductReferencesForGroup } from "../lib/product-reference-match.mjs";
 import { QUALITY_EVIDENCE_V2_PROMPT_VERSION, QUALITY_EVIDENCE_V2_SCHEMA_VERSION, decideQualityGateV2, parseQualityEvidenceProvider, qualityEvidenceProviderJsonSchema, toValidationResult } from "../lib/quality-evidence-v2.mjs";
 import { evaluateTechnical, probeTechnical } from "./ai-video-validator.mjs";
@@ -19,7 +20,7 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const normalizedPath = (value) => String(value || "").replaceAll("/", "\\").toLocaleLowerCase("zh-CN");
 
 function sourcePath(root, batch, batchDir, file) {
-  if (file.sourceType === "nas" && file.proxyPath) return resolveStoredWorkspaceFile(root, batchDir, file.proxyPath);
+  if (file.sourceType === "nas" && file.proxyPath) return resolveBatchArtifactRecord(root, batch, file.proxyPath);
   if (file.storagePath) return path.isAbsolute(file.storagePath) ? file.storagePath : path.resolve(root, file.storagePath);
   return file.absolutePath || "";
 }
@@ -178,12 +179,12 @@ export async function setQualityEvidenceV2ReviewDecision({ batchDir, sourceId, d
   });
 }
 
-export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides } = {}) {
+export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, evidenceStateDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides } = {}) {
   const sourceId = String(file?.id || file?.storagePath || file?.absolutePath || "");
   const videoPath = sourcePath(root, batch, batchDir, file || {});
   const policy = await loadPolicy(policyPath);
   const sourceHash = await fileHash(videoPath);
-  const evidenceFile = path.join(artifactDir, QUALITY_EVIDENCE_V2_FILE);
+  const evidenceFile = path.join(evidenceStateDir, QUALITY_EVIDENCE_V2_FILE);
   const existing = await readJson(evidenceFile, null);
   const previous = existing?.sources?.find((entry) => entry.sourceId === sourceId && entry.sourceHash === sourceHash && entry.policyVersion === policy.policyVersion && entry.promptVersion === QUALITY_EVIDENCE_V2_PROMPT_VERSION);
   if (previous?.decision?.verdict) return toValidationResult(previous);

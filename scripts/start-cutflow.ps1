@@ -16,26 +16,74 @@ $_sysPath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 $_usrPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $_cleanPath = (($_sysPath, $_usrPath) -join ';') -replace ';+', ';' -replace '^;', '' -replace ';$', ''
 [Environment]::SetEnvironmentVariable('Path', $_cleanPath, 'Process')
+# Start-Process also builds a case-insensitive environment dictionary. Remove
+# duplicate proxy key variants before any child process is launched.
+foreach ($proxyName in @('HTTP_PROXY', 'http_proxy', 'HTTPS_PROXY', 'https_proxy', 'NO_PROXY', 'no_proxy')) {
+  [Environment]::SetEnvironmentVariable($proxyName, $null, 'Process')
+}
+foreach ($proxyName in @('HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY')) {
+  $proxyValue = [Environment]::GetEnvironmentVariable($proxyName, 'User')
+  if (-not $proxyValue) { $proxyValue = [Environment]::GetEnvironmentVariable($proxyName, 'Machine') }
+  if ($proxyValue) { [Environment]::SetEnvironmentVariable($proxyName, $proxyValue, 'Process') }
+}
 
 # Node 22/24 在 Windows 11 24H2 上有 ncrypto::CSPRNG assert bug。
 # --openssl-legacy-provider 绕过此 bug，crypto.randomBytes 测试通过。
 $env:NODE_OPTIONS = '--openssl-legacy-provider'
 
 $portalRoot = Split-Path -Parent $PSScriptRoot
+# CUT_WORK_ROOT 的唯一权威来源是 .env.local。启动脚本不再自带硬编码默认值：
+# Web 由 Next.js 自己读取 .env.local，Worker 继承本脚本注入的进程环境，两者必须
+# 解析到同一个工作根，否则会出现两个真源。缺失时明确报错，绝不回退到项目盘。
+$envFile = Join-Path $portalRoot '.env.local'
+$script:cutflowEnvFileValues = @{}
+if (Test-Path -LiteralPath $envFile -PathType Leaf) {
+  foreach ($line in [System.IO.File]::ReadAllLines($envFile)) {
+    $trimmed = $line.Trim()
+    if (-not $trimmed -or $trimmed.StartsWith('#')) { continue }
+    $separator = $trimmed.IndexOf('=')
+    if ($separator -lt 1) { continue }
+    $script:cutflowEnvFileValues[$trimmed.Substring(0, $separator).Trim()] = $trimmed.Substring($separator + 1).Trim()
+  }
+}
+function Get-CutflowSetting([string]$name, [string]$current) {
+  if ($current) { return $current }
+  if ($script:cutflowEnvFileValues.ContainsKey($name)) { return $script:cutflowEnvFileValues[$name] }
+  return $null
+}
 # 使用当前已安装的 Codex Node 运行时；上方 NODE_OPTIONS 规避 Windows
 # 上的 ncrypto::CSPRNG 断言问题。
 $runtimeRoot = 'C:\Users\尔尔\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin'
 $runtimeNode = Join-Path $runtimeRoot 'node.exe'
 $runtimePython = 'D:\codex\cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-$logRoot = Join-Path $portalRoot 'logs'
+$env:CUT_WORK_ROOT = Get-CutflowSetting 'CUT_WORK_ROOT' $env:CUT_WORK_ROOT
+if (-not $env:CUT_WORK_ROOT) { throw "CUT_WORK_ROOT is not configured. Define it in $envFile (single source of truth); the launcher never falls back to the project drive." }
+$workSubdirectories = @('temp', 'proxy', 'cache', 'renders', 'intermediate', 'worker-scratch')
+if (-not [System.IO.Path]::IsPathRooted($env:CUT_WORK_ROOT)) { throw "CUT_WORK_ROOT must be an absolute local path: $env:CUT_WORK_ROOT" }
+if ($env:CUT_WORK_ROOT.StartsWith('\\')) { throw "CUT_WORK_ROOT must be a local disk path, not UNC/NAS: $env:CUT_WORK_ROOT" }
+New-Item -ItemType Directory -Force -Path $env:CUT_WORK_ROOT | Out-Null
+foreach ($name in $workSubdirectories) {
+  $directory = Join-Path $env:CUT_WORK_ROOT $name
+  New-Item -ItemType Directory -Force -Path $directory | Out-Null
+  $probe = Join-Path $directory ('.cutflow-write-probe-' + [Guid]::NewGuid().ToString('N'))
+  try { [System.IO.File]::WriteAllText($probe, 'cutflow-work-root-probe'); Remove-Item -LiteralPath $probe -Force }
+  catch { throw "CUT_WORK_ROOT subdirectory is not writable/deletable: $directory; $($_.Exception.Message)" }
+}
+$driveRoot = [System.IO.Path]::GetPathRoot($env:CUT_WORK_ROOT)
+$drive = New-Object System.IO.DriveInfo($driveRoot)
+$minimumFreeBytes = Get-CutflowSetting 'CUTFLOW_MIN_FREE_BYTES' $env:CUTFLOW_MIN_FREE_BYTES
+if (-not $minimumFreeBytes) { throw "CUTFLOW_MIN_FREE_BYTES is not configured. Define it in $envFile (single source of truth)." }
+$env:CUTFLOW_MIN_FREE_BYTES = "$minimumFreeBytes"
+$minimumFreeBytes = [int64]$minimumFreeBytes
+if ($drive.AvailableFreeSpace -lt $minimumFreeBytes) { throw ('CUT_WORK_ROOT free space is too low: {0:N2} GiB; minimum is {1:N2} GiB' -f ($drive.AvailableFreeSpace / 1GB), ($minimumFreeBytes / 1GB)) }
+$logRoot = Join-Path $env:CUT_WORK_ROOT 'worker-scratch\logs'
 $dataRoot = Join-Path $portalRoot 'data'
 
 if (-not (Test-Path -LiteralPath $runtimeNode -PathType Leaf)) { throw "Node runtime not found: $runtimeNode" }
 if (-not (Test-Path -LiteralPath $CodexHome -PathType Container)) { throw "Codex account home not found: $CodexHome" }
 New-Item -ItemType Directory -Force -Path $logRoot, $dataRoot | Out-Null
-New-Item -ItemType Directory -Force -Path 'D:\codex\tmp', 'D:\codex\cache' | Out-Null
-$workerTempRoot = 'D:\codex\tmp\cutflow-workers'
-$workerCacheRoot = 'D:\codex\cache\cutflow-workers'
+$workerTempRoot = Join-Path $env:CUT_WORK_ROOT 'worker-scratch'
+$workerCacheRoot = Join-Path $env:CUT_WORK_ROOT 'cache\workers'
 New-Item -ItemType Directory -Force -Path $workerTempRoot, $workerCacheRoot | Out-Null
 $env:CUTFLOW_WORKER_TEMP_ROOT = $workerTempRoot
 $env:CUTFLOW_WORKER_CACHE_ROOT = $workerCacheRoot

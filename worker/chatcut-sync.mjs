@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath, resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
+import { batchArtifactWritePath, resolveBatchArtifactPath, resolveBatchArtifactRecord, storedArtifactPath } from "../lib/work-paths.mjs";
 import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import {
@@ -310,9 +311,10 @@ async function backfillExistingManifests() {
     const missing = batch.files.filter((file) => file.kind === 'output' && file.qualityStatus === 'passed' && !file.chatcut);
     if (!missing.length) continue;
     const batchDir = batchWorkspacePath(ROOT, batch);
+    const [editDir, outputDir] = await Promise.all([resolveBatchArtifactPath(ROOT, batch, "edit"), resolveBatchArtifactPath(ROOT, batch, "renders")]);
     const [edl, renderManifest] = await Promise.all([
-      readFile(path.join(batchDir, 'edit', 'batch-edl.json'), 'utf8').then(JSON.parse).catch(() => null),
-      readFile(path.join(batchDir, 'output', 'render-manifest.json'), 'utf8').then(JSON.parse).catch(() => null),
+      readFile(path.join(editDir, 'batch-edl.json'), 'utf8').then(JSON.parse).catch(() => null),
+      readFile(path.join(outputDir, 'render-manifest.json'), 'utf8').then(JSON.parse).catch(() => null),
     ]);
     if (!edl?.master || !Array.isArray(edl.products)) continue;
     for (const file of missing) {
@@ -329,7 +331,7 @@ async function backfillExistingManifests() {
           : path.resolve(ROOT, musicFile.storagePath);
       }
       catch { continue; }
-      const manifestDir = path.join(batchDir, 'output', 'chatcut-manifests');
+      const manifestDir = path.join(batchArtifactWritePath(batch, "renders"), 'chatcut-manifests');
       await mkdir(manifestDir, { recursive: true });
       const manifestFile = path.join(manifestDir, `${file.id}.json`);
       const master = edl.master;
@@ -356,7 +358,7 @@ async function backfillExistingManifests() {
         item.productId = product.product_id;
         item.displayName = product.display_name;
         item.variantIndex = item.variantIndex || 1;
-        item.chatcut = { status: 'pending', manifestPath: path.relative(ROOT, manifestFile) };
+        item.chatcut = { status: 'pending', manifestPath: storedArtifactPath(ROOT, manifestFile) };
       });
       created += 1;
     }
@@ -369,9 +371,7 @@ async function syncOutput(batch, file, runId) {
   let manifestPath = null;
   try {
     manifestPath = file.chatcut?.manifestPath
-      ? (batch.storageVersion === 2
-        ? resolveStoredWorkspaceFile(ROOT, batchDir, file.chatcut.manifestPath)
-        : path.resolve(ROOT, file.chatcut.manifestPath))
+      ? resolveBatchArtifactRecord(ROOT, batch, file.chatcut.manifestPath)
       : null;
   }
   catch {}

@@ -143,6 +143,28 @@ test("token locks recover an abandoned dead-owner lock without stealing a live o
   }
 });
 
+test("an incomplete new lock observes grace before safe recovery", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "cutflow-incomplete-token-lock-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "store.json");
+  const lockFile = `${file}.lock`;
+  await writeJsonAtomic(file, { count: 0 });
+  await writeFile(lockFile, "");
+  await assert.rejects(
+    withFileLock(file, async () => undefined, { staleMs: 0, incompleteOwnerGraceMs: 200, timeoutMs: 80 }),
+    /等待数据锁(?:恢复)?超时/,
+  );
+  assert.equal((await readdir(directory)).some((name) => name.includes(".lock.abandoned.")), false, "fresh incomplete lock must not be stolen");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  await withFileLock(file, async () => {
+    const value = await readJson(file, { count: 0 });
+    value.count += 1;
+    await writeJsonAtomic(file, value);
+  }, { staleMs: 0, incompleteOwnerGraceMs: 200, timeoutMs: 2_000 });
+  assert.deepEqual(await readJson(file, null), { count: 1 });
+  assert.equal((await readdir(directory)).some((name) => name.includes(".lock.abandoned.")), true, "expired incomplete lock must be retired by rename");
+});
+
 test("store locks release by rename and restart recovers abandoned locks without deletion", async () => {
   const atomicStore = await readFile(new URL("lib/atomic-json.mjs", root), "utf8");
   const restartScript = await readFile(new URL("scripts/restart-cutflow.ps1", root), "utf8");
@@ -179,9 +201,9 @@ test("renderer enforces product, speed, music, decode and cancel gates", async (
   assert.match(source, /missingRenderResource\("music library"/);
   assert.match(source, /"-f", "null", "-"/);
   assert.match(source, /await assertActive\(\)/);
-  assert.match(source, /const outputVariants = Math\.max\(1/);
+  assert.match(source, /allocation\.variantsByProduct/);
   assert.match(source, /musicPool\.length < totalOutputs/);
-  assert.match(source, /musicPool\[outputOrdinal\]/);
+  assert.match(source, /musicPool\[currentOutputOrdinal\]/);
   assert.match(source, /allowed\.confidence >= 0\.96/);
   assert.match(source, /path\.join\(batchDir, "bgm"\)/);
   assert.match(source, /loadRenderRuntimeConfig/);

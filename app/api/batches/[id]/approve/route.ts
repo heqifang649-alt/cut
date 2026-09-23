@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { getBatchForOwners, mutateBatch } from "@/lib/store";
 import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
-import { batchWorkspacePath, resolveStoredWorkspaceFile } from "@/lib/tenant-paths.mjs";
+import { resolveBatchArtifactRecord } from "@/lib/work-paths.mjs";
 import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
 
 export const runtime = "nodejs";
@@ -20,13 +20,13 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     if (existing.status !== "review") throw new Error("只有待审核成片可以确认交付");
     const outputs = existing.files.filter((file) => file.kind === "output");
     const outputChecks = await Promise.all(outputs.map(async (file) => {
-      const outputPath = resolveStoredWorkspaceFile(process.cwd(), batchWorkspacePath(process.cwd(), existing), file.storagePath);
+      const outputPath = resolveBatchArtifactRecord(process.cwd(), existing, file.storagePath);
       return stat(outputPath).then((info) => info.isFile() && info.size > 500_000).catch(() => false);
     }));
     if (outputChecks.some((available) => !available)) throw new Error("成片文件缺失或不完整，请重新渲染后再交付");
     if (!outputs.length) throw new Error("没有可通过的成片");
     if (outputs.some((file) => file.qualityStatus !== "passed")) throw new Error("存在未通过自动质检的成片");
-    if (!existing.renderSummary || existing.renderSummary.renderedProducts !== outputs.length) throw new Error("成片质检摘要不完整，请重新渲染后再交付");
+    if (!existing.renderSummary || (existing.renderSummary.renderedOutputs ?? existing.renderSummary.renderedProducts) !== outputs.length) throw new Error("成片质检摘要不完整，请重新渲染后再交付");
     if (Object.values(existing.renderSummary.qualityGates).some((value) => value !== "passed")) throw new Error("仍有质量门禁未通过，禁止交付");
     await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {

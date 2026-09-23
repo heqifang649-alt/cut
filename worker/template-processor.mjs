@@ -5,6 +5,8 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
+import { isApiAnalysisEnabled, createVisualAnalyzer, analyzeVisualReference } from "./visual-analysis.mjs";
+import { templateWorkPaths } from "../lib/work-paths.mjs";
 import {
   acquireCodexExecution,
   classifyRecoveryError,
@@ -113,6 +115,22 @@ async function analyze(template) {
   await update(template.id, (item) => { item.status = "analyzing"; item.progress = 25; item.error = undefined; });
   const templateDir = templateWorkspacePath(ROOT, template);
   const samplePath = resolveStoredWorkspaceFile(ROOT, templateDir, template.file.storagePath);
+  if (isApiAnalysisEnabled()) {
+    const runtimeConfig = await loadRenderRuntimeConfig(ROOT);
+    const analyzer = await createVisualAnalyzer({ root: ROOT, directory: templateDir, cacheDirectory: templateWorkPaths(template).apiAnalysis, legacyCacheDirectory: path.join(templateDir, "api-analysis-v1"), ffmpeg: runtimeConfig.ffmpegPath,
+      progress: () => update(template.id, item => { item.lastWorkerActivityAt = new Date().toISOString(); }),
+    });
+    const profile = await analyzeVisualReference({ analyzer, source: samplePath, schema: profileSchema });
+    const bgm = await extractTemplateBgm(template, samplePath, templateDir).catch(() => null);
+    await writeJsonAtomic(path.join(templateDir, "reference-profile.json"), profile);
+    await update(template.id, item => {
+      item.status = "ready"; item.progress = 100; item.profile = profile;
+      if (bgm) item.bgm = bgm;
+      item.recoveryAttempts = 0; item.codexRetryAt = undefined; item.error = undefined;
+      item.lastWorkerActivityAt = new Date().toISOString();
+    });
+    return;
+  }
   const task = { key: `template:${template.id}:analyze`, batchId: template.id, stage: "template", operation: "analyze" };
   const execution = await acquireCodexExecution({ root: ROOT, task, service: "template", workerId: TEMPLATE_WORKER_ID });
   if (execution.state === "waiting") {
@@ -199,7 +217,7 @@ async function tick() {
     }
     return true;
   }
-  if (!(await accountReady())) return false;
+  if (!isApiAnalysisEnabled() && !(await accountReady())) return false;
   const template = (await readAll()).find((item) => ["queued", "analyzing"].includes(item.status) && (!item.codexRetryAt || new Date(item.codexRetryAt).getTime() <= Date.now()));
   if (!template) return false;
   try { await analyze(template); }

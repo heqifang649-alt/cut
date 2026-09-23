@@ -76,6 +76,9 @@ label>span,.full-field>span { display:block; font-size:10px; font-weight:800; co
 .copy-override-control input:disabled { cursor:default; border-style:dashed; color:#727779; background:#f7f7f3; }
 .text-button { border:1px solid #d8d9d3; border-radius:9px; background:#fff; color:#4f595d; padding:0 10px; font-size:10px; font-weight:800; white-space:nowrap; }
 .text-button:hover { border-color:#848c8f; }
+/* 批次名称：标题行需要放下右侧的「按规则重命名」，其余样式沿用 label>span。 */
+.batch-name-field>span { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.batch-name-field .text-button { height:24px; }
 .music-source-field { display:block; max-width:390px; margin-top:14px; }
 .transition-mode-field { display:grid; gap:8px; margin:16px 0 0; padding:13px; border:1px solid #d9d9d2; border-radius:13px; background:#fafaf7; }
 .transition-mode-field legend { padding:0 3px; color:#5d6164; font-size:10px; font-weight:800; }

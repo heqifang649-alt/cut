@@ -12,10 +12,15 @@ test("missing ffmpeg degrades grouping evidence to path-only metadata without bl
   const temporaryRoot = await mkdtemp(path.join(testTempParent, "gc-cutflow-evidence-degrade-"));
   const originalWorkingDirectory = process.cwd();
   const originalFfmpeg = process.env.FFMPEG_PATH;
+  const originalWorkRoot = process.env.CUT_WORK_ROOT;
   const batchDir = path.join(temporaryRoot, "storage", "batches", "evidence-degrade");
   try {
     await mkdir(batchDir, { recursive: true });
     process.chdir(temporaryRoot);
+    // Grouping evidence is written through the configured work root, which the
+    // Worker never falls back to the project drive for. Point it at this
+    // fixture's temp root so the sidecar lands inside the sandbox.
+    process.env.CUT_WORK_ROOT = temporaryRoot;
     process.env.FFMPEG_PATH = path.join(temporaryRoot, "missing-ffmpeg.exe");
     const processorUrl = pathToFileURL(path.join(workspaceRoot, "worker", "processor.mjs"));
     const { cacheManualGroupingEvidence } = await import(`${processorUrl.href}?evidenceDegrade=${Date.now()}`);
@@ -34,6 +39,8 @@ test("missing ffmpeg degrades grouping evidence to path-only metadata without bl
     process.chdir(originalWorkingDirectory);
     if (originalFfmpeg === undefined) delete process.env.FFMPEG_PATH;
     else process.env.FFMPEG_PATH = originalFfmpeg;
+    if (originalWorkRoot === undefined) delete process.env.CUT_WORK_ROOT;
+    else process.env.CUT_WORK_ROOT = originalWorkRoot;
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 });

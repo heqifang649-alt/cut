@@ -30,14 +30,22 @@ test("a NAS source is read once into its owner workspace proxy without source mu
   const batchBId = "44444444-4444-4444-8444-444444444444";
   const batchADir = path.join(root, "storage", "users", ownerA, "batches", batchAId);
   const batchBDir = path.join(root, "storage", "users", ownerB, "batches", batchBId);
-  const proxyA = path.join(batchADir, "proxies", "source-a.mp4");
+  const workRoot = path.join(root, "cutflow-work");
+  const previousWorkRoot = process.env.CUT_WORK_ROOT;
+  process.env.CUT_WORK_ROOT = workRoot;
+  t.after(() => { if (previousWorkRoot === undefined) delete process.env.CUT_WORK_ROOT; else process.env.CUT_WORK_ROOT = previousWorkRoot; });
+  const proxyA = path.join(workRoot, "proxy", ownerA, batchAId, "source-a.mp4");
   await mkdir(path.dirname(source), { recursive: true });
   await mkdir(path.dirname(proxyA), { recursive: true });
   await run(FFMPEG, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=navy:s=320x568:r=24", "-t", "1.2", "-an", "-c:v", "mpeg4", "-q:v", "5", "-y", source]);
   const before = await digest(source);
   const sourceInfo = await stat(source);
 
-  await createReadOnlyNasVideoProxy({ batchId: "test-nas-proxy", sourcePath: source, outputPath: proxyA });
+  const batchA = {
+    id: batchAId, ownerId: ownerA, storageVersion: 2, nasPath: nasRoot,
+    files: [{ id: "source-a", kind: "products", name: "front.mp4", relativePath: "OOTD-1/front.mp4", absolutePath: source, storagePath: source, sourceType: "nas", proxyPath: proxyA }],
+  };
+  await createReadOnlyNasVideoProxy({ batch: batchA, sourcePath: source, outputPath: proxyA });
   assert.ok((await stat(proxyA)).size > 0);
   assert.equal(await digest(source), before, "proxy generation must not change the NAS source bytes");
   assert.equal((await stat(source)).size, sourceInfo.size, "proxy generation must not change the NAS source size");
@@ -47,14 +55,10 @@ test("a NAS source is read once into its owner workspace proxy without source mu
     "the transient local NAS input must be removed before Codex can inspect the workspace",
   );
 
-  const batchA = {
-    id: batchAId, ownerId: ownerA, storageVersion: 2, nasPath: nasRoot,
-    files: [{ id: "source-a", kind: "products", name: "front.mp4", relativePath: "OOTD-1/front.mp4", absolutePath: source, storagePath: source, sourceType: "nas", proxyPath: path.relative(root, proxyA) }],
-  };
   const profile = { transition_plan: { enabled: false, reason: "recorded", placements: [] } };
   const context = await prepareEditWorkspaceContext(batchA, batchADir, profile, { text: "Exact hook" }, { text: "Exact CVR" }, { root });
   assert.equal(context.products[0].source_original, source);
-  assert.equal(context.products[0].proxy_path, "proxies/source-a.mp4");
+  assert.equal(context.products[0].proxy_path, proxyA);
   assert.equal(context.hook_text, "Exact hook");
   assert.equal(context.cvr_text, "Exact CVR");
 
@@ -62,11 +66,11 @@ test("a NAS source is read once into its owner workspace proxy without source mu
     ...batchA,
     id: batchBId,
     ownerId: ownerB,
-    files: [{ ...batchA.files[0], proxyPath: path.relative(root, proxyA) }],
+    files: [{ ...batchA.files[0], proxyPath: proxyA }],
   };
   await assert.rejects(
     prepareEditWorkspaceContext(batchB, batchBDir, profile, { text: "Exact hook" }, { text: "Exact CVR" }, { root }),
-    /outside its workspace|escapes the workspace|越出当前 Batch workspace/i,
+    /outside the Batch persistent\/work roots|escapes the workspace|越出当前 Batch workspace/i,
     "a second account must not consume account A's proxy",
   );
 });

@@ -13,7 +13,11 @@ function runAnalyzeWorker(root) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [serviceRunner, "--service=analyze", "--instance=analyze-integration", "--once"], {
       cwd: root,
-      env: { ...process.env, ENABLE_NEW_RENDERER: "true", ENABLE_NEW_SCHEDULER: "true" },
+      // The worker refuses to fall back to the project drive: it asserts a
+      // configured local work root before claiming any stage. Point the work
+      // root at the temp batch root and lift the free-space gate so the
+      // fixture stays independent of the host disk.
+      env: { ...process.env, ENABLE_NEW_RENDERER: "true", ENABLE_NEW_SCHEDULER: "true", CUT_WORK_ROOT: root, CUTFLOW_MIN_FREE_BYTES: "0" },
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });

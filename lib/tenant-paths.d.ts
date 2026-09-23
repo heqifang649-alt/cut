@@ -8,4 +8,5 @@ export function templateWorkspacePath(root: string, template: { id: string; owne
 export function batchFileRoot(root: string, batch: { id: string; ownerId?: string; storageVersion?: number }, kind: string): string;
 export function resolveRelativeFile(root: string, resourceRoot: string, relativePath: string): string;
 export function resolveStoredWorkspaceFile(root: string, resourceRoot: string, storagePath: string): string;
+export function resolveBatchFile(root: string, batch: { id: string; ownerId?: string; storageVersion?: number; nasPath?: string }, file: { absolutePath?: string; storagePath: string; sourceType?: string }): string;
 export function tenantDeliveryRoot(deliveryRoot: string, ownerId: string): string;

@@ -51,6 +51,9 @@ test("production launcher uses a persistent fleet supervisor", async () => {
   assert.match(fleet, /restarting/);
   assert.match(fleet, /adoptLiveMembers/);
   assert.match(fleet, /repairAdoptedMembers/);
+  assert.match(fleet, /multi-batch-canary\.json/);
+  assert.match(fleet, /canary\?\.status !== "running"/);
+  assert.match(fleet, /CUTFLOW_CANARY_BATCH_IDS: batchIds\.join/);
 });
 
 test("every task-producing route checks the fleet and directly queues service stages", async () => {

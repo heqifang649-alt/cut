@@ -6,12 +6,16 @@ export const SERVICE_STAGES = ["analyze", "clip", "render"];
 export const QUEUE_PRIORITIES = ["HIGH", "NORMAL", "LOW"];
 
 const PRIORITY_WEIGHT = { HIGH: 0, NORMAL: 1, LOW: 2 };
+const FAIR_PRIORITY_CREDIT = { HIGH: 4, NORMAL: 2, LOW: 1 };
+const NORMAL_TO_HIGH_AGE_MS = 15 * 60_000;
+const LOW_TO_NORMAL_AGE_MS = 10 * 60_000;
+const LOW_TO_HIGH_AGE_MS = 30 * 60_000;
 const RETRY_DELAYS_MS = [5_000, 15_000, 30_000];
 const DEFAULT_MAX_ATTEMPTS = 3;
 const NO_CHANGE = Symbol("service-queue-no-change");
 
 const queuePath = (root) => path.join(root, "data", "service-queue.json");
-const freshQueue = () => ({ schemaVersion: 1, tasks: [] });
+const freshQueue = () => ({ schemaVersion: 2, nextReadySequence: 0, tasks: [], scheduler: {} });
 const taskKey = (batchId, stage, operation = "default") => `${batchId}:${stage}:${operation}`;
 const now = () => new Date().toISOString();
 const latestTaskForKey = (tasks, key) => tasks.findLast((task) => task.key === key);
@@ -63,12 +67,87 @@ function ordered(tasks) {
   });
 }
 
+function fairEnabled(value) {
+  if (typeof value === "boolean") return value;
+  return process.env.ENABLE_FAIR_MULTI_BATCH_SCHEDULER === "true";
+}
+
+function normalizeQueueMetadata(queue) {
+  queue.schemaVersion = Math.max(2, Number(queue.schemaVersion) || 1);
+  queue.scheduler = queue.scheduler && typeof queue.scheduler === "object" ? queue.scheduler : {};
+  let sequence = Math.max(0, Number(queue.nextReadySequence) || 0);
+  for (const task of queue.tasks || []) {
+    if (!Number.isSafeInteger(Number(task.readySequence)) || Number(task.readySequence) <= 0) task.readySequence = ++sequence;
+    else sequence = Math.max(sequence, Number(task.readySequence));
+    task.executionState ||= task.status === "leased" ? "running" : task.status === "retry" ? "retry_wait" : task.status;
+    task.readyAt ||= task.notBefore || task.enqueuedAt;
+  }
+  queue.nextReadySequence = sequence;
+  return queue;
+}
+
+function effectivePriority(task, currentTime) {
+  const priority = normalizePriority(task.priority);
+  const readySince = new Date(task.readyAt || task.enqueuedAt || 0).getTime();
+  const age = Number.isFinite(readySince) ? Math.max(0, currentTime - readySince) : 0;
+  if (priority === "LOW" && age >= LOW_TO_HIGH_AGE_MS) return "HIGH";
+  if (priority === "LOW" && age >= LOW_TO_NORMAL_AGE_MS) return "NORMAL";
+  if (priority === "NORMAL" && age >= NORMAL_TO_HIGH_AGE_MS) return "HIGH";
+  return priority;
+}
+
+function fairTask(queue, tasks, stage, currentTime) {
+  if (!tasks.length) return null;
+  const priority = QUEUE_PRIORITIES.find((candidate) => tasks.some((task) => effectivePriority(task, currentTime) === candidate));
+  const eligible = tasks.filter((task) => effectivePriority(task, currentTime) === priority);
+  const byBatch = new Map();
+  for (const task of eligible.sort((a, b) => Number(a.readySequence) - Number(b.readySequence))) {
+    if (!byBatch.has(task.batchId)) byBatch.set(task.batchId, []);
+    byBatch.get(task.batchId).push(task);
+  }
+  const state = queue.scheduler[stage] ||= { cursorBatchId: null, lastClaimedBatchId: null, consecutiveClaims: 0, ring: [], batches: {} };
+  state.batches ||= {};
+  state.ring = Array.isArray(state.ring) ? state.ring.filter((batchId) => typeof batchId === "string") : [];
+  const batchIds = [...byBatch.keys()];
+  for (const batchId of batchIds) if (!state.ring.includes(batchId)) state.ring.push(batchId);
+  // Keep a persistent stage ring. If the cursor Batch just completed and is no
+  // longer ready, its position still identifies the next Batch fairly.
+  const cursor = state.ring.indexOf(state.cursorBatchId);
+  const orderedRing = cursor >= 0
+    ? [...state.ring.slice(cursor + 1), ...state.ring.slice(0, cursor + 1)]
+    : state.ring;
+  const ring = orderedRing.filter((batchId) => byBatch.has(batchId));
+  const alternatives = batchIds.some((batchId) => batchId !== state.lastClaimedBatchId);
+  let selected = null;
+  for (let round = 0; round < 2 && !selected; round += 1) {
+    for (const batchId of ring) {
+      if (alternatives && batchId === state.lastClaimedBatchId && Number(state.consecutiveClaims || 0) >= 2) continue;
+      const batchState = state.batches[batchId] ||= { deficit: 0, lastServedAt: null };
+      batchState.deficit += FAIR_PRIORITY_CREDIT[priority];
+      const candidate = byBatch.get(batchId)[0];
+      const cost = Math.max(1, Number(candidate.estimatedCost) || 1);
+      if (batchState.deficit < cost) continue;
+      batchState.deficit -= cost;
+      batchState.lastServedAt = now();
+      selected = candidate;
+      state.cursorBatchId = batchId;
+      if (state.lastClaimedBatchId === batchId) state.consecutiveClaims = Number(state.consecutiveClaims || 0) + 1;
+      else { state.lastClaimedBatchId = batchId; state.consecutiveClaims = 1; }
+      const liveBatchIds = new Set((queue.tasks || []).filter((task) => !["completed", "manual", "canceled"].includes(task.status)).map((task) => task.batchId));
+      state.ring = state.ring.filter((id) => liveBatchIds.has(id) || id === batchId);
+      break;
+    }
+  }
+  return selected || ordered(eligible)[0];
+}
+
 async function mutate(root, change) {
   const file = queuePath(root);
   await mkdir(path.dirname(file), { recursive: true });
   return withFileLock(file, async () => {
     const queue = await readQueue(root);
     queue.tasks ??= [];
+    normalizeQueueMetadata(queue);
     const result = await change(queue);
     if (result && result[NO_CHANGE]) return result.value;
     queue.updatedAt = now();
@@ -107,9 +186,11 @@ function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersi
 export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber, reopenCompletedAfterMs }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   const key = taskKey(batchId, stage, operation);
-  const snapshot = await readQueue(root);
-  const snapshotTask = latestTaskForKey(snapshot.tasks || [], key);
-  if (canReuseEnqueuedTask(snapshotTask, { priority, reason, notBefore, workflowVersion, reopenCompletedAfterMs })) return structuredClone(snapshotTask);
+  // Dedup is decided authoritatively under the file lock below. A pre-lock
+  // snapshot read here could hand back a stale "reusable" task if the queue
+  // changed in the meantime (e.g. the matching task was just canceled),
+  // leaving the caller believing the batch was enqueued when no live task
+  // exists. Always re-evaluate inside the lock instead.
   return mutate(root, (queue) => {
     // A manual task is terminal until an explicit human recovery action
     // changes it. Periodic state discovery must never silently reset its
@@ -145,8 +226,11 @@ export async function enqueueStage({ root, batchId, stage, operation = "default"
       operation,
       priority: normalizePriority(priority),
       status: "queued",
+      executionState: "queued",
       attempt: 0,
       enqueuedAt: now(),
+      readyAt: notBefore || now(),
+      readySequence: ++queue.nextReadySequence,
       notBefore: notBefore || undefined,
       reason: reason || undefined,
       workflowVersion: desiredWorkflowVersion(workflowVersion),
@@ -208,7 +292,7 @@ export async function manualStageForBatch({ root, batchId, workflowVersion }) {
   return queue.tasks.find((task) => task.batchId === batchId && task.status === "manual" && (workflowVersion === undefined || Number(task.workflowVersion || 1) === Number(workflowVersion))) || null;
 }
 
-export async function claimStage({ root, stage, workerId, leaseMs = 90_000 }) {
+export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fairMultiBatch, allowedBatchIds }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   return mutate(root, (queue) => {
     const currentTime = Date.now();
@@ -227,10 +311,12 @@ export async function claimStage({ root, stage, workerId, leaseMs = 90_000 }) {
         changed = true;
         if (attempt >= DEFAULT_MAX_ATTEMPTS) {
           task.status = "manual";
+          task.executionState = "manual";
           task.manualAt = now();
           task.notBefore = undefined;
         } else {
           task.status = "retry";
+          task.executionState = "retry_wait";
           task.notBefore = new Date(currentTime + RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)]).toISOString();
           task.retryAt = now();
         }
@@ -248,16 +334,20 @@ export async function claimStage({ root, stage, workerId, leaseMs = 90_000 }) {
     const busyBatchIds = new Set(queue.tasks
       .filter((item) => item.status === "leased" && item.lease && new Date(item.lease.expiresAt).getTime() > currentTime)
       .map((item) => item.batchId));
-    const task = ordered(queue.tasks.filter((item) =>
+    const allowed = allowedBatchIds ? new Set(allowedBatchIds) : null;
+    const candidates = queue.tasks.filter((item) =>
       item.stage === stage &&
       item.status === "queued" &&
+      (!allowed || allowed.has(item.batchId)) &&
       !busyBatchIds.has(item.batchId) &&
       (!item.notBefore || new Date(item.notBefore).getTime() <= currentTime),
-    ))[0];
+    );
+    const task = fairEnabled(fairMultiBatch) ? fairTask(queue, candidates, stage, currentTime) : ordered(candidates)[0];
     if (!task) return changed ? null : noChange(null);
     const version = Number(task.leaseVersion || 0) + 1;
     task.leaseVersion = version;
     task.status = "leased";
+    task.executionState = "running";
     task.startedAt ??= now();
     task.lease = {
       leaseId: crypto.randomUUID(),
@@ -292,6 +382,7 @@ export async function completeStage({ root, task }) {
     const current = latestTaskForKey(queue.tasks, task.key);
     if (!current || current.status !== "leased" || current.lease?.leaseId !== task.lease?.leaseId || current.lease?.version !== task.lease?.version) return false;
     current.status = "completed";
+    current.executionState = "completed";
     current.completedAt = now();
     current.lease = undefined;
     return true;
@@ -308,10 +399,12 @@ export async function retryStage({ root, task, reason, maxAttempts = DEFAULT_MAX
     current.lease = undefined;
     if (attempt >= maxAttempts) {
       current.status = "manual";
+      current.executionState = "manual";
       current.manualAt = now();
       return { state: "manual", attempt };
     }
     current.status = "retry";
+    current.executionState = "retry_wait";
     const selectedDelay = Number.isFinite(Number(delayMs))
       ? Math.max(0, Number(delayMs))
       : RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)];
@@ -324,14 +417,21 @@ export async function retryStage({ root, task, reason, maxAttempts = DEFAULT_MAX
 // A global dependency can be temporarily unavailable even though this Batch
 // did nothing wrong. Return the lease without incrementing its own retry
 // counter so an account-level backoff cannot exhaust every queued Batch.
-export async function deferStage({ root, task, reason, notBefore }) {
+export async function deferStage({ root, task, reason, notBefore, fairMultiBatch }) {
   if (!notBefore || !Number.isFinite(new Date(notBefore).getTime())) throw new TypeError("notBefore is required for deferred work");
   return mutate(root, (queue) => {
     const current = latestTaskForKey(queue.tasks, task.key);
     if (!current || current.status !== "leased" || current.lease?.leaseId !== task.lease?.leaseId || current.lease?.version !== task.lease?.version) return { state: "lost" };
     current.status = "retry";
+    current.executionState = String(reason || "").endsWith("BACKPRESSURE")
+      ? "backpressured"
+      : String(reason || "").startsWith("SEMANTIC_")
+        ? "waiting_continuation"
+        : "retry_wait";
     current.reason = reason;
     current.notBefore = notBefore;
+    current.readyAt = notBefore;
+    if (fairEnabled(fairMultiBatch)) current.readySequence = ++queue.nextReadySequence;
     current.deferredAt = now();
     current.lease = undefined;
     return { state: "retry", attempt: Number(current.attempt || 0), notBefore };
@@ -358,6 +458,7 @@ export async function releaseWorkerLeases({ root, workerId, reason, maxAttempts 
         continue;
       }
       task.status = "retry";
+      task.executionState = "retry_wait";
       task.notBefore = new Date(Date.now() + RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)]).toISOString();
       task.retryAt = now();
       released.push({ task: structuredClone(task), state: "retry", attempt, notBefore: task.notBefore });
@@ -373,6 +474,7 @@ export async function promoteRetries({ root, stage }) {
     for (const task of queue.tasks) {
       if (task.stage === stage && task.status === "retry" && (!task.notBefore || new Date(task.notBefore).getTime() <= currentTime)) {
         task.status = "queued";
+        task.executionState = "queued";
         promoted += 1;
       }
     }

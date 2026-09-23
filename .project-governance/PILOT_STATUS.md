@@ -16,6 +16,7 @@ MODEL_FAST = gpt-6-astra
 MODEL_STRONG = gpt-6-astra
 PROVIDER_COMPATIBILITY = PASS / 2026-09-17
 NORMAL_CONFIRMED_BATCH_CODEX_DEPENDENCY = OFF
+HYBRID_INITIAL_ANALYSIS_CODEX_DEPENDENCY = OFF / API PATH DEPLOYED 2026-09-21
 USER_ACTION_REQUIRED = NONE
 ```
 
@@ -57,6 +58,15 @@ Evidence: `.project-governance/evidence/g3-canary-metrics-20260814.json` and
 `.project-governance/evidence/g3-independent-review-20260814.md`.
 
 ## Production state
+
+The 2026-09-21 initial-analysis migration uses local FFmpeg frames and the
+configured visual API for sample profiles, template profiles and visual product
+grouping. It shares the durable provider concurrency/request budget, caches
+validated per-file observations, and leaves visual groups for user confirmation.
+Control A retains the existing Codex analysis path. Revision/exception workflows
+are outside this migration and may still require Codex. Validation and the scope
+of real evidence are recorded in `evidence/api-initial-analysis/REPORT.md`; this
+does not constitute a new independent G2/G3 creative-quality acceptance.
 
 Hybrid is the production default with all six Hybrid flags enabled. The active
 runtime is recorded in `data/production-path.json`. Analyze, clip and render
