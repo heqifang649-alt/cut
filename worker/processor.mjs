@@ -18,7 +18,7 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { MAX_RECOVERY_ATTEMPTS, classifyRecoveryError, codexInactivityManualMessage, isRetryDue, markFatalFailure, markManualRequired, markRecoveryRetryReady, markRecoverySucceeded, readRecoveryState, recordCodexSdkEvent, recordCodexTurnCompleted, recordCodexTurnFailure, recordCodexTurnStart, recoveryAttemptLimit, scheduleRecovery } from "./recovery.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { assertLegacyEditPlanReady, editPlanPrerequisiteError } from "./edit-plan-readiness.mjs";
-import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveBatchFile, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { resolveProductGroupsForConsumption } from "../lib/product-confirmation.mjs";
@@ -32,7 +32,8 @@ const STORE = path.join(ROOT, "data", "batches.json");
 const TEMPLATE_STORE = path.join(ROOT, "data", "templates.json");
 const HEARTBEAT = path.join(ROOT, "data", "worker-heartbeat.json");
 const ACCOUNT_STATE = path.join(ROOT, "data", "codex-account-state.json");
-const FFMPEG = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
+const RUNTIME = await loadRuntimeConfig(ROOT);
+const FFMPEG = RUNTIME.ffmpegExecutable;
 const GOLD_STANDARD = process.env.GOLD_STANDARD_PATH || path.join(ROOT, "standards", "reference-sets", "gc-good-20260805", "gold-standard-v2.json");
 const GC_SKILL_DIRECTIVE = `Use $gc-fashion-ad-editor for this clothing-ad task. The approved quality authority is ${GOLD_STANDARD}. Follow its sample-first, clothing-focus, full-look/detail coverage, stable-camera, color-continuity, original-speed, unique-music, beat-sync, safe-zone, and 95-point QC requirements.`;
 const TURN_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_TURN_TIMEOUT_MS) || 10 * 60 * 1000);
@@ -47,7 +48,7 @@ let failureContext = null;
 
 async function writeHeartbeat() {
   await mkdir(path.dirname(HEARTBEAT), { recursive: true });
-  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE }), "utf8");
+  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE, ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 
 class CanceledError extends Error {
@@ -1504,7 +1505,7 @@ ${transitionInstruction}
 async function runRenderBatch(batch) {
   await throwIfCanceled(batch.id);
   const batchDir = batchDirFor(batch);
-  const runtimeConfig = await loadRenderRuntimeConfig(ROOT);
+  const runtimeConfig = await loadRuntimeConfig(ROOT);
   if (!isNewRendererEnabled()) await assertLegacyEditPlanReady(batchDir, { batch, root: ROOT, editDir: await resolveBatchArtifactPath(ROOT, batch, "edit") });
   const progressStart = batch.status === "revising" ? 86 : 50;
   const progressSpan = batch.status === "revising" ? 11 : 47;
@@ -1533,14 +1534,14 @@ async function runRenderBatch(batch) {
       batchDir,
       editDir,
       outputDir,
-      ffmpeg: runtimeConfig.ffmpegPath,
+      ffmpeg: runtimeConfig.ffmpegExecutable,
       scheduledProducts: partitioned.renderable,
       excludedProducts: Array.isArray(scheduleArtifact?.excluded_products) ? scheduleArtifact.excluded_products : partitioned.excludedProducts,
       isCanceled: () => isCanceled(batch.id),
       onProgress,
       onActivity,
     })
-    : await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, editDir, outputDir, ffmpeg: runtimeConfig.ffmpegPath, isCanceled: () => isCanceled(batch.id), onProgress, onActivity });
+    : await renderBatchFromEdl({ root: ROOT, batch: refreshed, batchDir, editDir, outputDir, ffmpeg: runtimeConfig.ffmpegExecutable, isCanceled: () => isCanceled(batch.id), onProgress, onActivity });
   const { files, summary } = rendered;
   if (!files.length) await captureLegacyFailure(batch, new Error("未生成任何可审核的 MP4 成片。"), "视频渲染");
   await update(batch.id, (item) => {

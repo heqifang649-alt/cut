@@ -15,7 +15,7 @@ async function claim(root, workerId) {
   const program = `import { claimNextPending } from ${JSON.stringify(syncWorker)}; process.stdout.write(JSON.stringify(await claimNextPending()));`;
   const { stdout } = await execFile(node, ["--input-type=module", "--eval", program], {
     cwd: root,
-    env: { ...process.env, CUTFLOW_CHATCUT_INSTANCE: workerId },
+    env: { ...process.env, CUTFLOW_RUNTIME_CONFIG: path.resolve("config/cutflow-runtime.json"), CUTFLOW_CHATCUT_INSTANCE: workerId },
   });
   return JSON.parse(stdout || "null");
 }

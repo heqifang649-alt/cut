@@ -124,7 +124,7 @@ function groupForShot(shot, groups) {
   })) || null;
 }
 
-export async function extractRepresentativeFrames({ root = process.cwd(), batch, batchDir, shot, env = process.env, ffmpeg = process.env.FFMPEG_PATH, extract = runFfmpeg, maxImages = 3, candidateLimit = 3 } = {}) {
+export async function extractRepresentativeFrames({ root = process.cwd(), batch, batchDir, shot, env = process.env, ffmpeg, extract = runFfmpeg, maxImages = 3, candidateLimit = 3 } = {}) {
   const source = sourcePath(root, batch, batchDir, { storagePath: shot.path, sourceType: "upload" });
   if (!source || /\.(jpe?g|png|webp)$/i.test(source)) return source ? [source] : [];
   if (!ffmpeg) return [];

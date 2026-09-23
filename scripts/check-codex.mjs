@@ -2,8 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { classifyRecoveryError } from "../worker/recovery.mjs";
 import { createCodexClient } from "../lib/codex-client.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 
-const CODEX_HOME = process.env.CODEX_HOME || path.join(process.env.USERPROFILE || process.cwd(), ".codex");
+const runtime = await loadRuntimeConfig(process.cwd());
+const CODEX_HOME = runtime.codexHome;
+if (!CODEX_HOME || !runtime.codexCliExecutable) throw Object.assign(new Error("Codex is not configured in the Cutflow Runtime Contract"), { code: "RUNTIME_DEPENDENCY_UNAVAILABLE" });
+process.env.CODEX_HOME = CODEX_HOME;
+process.env.CODEX_CLI_PATH = runtime.codexCliExecutable;
 // Codex CLI has a real startup phase (skills/plugins/MCP) before the first
 // model event. A short probe timeout turns a healthy but slow stream into the
 // same stale "executor did not complete" account state seen in production.
@@ -170,7 +175,7 @@ function probeFailureClass({ apiReady, executorReady, error }) {
 // executor that production workers use, while still passing the account key
 // through the SDK's supported constructor option.
 const authForExecutor = await readFile(path.join(CODEX_HOME, "auth.json"), "utf8").then((value) => JSON.parse(value.replace(/^\uFEFF/, "")));
-const configuredCliPath = process.env.CODEX_CLI_PATH || undefined;
+const configuredCliPath = runtime.codexCliExecutable;
 const codex = createCodexClient({
   apiKey: authForExecutor.OPENAI_API_KEY,
   workspaceRoot: process.cwd(),

@@ -8,6 +8,24 @@ import { fileURLToPath } from "node:url";
 import { enqueueStage } from "../worker/service-queue.mjs";
 
 const serviceRunner = fileURLToPath(new URL("../worker/service-runner.mjs", import.meta.url));
+const projectRuntime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+
+async function writeRuntimeFixture(root) {
+  const runtime = {
+    schemaVersion: 3, runtimeProfile: "integration-test", runtimeRevision: "fixture-1",
+    nodeExecutable: projectRuntime.nodeExecutable, pythonExecutable: projectRuntime.pythonExecutable,
+    ffmpegExecutable: projectRuntime.ffmpegExecutable, ffprobeExecutable: projectRuntime.ffprobeExecutable,
+    workRoot: root, deliveryRoot: root, codexHome: null, codexCliExecutable: null,
+    artifactAnalyzerExecutable: null, runtimeTempRoot: path.join(root, "temp"), runtimeCacheRoot: path.join(root, "cache"),
+    assets: { bgmRoot: root, lutRoot: path.join(root, "look.cube"), subtitleTemplateRoot: path.join(root, "subtitle.json") },
+  };
+  await writeFile(path.join(root, "config", "cutflow-runtime.json"), JSON.stringify(runtime), "utf8");
+  for (const script of ["worker/service-runner.mjs", "worker/processor.mjs"]) {
+    const file = path.join(root, script);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, "// runtime preflight fixture\n", "utf8");
+  }
+}
 
 function runAnalyzeWorker(root) {
   return new Promise((resolve, reject) => {
@@ -55,7 +73,7 @@ test("a deterministic regroup task is claimed and completed without Codex", { ti
   await mkdir(batchDir, { recursive: true });
   await writeFile(path.join(root, "data", "batches.json"), JSON.stringify([batch]), "utf8");
   await writeFile(path.join(root, "data", "codex-account-state.json"), JSON.stringify({ authenticationValid: false }), "utf8");
-  await writeFile(path.join(root, "config", "cutflow-runtime.json"), JSON.stringify({ schemaVersion: 1, render: { ffmpegPath: "unused", bgmLibraryPath: "unused", lutPath: "unused", subtitleTemplatePath: "unused", outputPath: "unused" } }), "utf8");
+  await writeRuntimeFixture(root);
   await enqueueStage({ root, batchId, stage: "analyze", operation: "regroup", workflowVersion: 1 });
 
   await runAnalyzeWorker(root);

@@ -4,8 +4,16 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { workerInstancePaths } from "../lib/work-paths.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 
 const ROOT = process.cwd();
+let RUNTIME = await loadRuntimeConfig(ROOT);
+if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+else delete process.env.CODEX_HOME;
+if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+else delete process.env.CODEX_CLI_PATH;
 const workerName = process.argv.find((arg) => arg.startsWith("--worker="))?.slice("--worker=".length);
 const WORKERS = {
   template: {
@@ -56,6 +64,8 @@ async function writeRuntime(change) {
     ...change,
     schemaVersion: 1,
     worker: workerName,
+    claimsEnabled: claimsEnabled(),
+    ...runtimeIdentity(RUNTIME),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -132,10 +142,23 @@ async function restartAfterExit(reason) {
 }
 
 async function launch() {
+  RUNTIME = await loadRuntimeConfig(ROOT);
+  if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+  else delete process.env.CODEX_HOME;
+  if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+  else delete process.env.CODEX_CLI_PATH;
+  try {
+    await preflightRuntime({ root: ROOT, capability: workerName });
+  } catch (error) {
+    if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
+      await writeRuntime({ status: error.code, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString() });
+    }
+    throw error;
+  }
   const current = await readJson(runtimeFile, { restartCount: 0 });
   await writeRuntime({ status: "starting", pid: undefined, restartCount: Number(current.restartCount || 0), nextRestartAt: undefined });
   lastChildOutput = "";
-  child = spawn(process.execPath, [workerPath], { cwd: ROOT, env: process.env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  child = spawn(RUNTIME.nodeExecutable, [workerPath], { cwd: ROOT, env: process.env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   child.startedAt = Date.now();
   capture(child.stdout);
   capture(child.stderr);

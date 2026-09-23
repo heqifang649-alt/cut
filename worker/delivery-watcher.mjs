@@ -2,22 +2,25 @@ import { copyFile, mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
-import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 import { batchWorkspacePath, tenantDeliveryRoot } from "../lib/tenant-paths.mjs";
 import { resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 
 const ROOT = process.cwd();
-await loadRenderRuntimeConfig(ROOT);
+const RUNTIME = await loadRuntimeConfig(ROOT);
+await preflightRuntime({ root: ROOT, capability: "delivery", config: RUNTIME });
 const BATCH_STORE = path.join(ROOT, "data", "batches.json");
 const DELIVERY_STORE = path.join(ROOT, "data", "deliveries.json");
 const HEARTBEAT = path.join(ROOT, "data", "delivery-worker-heartbeat.json");
-const DELIVERY_ROOT = process.env.DELIVERY_OUTPUT_DIR || path.resolve(ROOT, "..", "成片");
+const DELIVERY_ROOT = RUNTIME.deliveryRoot;
 const once = process.argv.includes("--once");
 const WORKER_INSTANCE = process.env.CUTFLOW_DELIVERY_INSTANCE || `Delivery-${process.pid}`;
 
 async function writeHeartbeat() {
   await mkdir(path.dirname(HEARTBEAT), { recursive: true });
-  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE, deliveryRoot: DELIVERY_ROOT }), "utf8");
+  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE, claimsEnabled: claimsEnabled(), deliveryRoot: DELIVERY_ROOT, ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 
 async function updateBatch(batchId, change) {
@@ -70,6 +73,7 @@ async function deliverBatch(batch, deliveries) {
 
 async function tick() {
   await writeHeartbeat();
+  if (!claimsEnabled()) return false;
   await mkdir(DELIVERY_ROOT, { recursive: true });
   const [batches, deliveries] = await Promise.all([readJson(BATCH_STORE), readJson(DELIVERY_STORE)]);
   const deliveredIds = new Set(deliveries.filter((item) => item.status === "completed").map((item) => item.batchId));

@@ -6,7 +6,10 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { batchWorkspacePath, resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { batchArtifactWritePath, resolveBatchArtifactPath, resolveBatchArtifactRecord, storedArtifactPath } from "../lib/work-paths.mjs";
 import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
 import {
   acquireCodexExecution,
   classifyRecoveryError,
@@ -20,6 +23,11 @@ import {
 } from "./recovery.mjs";
 
 const ROOT = process.cwd();
+const RUNTIME = await loadRuntimeConfig(ROOT);
+if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+else delete process.env.CODEX_HOME;
+if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+else delete process.env.CODEX_CLI_PATH;
 const STORE = path.join(ROOT, "data", "batches.json");
 const HEARTBEAT = path.join(ROOT, "data", "chatcut-worker-heartbeat.json");
 const ACCOUNT_STATE = path.join(ROOT, "data", "chatcut-account-state.json");
@@ -27,19 +35,11 @@ const SYNC_TIMEOUT_MS = Math.max(15 * 60 * 1000, Number(process.env.CHATCUT_SYNC
 const MAX_RECOVERY_ATTEMPTS = 2;
 const once = process.argv.includes("--once");
 const WORKER_INSTANCE = process.env.CUTFLOW_CHATCUT_INSTANCE || `ChatCut-${process.pid}`;
-const CHATCUT_MEDIA_TOOL_VERSION = "8.1";
 const PREFLIGHT_TIMEOUT_MS = Math.max(5_000, Number(process.env.CHATCUT_PREFLIGHT_TIMEOUT_MS) || 20_000);
 const OUTPUT_LEASE_MS = Math.max(SYNC_TIMEOUT_MS + 5 * 60 * 1000, Number(process.env.CHATCUT_OUTPUT_LEASE_MS) || SYNC_TIMEOUT_MS + 5 * 60 * 1000);
 
-function chatCutMediaCacheRoot() {
-  return process.env.CHATCUT_MEDIA_IMPORT_CACHE_DIR
-    || path.join(process.env.TEMP || process.env.TMP || path.join(ROOT, "tmp"), "chatcut-media-import-cache");
-}
-
 function chatCutMediaToolPath(tool) {
-  const envName = tool === "ffprobe" ? "FFPROBE_PATH" : "FFMPEG_PATH";
-  return process.env[envName]
-    || path.join(chatCutMediaCacheRoot(), CHATCUT_MEDIA_TOOL_VERSION, "win32-x64", `${tool}.exe`);
+  return tool === "ffprobe" ? RUNTIME.ffprobeExecutable : RUNTIME.ffmpegExecutable;
 }
 
 function ffprobeArgs(sourcePath) {
@@ -84,16 +84,14 @@ async function withinDeadline(promise, timeoutMs, message) {
 
 function chatCutSpawnEnvironment() {
   return {
-    PATH: process.env.PATH,
     TEMP: process.env.TEMP,
     TMP: process.env.TMP,
     TMPDIR: process.env.TMPDIR,
     XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
     HOME: process.env.HOME,
     USERPROFILE: process.env.USERPROFILE,
-    FFMPEG_PATH: process.env.FFMPEG_PATH,
-    FFPROBE_PATH: process.env.FFPROBE_PATH,
-    CHATCUT_MEDIA_IMPORT_CACHE_DIR: process.env.CHATCUT_MEDIA_IMPORT_CACHE_DIR,
+    runtimeTempRoot: RUNTIME.runtimeTempRoot,
+    runtimeCacheRoot: RUNTIME.runtimeCacheRoot,
   };
 }
 
@@ -149,13 +147,11 @@ async function runSpawnDiagnostic(executable, args, cwd) {
 }
 
 async function prepareChatCutMediaTools(sourcePaths) {
-  const cacheRoot = chatCutMediaCacheRoot();
+  const cacheRoot = RUNTIME.runtimeCacheRoot;
   const ffprobe = chatCutMediaToolPath("ffprobe");
   const ffmpeg = chatCutMediaToolPath("ffmpeg");
   process.env.CHATCUT_MEDIA_IMPORT_CACHE_DIR = cacheRoot;
-  if (await stat(ffprobe).then((info) => info.isFile()).catch(() => false)) process.env.FFPROBE_PATH = ffprobe;
-  if (await stat(ffmpeg).then((info) => info.isFile()).catch(() => false)) process.env.FFMPEG_PATH = ffmpeg;
-  const executable = process.env.FFPROBE_PATH || ffprobe;
+  const executable = ffprobe;
   const source = sourcePaths[0];
   const args = ffprobeArgs(source);
   const cwdCases = [
@@ -167,8 +163,8 @@ async function prepareChatCutMediaTools(sourcePaths) {
   for (const item of cwdCases) cwdResults.push({ label: item.label, ...(await runSpawnDiagnostic(executable, args, item.cwd)) });
   const diagnostics = {
     callsite: "ChatCut asset-import/scripts/upload-media.mjs:434 run() -> probeMedia() at 574",
-    process: { cwd: process.cwd(), execPath: process.execPath, env: chatCutSpawnEnvironment() },
-    helper: { executable, ffmpeg: process.env.FFMPEG_PATH, ffprobe: process.env.FFPROBE_PATH, cacheRoot },
+    process: { cwd: process.cwd(), execPath: RUNTIME.nodeExecutable, env: chatCutSpawnEnvironment() },
+    helper: { executable, ffmpeg, ffprobe, cacheRoot },
     sourceChecks: await Promise.all(sourcePaths.map(checkReadableSource)),
     spawn: { executable, args, options: { cwd: undefined, env: "inherited process.env", windowsHide: true, shell: false, detached: false, stdio: ["ignore", "pipe", "pipe"] }, cwdCases: cwdResults },
   };
@@ -187,7 +183,7 @@ class SyncTimeoutError extends Error {
 
 async function writeHeartbeat() {
   await mkdir(path.dirname(HEARTBEAT), { recursive: true });
-  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE }), "utf8");
+  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_INSTANCE, claimsEnabled: claimsEnabled(), ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 
 const resultSchema = {
@@ -566,6 +562,7 @@ async function syncOutput(batch, file, runId) {
 
 async function tick() {
   await writeHeartbeat();
+  if (!claimsEnabled()) return false;
   const backfilled = await backfillExistingManifests();
   if (!(await accountReady())) return backfilled > 0;
   const candidate = await claimNextPending();
@@ -575,6 +572,7 @@ async function tick() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+await preflightRuntime({ root: ROOT, capability: "chatcut", config: RUNTIME });
 if (once) {
   await tick();
 } else {

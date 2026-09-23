@@ -1,14 +1,14 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $portalRoot = Split-Path -Parent $PSScriptRoot
-$codexHome = 'D:\codex\.codex'
-$codexBinRoot = Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin'
-$codexExe = Get-ChildItem -LiteralPath $codexBinRoot -Filter codex.exe -Recurse -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+$runtime = Get-Content -LiteralPath (Join-Path $portalRoot 'config\cutflow-runtime.json') -Raw | ConvertFrom-Json
+$codexHome = [string]$runtime.codexHome
+$codexExe = [string]$runtime.codexCliExecutable
 
 if (-not $codexExe) { throw 'Codex CLI was not found.' }
 $env:CODEX_HOME = $codexHome
-$env:XDG_CACHE_HOME = 'D:\codex\cache'
-$env:TEMP = 'D:\codex\tmp'
-$env:TMP = 'D:\codex\tmp'
+$env:XDG_CACHE_HOME = [string]$runtime.runtimeCacheRoot
+$env:TEMP = [string]$runtime.runtimeTempRoot
+$env:TMP = [string]$runtime.runtimeTempRoot
 
 Write-Host 'Connect the ChatCut account that should own editable Cutflow projects.' -ForegroundColor Cyan
 & $codexExe mcp login chatcut

@@ -28,6 +28,14 @@ test("fleet health requires the parent and every required supervisor", () => {
 test("an accepted task can start a missing fleet from saved production settings", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-fleet-start-"));
   try {
+    await writeJsonAtomic(path.join(root, "config", "cutflow-runtime.json"), {
+      schemaVersion: 3, runtimeProfile: "test", runtimeRevision: "test-1",
+      pythonExecutable: path.join(root, "python.exe"), nodeExecutable: process.execPath,
+      ffmpegExecutable: path.join(root, "ffmpeg.exe"), ffprobeExecutable: path.join(root, "ffprobe.exe"),
+      workRoot: root, deliveryRoot: root, codexHome: null,
+      runtimeTempRoot: root, runtimeCacheRoot: root,
+      assets: { bgmRoot: root, lutRoot: root, subtitleTemplateRoot: root },
+    });
     await writeJsonAtomic(path.join(root, "data", "production-path.json"), {
       flags: { ENABLE_HYBRID_PILOT: "true" },
       modelFast: "fast-model",

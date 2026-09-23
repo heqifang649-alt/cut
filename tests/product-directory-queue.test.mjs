@@ -5,6 +5,7 @@ import test from "node:test";
 import { pathToFileURL } from "node:url";
 
 const workspaceRoot = process.cwd();
+const projectRuntime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
 
 test("a conforming product-folder batch bypasses manual confirmation and enters the next queue", async () => {
   const testTempParent = "D:\\codex\\tmp";
@@ -28,6 +29,9 @@ test("a conforming product-folder batch bypasses manual confirmation and enters 
 
   try {
     await mkdir(path.join(temporaryRoot, "data"), { recursive: true });
+    await mkdir(path.join(temporaryRoot, "config"), { recursive: true });
+    const runtime = { ...projectRuntime, runtimeProfile: "integration-test", runtimeRevision: "fixture-1", workRoot: temporaryRoot, deliveryRoot: temporaryRoot, codexHome: null, codexCliExecutable: null, runtimeTempRoot: path.join(temporaryRoot, "temp"), runtimeCacheRoot: path.join(temporaryRoot, "cache"), assets: { bgmRoot: temporaryRoot, lutRoot: temporaryRoot, subtitleTemplateRoot: temporaryRoot } };
+    await writeFile(path.join(temporaryRoot, "config", "cutflow-runtime.json"), JSON.stringify(runtime), "utf8");
     await mkdir(path.join(temporaryRoot, "storage", "batches", batchId), { recursive: true });
     await writeFile(path.join(temporaryRoot, "data", "batches.json"), JSON.stringify([batch]), "utf8");
     process.chdir(temporaryRoot);

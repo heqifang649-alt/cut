@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import path from "node:path";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { renderBatchFromEdl } from "../worker/batch-renderer.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 
 const ROOT = process.cwd();
 const DEFAULT_BATCH_ID = "0149296d-ef0f-4d51-bc0f-f1fad7cdf7c3";
@@ -23,7 +24,7 @@ const OFF_FLAGS = {
 
 Object.assign(process.env, OFF_FLAGS);
 const execFileAsync = promisify(execFile);
-const FFMPEG = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
+const FFMPEG = (await loadRuntimeConfig(ROOT)).ffmpegExecutable;
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");

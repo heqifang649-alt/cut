@@ -1,13 +1,12 @@
-param(
-  [string]$CodexHome = 'D:\codex\.codex'
-)
+param([string]$CodexHome)
 
 $ErrorActionPreference = 'Stop'
 $portalRoot = Split-Path -Parent $PSScriptRoot
-$codexBinRoot = Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin'
-$codexExe = Get-ChildItem -LiteralPath $codexBinRoot -Filter codex.exe -Recurse -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
-$runtimeNode = 'D:\codex\cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
-$backupRoot = Join-Path 'D:\codex\account-backups' (Get-Date -Format 'yyyyMMdd-HHmmss')
+$runtime = Get-Content -LiteralPath (Join-Path $portalRoot 'config\cutflow-runtime.json') -Raw | ConvertFrom-Json
+$codexExe = [string]$runtime.codexCliExecutable
+$runtimeNode = [string]$runtime.nodeExecutable
+if (-not $CodexHome) { $CodexHome = [string]$runtime.codexHome }
+$backupRoot = Join-Path (Join-Path ([string]$runtime.runtimeCacheRoot) 'account-backups') (Get-Date -Format 'yyyyMMdd-HHmmss')
 $authPath = Join-Path $CodexHome 'auth.json'
 
 if (-not $codexExe) { throw 'Codex CLI was not found.' }
@@ -16,9 +15,9 @@ if (-not (Test-Path -LiteralPath $CodexHome -PathType Container)) {
 }
 
 $env:CODEX_HOME = $CodexHome
-$env:XDG_CACHE_HOME = 'D:\codex\cache'
-$env:TEMP = 'D:\codex\tmp'
-$env:TMP = 'D:\codex\tmp'
+$env:XDG_CACHE_HOME = [string]$runtime.runtimeCacheRoot
+$env:TEMP = [string]$runtime.runtimeTempRoot
+$env:TMP = [string]$runtime.runtimeTempRoot
 
 if (Test-Path -LiteralPath $authPath -PathType Leaf) {
   New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null

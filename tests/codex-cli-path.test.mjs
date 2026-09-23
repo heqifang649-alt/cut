@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { resolveCodexCliPath } from "../lib/codex-cli-path.mjs";
@@ -8,7 +8,7 @@ import { classifyRecoveryError } from "../worker/recovery.mjs";
 import { Codex } from "@openai/codex-sdk";
 import { createCodexClient } from "../lib/codex-client.mjs";
 
-test("desktop updates recover the newest installed executable without restarting the process", () => {
+test("Codex executable resolution uses only the configured Runtime Contract path", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "cutflow-cli-"));
   try {
     const bin = path.join(root, "OpenAI", "Codex", "bin");
@@ -22,15 +22,14 @@ test("desktop updates recover the newest installed executable without restarting
     assert.equal(resolve(), old);
     const next = install("bbbb");
     rmSync(old);
+    assert.throws(resolve, { code: "CODEX_EXECUTOR_UNAVAILABLE" });
+    env.CODEX_CLI_PATH = next;
     assert.equal(resolve(), next);
-    const latest = install("cccc");
-    utimesSync(latest, new Date(), new Date(Date.now() + 1000));
-    assert.equal(resolve(), latest);
-    rmSync(next); rmSync(latest);
+    rmSync(next);
     assert.throws(resolve, { code: "CODEX_EXECUTOR_UNAVAILABLE" });
     const custom = path.join(root, "custom", "codex.exe");
-    install("dddd");
-    assert.throws(() => resolveCodexCliPath({ env: { ...env, CODEX_CLI_PATH: custom }, platform: "win32" }), { code: "CODEX_EXECUTOR_UNAVAILABLE" });
+    mkdirSync(path.dirname(custom), { recursive: true }); writeFileSync(custom, "fixture");
+    assert.equal(resolveCodexCliPath({ env: { ...env, CODEX_CLI_PATH: custom }, platform: "win32" }), custom);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -38,19 +37,20 @@ test("missing executors receive bounded recovery; missing media remain fatal", (
   assert.equal(classifyRecoveryError(new Error("spawn C:\\app\\codex.exe ENOENT")).recoverable, true);
   assert.equal(classifyRecoveryError(Object.assign(new Error("update in progress"), { code: "CODEX_EXECUTOR_UNAVAILABLE" })).recoverable, true);
   assert.equal(classifyRecoveryError(new Error("ENOENT source.mp4")).recoverable, false);
-  assert.equal(resolveCodexCliPath({ env: {}, platform: "linux" }), undefined);
+  assert.throws(() => resolveCodexCliPath({ env: {}, platform: "linux" }), { code: "CODEX_EXECUTOR_UNAVAILABLE" });
 });
 
-test("an existing thread refreshes its executor and preserves its session after an update", { skip: process.platform !== "win32" }, async (t) => {
+test("a restarted client uses the updated Contract executable and resumes the saved session", { skip: process.platform !== "win32" }, async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "cutflow-thread-"));
   const previousLocal = process.env.LOCALAPPDATA;
   const previousCli = process.env.CODEX_CLI_PATH;
+  const previousHome = process.env.CODEX_HOME;
   try {
     const bin = path.join(root, "OpenAI", "Codex", "bin");
     const old = path.join(bin, "aaaa", "codex.exe");
     const next = path.join(bin, "bbbb", "codex.exe");
     for (const file of [old, next]) { mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, "fixture"); }
-    process.env.LOCALAPPDATA = root; process.env.CODEX_CLI_PATH = old;
+    process.env.LOCALAPPDATA = root; process.env.CODEX_CLI_PATH = old; process.env.CODEX_HOME = root;
     let starts = 0; let resumes = 0;
     const fake = () => ({ id: "session-1", run: async () => "ok", runStreamed: async () => "stream" });
     t.mock.method(Codex.prototype, "startThread", () => { starts++; return fake(); });
@@ -58,12 +58,16 @@ test("an existing thread refreshes its executor and preserves its session after 
     const thread = createCodexClient().startThread();
     assert.equal(await thread.run("first"), "ok");
     rmSync(old);
-    assert.equal(await thread.runStreamed("second"), "stream");
-    assert.equal(thread.id, "session-1");
+    process.env.CODEX_CLI_PATH = next;
+    assert.throws(() => thread.runStreamed("old process must fail closed"), { code: "CODEX_EXECUTOR_UNAVAILABLE" });
+    const restartedThread = createCodexClient().resumeThread("session-1");
+    assert.equal(await restartedThread.runStreamed("second"), "stream");
+    assert.equal(restartedThread.id, "session-1");
     assert.equal(starts, 1); assert.equal(resumes, 1);
   } finally {
     if (previousLocal === undefined) delete process.env.LOCALAPPDATA; else process.env.LOCALAPPDATA = previousLocal;
     if (previousCli === undefined) delete process.env.CODEX_CLI_PATH; else process.env.CODEX_CLI_PATH = previousCli;
+    if (previousHome === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = previousHome;
     rmSync(root, { recursive: true, force: true });
   }
 });

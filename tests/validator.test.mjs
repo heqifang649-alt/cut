@@ -15,6 +15,7 @@ const normalTechnical = {
 };
 
 const validate = (overrides = {}) => validateVideo("D:/isolated/sample.mp4", {
+  ffmpeg: "test-runtime-ffmpeg",
   technical: normalTechnical,
   temporalArtifacts: [],
   artifacts: [],
@@ -50,7 +51,7 @@ test("layer 3 rejects model artifacts and preserves diagnostic evidence", async 
 
 test("gray confidence and unavailable advanced analysis return review", async () => {
   assert.equal((await validate({ artifacts: [{ type: "human:hand_anomaly", confidence: 0.7 }] })).verdict, "review");
-  assert.deepEqual(await validateVideo("D:/isolated/sample.mp4", { technical: normalTechnical }), {
+  assert.deepEqual(await validateVideo("D:/isolated/sample.mp4", { ffmpeg: "test-runtime-ffmpeg", technical: normalTechnical }), {
     verdict: "review",
     rejectReason: "review:low_confidence",
     artifacts: [],

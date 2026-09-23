@@ -4,12 +4,13 @@ import path from "node:path";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { readQualityEvidenceV2, validateWithQualityGateV2 } from "../worker/quality-gate-v2.mjs";
 import { evaluateReferenceTrack } from "../lib/quality-gate-v2-tracks.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 
 const root = process.cwd();
 const manifestPath = path.join(root, "benchmarks", "quality-gate-v2", "reference-v1", "reference-valid-manifest.v1.json");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const batches = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"));
-const ffmpeg = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
+const ffmpeg = (await loadRuntimeConfig(root)).ffmpegExecutable;
 const runId = new Date().toISOString().replaceAll(/[:.]/g, "-");
 const runDir = path.join(path.dirname(manifestPath), "runs", runId);
 const policyPath = path.join(root, "standards", "quality-gate-v2-policy.reference-v1.json");

@@ -6,12 +6,13 @@ import process from "node:process";
 import { evaluateQualityGateV2Benchmark, evaluateVerdictRepeatability, validateQualityGateV2BenchmarkManifest } from "../lib/quality-gate-v2-benchmark.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { readQualityEvidenceV2, validateWithQualityGateV2 } from "../worker/quality-gate-v2.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 
 const root = process.cwd();
 const manifestPath = path.resolve(root, process.argv[2] || "benchmarks/quality-gate-v2/v1/ground-truth-manifest.v1.json");
 const allowUnlabelledShadow = process.argv.includes("--shadow-unlabelled");
 const repeatability = process.argv.includes("--repeatability");
-const ffmpeg = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
+const ffmpeg = (await loadRuntimeConfig(root)).ffmpegExecutable;
 const hash = (text) => createHash("sha256").update(text).digest("hex");
 
 async function writeJson(file, value) {

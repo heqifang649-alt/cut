@@ -125,12 +125,12 @@ test("render runtime paths come from one config entry, not launcher-specific env
     process.env.BGM_LIBRARY_PATH = incorrectLauncherValue;
     const config = await loadRenderRuntimeConfig(process.cwd());
     assert.match(config.file, /config[\\/]cutflow-runtime\.json$/);
-    assert.notEqual(config.bgmLibraryPath, incorrectLauncherValue, "config loader must overwrite launcher residue");
-    assert.equal(process.env.BGM_LIBRARY_PATH, config.bgmLibraryPath);
-    assert.equal(process.env.FFMPEG_PATH, config.ffmpegPath);
-    assert.equal(process.env.COLOR_LUT_PATH, config.lutPath);
-    assert.equal(process.env.TEXT_LAYOUT_STANDARD, config.subtitleTemplatePath);
-    assert.equal(process.env.DELIVERY_OUTPUT_DIR, config.outputPath);
+    assert.notEqual(config.bgmLibraryPath, incorrectLauncherValue, "resource paths come from Runtime Contract");
+    assert.equal(process.env.BGM_LIBRARY_PATH, incorrectLauncherValue, "runtime loader does not create an executable environment fallback");
+    assert.equal(typeof config.ffmpegExecutable, "string");
+    assert.equal(typeof config.lutPath, "string");
+    assert.equal(typeof config.subtitleTemplatePath, "string");
+    assert.equal(typeof config.deliveryRoot, "string");
   } finally {
     if (priorBgm === undefined) delete process.env.BGM_LIBRARY_PATH;
     else process.env.BGM_LIBRARY_PATH = priorBgm;

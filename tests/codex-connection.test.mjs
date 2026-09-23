@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { parseCodexProbeOutput, refreshCodexConnection } from "../lib/codex-connection.mjs";
 import { CodexExecutorIncompleteError, executorWorkspacePath, runCompletedCodexTurn } from "../lib/codex-client.mjs";
+const projectRuntime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+
+async function writeRuntimeFixture(root) {
+  const runtime = { ...projectRuntime, runtimeProfile: "codex-test", runtimeRevision: "fixture-1" };
+  await mkdir(path.join(root, "config"), { recursive: true });
+  await writeFile(path.join(root, "config", "cutflow-runtime.json"), JSON.stringify(runtime), "utf8");
+}
 
 test("Codex reconnect parser accepts the check script result and rejects unrelated output", () => {
   assert.deepEqual(parseCodexProbeOutput("notice\n{\"ready\":true,\"apiReady\":true,\"executorReady\":true,\"response\":\"READY\"}\n"), { ready: true, apiReady: true, executorReady: true, response: "READY" });
@@ -15,6 +22,7 @@ test("Codex reconnect parser accepts the check script result and rejects unrelat
 test("Codex reconnect records the actual failed probe result without reporting success", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-codex-reconnect-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeRuntimeFixture(root);
   const state = await refreshCodexConnection({
     root,
     execute: async () => ({ stdout: '{"ready":false,"apiReady":false,"executorReady":false,"response":"Codex auth expired"}\n' }),
@@ -28,6 +36,7 @@ test("Codex reconnect records the actual failed probe result without reporting s
 test("Codex reconnect preserves a verified success and shares an in-flight probe", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-codex-reconnect-"));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeRuntimeFixture(root);
   let executions = 0;
   const execute = async () => {
     executions += 1;

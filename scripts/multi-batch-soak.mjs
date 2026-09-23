@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 import { ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { inspectWorkRoot, resetWorkRootHealthCache } from "../lib/work-paths.mjs";
@@ -245,7 +246,7 @@ function assertSoak(condition, message) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const ffmpeg = process.argv.find((arg) => arg.startsWith("--ffmpeg="))?.slice("--ffmpeg=".length) || process.env.FFMPEG_PATH;
+  const ffmpeg = (await loadRuntimeConfig(path.dirname(fileURLToPath(import.meta.url)).replace(/[\\/]scripts$/, ""))).ffmpegExecutable;
   const keep = process.argv.includes("--keep");
   const result = await runMultiBatchSoak({ ffmpeg, keep });
   process.stdout.write(`${JSON.stringify(result.report, null, 2)}\n${keep ? `Artifacts: ${result.root}\n` : ""}`);

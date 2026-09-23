@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
 const workspaceRoot = process.cwd();
 
 test("missing ffmpeg degrades grouping evidence to path-only metadata without blocking the fallback", async () => {
-  const testTempParent = "D:\\codex\\tmp";
-  await mkdir(testTempParent, { recursive: true });
-  const temporaryRoot = await mkdtemp(path.join(testTempParent, "gc-cutflow-evidence-degrade-"));
+  const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "gc-cutflow-evidence-degrade-"));
   const originalWorkingDirectory = process.cwd();
-  const originalFfmpeg = process.env.FFMPEG_PATH;
+  const originalRuntimeConfig = process.env.CUTFLOW_RUNTIME_CONFIG;
   const originalWorkRoot = process.env.CUT_WORK_ROOT;
   const batchDir = path.join(temporaryRoot, "storage", "batches", "evidence-degrade");
   try {
@@ -21,7 +20,14 @@ test("missing ffmpeg degrades grouping evidence to path-only metadata without bl
     // Worker never falls back to the project drive for. Point it at this
     // fixture's temp root so the sidecar lands inside the sandbox.
     process.env.CUT_WORK_ROOT = temporaryRoot;
-    process.env.FFMPEG_PATH = path.join(temporaryRoot, "missing-ffmpeg.exe");
+    const runtimeConfig = path.join(temporaryRoot, "cutflow-runtime.json");
+    await writeFile(runtimeConfig, JSON.stringify({ schemaVersion: 3, runtimeProfile: "test", runtimeRevision: "test-1",
+      pythonExecutable: path.join(temporaryRoot, "missing-python.exe"), nodeExecutable: process.execPath,
+      ffmpegExecutable: path.join(temporaryRoot, "missing-ffmpeg.exe"), ffprobeExecutable: path.join(temporaryRoot, "missing-ffprobe.exe"),
+      workRoot: temporaryRoot, deliveryRoot: temporaryRoot, codexHome: null, runtimeTempRoot: temporaryRoot, runtimeCacheRoot: temporaryRoot,
+      assets: { bgmRoot: temporaryRoot, lutRoot: temporaryRoot, subtitleTemplateRoot: temporaryRoot },
+    }));
+    process.env.CUTFLOW_RUNTIME_CONFIG = runtimeConfig;
     const processorUrl = pathToFileURL(path.join(workspaceRoot, "worker", "processor.mjs"));
     const { cacheManualGroupingEvidence } = await import(`${processorUrl.href}?evidenceDegrade=${Date.now()}`);
     await cacheManualGroupingEvidence(
@@ -37,8 +43,8 @@ test("missing ffmpeg degrades grouping evidence to path-only metadata without bl
     assert.deepEqual(sidecar.groups[0].productImage, { relativePath: "TT1/product.png" });
   } finally {
     process.chdir(originalWorkingDirectory);
-    if (originalFfmpeg === undefined) delete process.env.FFMPEG_PATH;
-    else process.env.FFMPEG_PATH = originalFfmpeg;
+    if (originalRuntimeConfig === undefined) delete process.env.CUTFLOW_RUNTIME_CONFIG;
+    else process.env.CUTFLOW_RUNTIME_CONFIG = originalRuntimeConfig;
     if (originalWorkRoot === undefined) delete process.env.CUT_WORK_ROOT;
     else process.env.CUT_WORK_ROOT = originalWorkRoot;
     await rm(temporaryRoot, { recursive: true, force: true });

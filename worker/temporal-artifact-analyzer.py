@@ -561,7 +561,10 @@ def analyze(args: argparse.Namespace) -> dict[str, Any]:
     input_path = Path(args.input).resolve()
     if not input_path.is_file():
         raise RuntimeError(f"Input video is not readable: {input_path}")
-    model_dir = Path(args.model_dir or os.environ.get("TEMPORAL_ARTIFACT_MODEL_DIR", r"D:\codex\cache\temporal-artifact-analyzer\models"))
+    model_value = args.model_dir or os.environ.get("TEMPORAL_ARTIFACT_MODEL_DIR")
+    if not model_value:
+        raise SystemExit("A model directory must be provided with --model-dir or TEMPORAL_ARTIFACT_MODEL_DIR.")
+    model_dir = Path(model_value)
     sample_fps = max(2.0, min(12.0, float(args.sample_fps)))
     evidence_dir = Path(args.evidence_dir).resolve() if args.evidence_dir else None
     detector = MediaPipeDetector(model_dir)

@@ -4,6 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertWorkRootReady, workPaths, workerInstancePaths } from "../lib/work-paths.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 
 // The fleet can be launched directly by recovery or scheduled-task tooling,
 // bypassing the PowerShell launcher that normally injects this setting. Keep
@@ -12,6 +15,17 @@ import { assertWorkRootReady, workPaths, workerInstancePaths } from "../lib/work
 process.loadEnvFile(".env.local");
 
 const ROOT = process.cwd();
+let RUNTIME = await loadRuntimeConfig(ROOT);
+function applyRuntimeEnvironment(runtime) {
+  process.env.CUT_WORK_ROOT = runtime.workRoot;
+  process.env.CUTFLOW_WORKER_TEMP_ROOT = runtime.runtimeTempRoot;
+  process.env.CUTFLOW_WORKER_CACHE_ROOT = runtime.runtimeCacheRoot;
+  if (runtime.codexHome) process.env.CODEX_HOME = runtime.codexHome;
+  else delete process.env.CODEX_HOME;
+  if (runtime.codexCliExecutable) process.env.CODEX_CLI_PATH = runtime.codexCliExecutable;
+  else delete process.env.CODEX_CLI_PATH;
+}
+applyRuntimeEnvironment(RUNTIME);
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_FLEET_RESTART_DELAY_MS) || 3_000);
 const HEARTBEAT_MS = 5_000;
 const runtimeFile = path.join(ROOT, "data", "fleet-runtime.json");
@@ -55,6 +69,8 @@ async function writeHeartbeat() {
   await writeJsonAtomic(runtimeFile, {
     schemaVersion: 1,
     status: stopping ? "stopping" : "running",
+    claimsEnabled: claimsEnabled(),
+    ...runtimeIdentity(RUNTIME),
     pid: process.pid,
     at: new Date().toISOString(),
     canaryBatchIds: canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS?.split(",") || [],
@@ -108,10 +124,12 @@ function memberEnvironment(member) {
 
 async function launchMember(member) {
   if (stopping || children.has(member.name)) return;
+  RUNTIME = await loadRuntimeConfig(ROOT);
+  applyRuntimeEnvironment(RUNTIME);
   const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
   await mkdir(workerTemp, { recursive: true });
   await mkdir(workerCache, { recursive: true });
-  const child = spawn(process.execPath, [path.join(ROOT, "worker", member.script), ...member.args], {
+  const child = spawn(RUNTIME.nodeExecutable, [path.join(ROOT, "worker", member.script), ...member.args], {
     cwd: ROOT,
     env: memberEnvironment(member),
     windowsHide: true,
@@ -143,6 +161,14 @@ async function stop() {
 }
 
 async function main() {
+  try {
+    await preflightRuntime({ root: ROOT, capability: "fleet", config: RUNTIME });
+  } catch (error) {
+    if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
+      await writeJsonAtomic(runtimeFile, { schemaVersion: 1, status: error.code, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString(), ...runtimeIdentity(RUNTIME), at: new Date().toISOString(), pid: process.pid, members: [] });
+    }
+    throw error;
+  }
   const health = await assertWorkRootReady({ maxAgeMs: 0 });
   canaryEnvironment = await loadCanaryEnvironment();
   await log(`CUT_WORK_ROOT ready: ${health.root}; free ${(health.freeBytes / 2 ** 30).toFixed(2)} GiB.`);

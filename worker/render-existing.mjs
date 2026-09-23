@@ -2,6 +2,8 @@ import path from "node:path";
 import { renderBatchFromEdl } from "./batch-renderer.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
+import { loadRuntimeConfig } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
 
 const ROOT = process.cwd();
 const id = process.argv[2];
@@ -25,12 +27,14 @@ async function updateBatch(change) {
 }
 
 try {
+  const runtime = await loadRuntimeConfig(ROOT);
+  await preflightRuntime({ root: ROOT, capability: "render", config: runtime });
   if (commit) await updateBatch((item) => { item.status = "editing"; item.progress = 45; item.error = undefined; item.renderingLabel = "准备本地渲染"; });
   const { files, summary } = await renderBatchFromEdl({
     root: ROOT,
     batch,
     batchDir: batchWorkspacePath(ROOT, batch),
-    ffmpeg: process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe",
+    ffmpeg: runtime.ffmpegExecutable,
     limit,
     onProgress: async (done, total, label) => {
       process.stdout.write(`${done}/${total} ${label}\n`);

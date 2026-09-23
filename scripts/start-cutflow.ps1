@@ -1,8 +1,7 @@
-﻿param(
+param(
   [switch]$NoBrowser,
   [switch]$SkipAccountCheck,
-  [switch]$ControlA,
-  [string]$CodexHome = 'D:\codex\.codex'
+  [switch]$ControlA
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,9 +31,8 @@ foreach ($proxyName in @('HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY')) {
 $env:NODE_OPTIONS = '--openssl-legacy-provider'
 
 $portalRoot = Split-Path -Parent $PSScriptRoot
-# CUT_WORK_ROOT 的唯一权威来源是 .env.local。启动脚本不再自带硬编码默认值：
-# Web 由 Next.js 自己读取 .env.local，Worker 继承本脚本注入的进程环境，两者必须
-# 解析到同一个工作根，否则会出现两个真源。缺失时明确报错，绝不回退到项目盘。
+# Runtime executable 与运行目录由 cutflow-runtime.json 唯一管理。其余启动调优项
+#（例如最低剩余空间）仍可从 .env.local 读取；Web 与 Worker 都继承契约中的工作根。
 $envFile = Join-Path $portalRoot '.env.local'
 $script:cutflowEnvFileValues = @{}
 if (Test-Path -LiteralPath $envFile -PathType Leaf) {
@@ -53,11 +51,17 @@ function Get-CutflowSetting([string]$name, [string]$current) {
 }
 # 使用当前已安装的 Codex Node 运行时；上方 NODE_OPTIONS 规避 Windows
 # 上的 ncrypto::CSPRNG 断言问题。
-$runtimeRoot = 'C:\Users\尔尔\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin'
-$runtimeNode = Join-Path $runtimeRoot 'node.exe'
-$runtimePython = 'D:\codex\cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
-$env:CUT_WORK_ROOT = Get-CutflowSetting 'CUT_WORK_ROOT' $env:CUT_WORK_ROOT
-if (-not $env:CUT_WORK_ROOT) { throw "CUT_WORK_ROOT is not configured. Define it in $envFile (single source of truth); the launcher never falls back to the project drive." }
+$runtimeFile = Join-Path $portalRoot 'config\cutflow-runtime.json'
+if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { throw "Runtime Contract not found: $runtimeFile" }
+$runtime = Get-Content -LiteralPath $runtimeFile -Raw | ConvertFrom-Json
+if ($runtime.schemaVersion -ne 3 -or -not $runtime.runtimeProfile -or -not $runtime.runtimeRevision) { throw 'Unsupported Cutflow Runtime Contract schema.' }
+$runtimeNode = [string]$runtime.nodeExecutable
+$runtimePython = [string]$runtime.pythonExecutable
+if (-not $runtimeNode -or -not $runtimePython) { throw 'Runtime Contract must configure nodeExecutable and pythonExecutable.' }
+$CodexHome = [string]$runtime.codexHome
+$env:CUT_WORK_ROOT = [string]$runtime.workRoot
+$env:DELIVERY_OUTPUT_DIR = [string]$runtime.deliveryRoot
+if (-not $env:CUT_WORK_ROOT) { throw "CUT_WORK_ROOT is missing from $runtimeFile; the launcher never falls back to the project drive." }
 $workSubdirectories = @('temp', 'proxy', 'cache', 'renders', 'intermediate', 'worker-scratch')
 if (-not [System.IO.Path]::IsPathRooted($env:CUT_WORK_ROOT)) { throw "CUT_WORK_ROOT must be an absolute local path: $env:CUT_WORK_ROOT" }
 if ($env:CUT_WORK_ROOT.StartsWith('\\')) { throw "CUT_WORK_ROOT must be a local disk path, not UNC/NAS: $env:CUT_WORK_ROOT" }
@@ -80,10 +84,15 @@ $logRoot = Join-Path $env:CUT_WORK_ROOT 'worker-scratch\logs'
 $dataRoot = Join-Path $portalRoot 'data'
 
 if (-not (Test-Path -LiteralPath $runtimeNode -PathType Leaf)) { throw "Node runtime not found: $runtimeNode" }
-if (-not (Test-Path -LiteralPath $CodexHome -PathType Container)) { throw "Codex account home not found: $CodexHome" }
+if (-not (& $runtimeNode --version 2>$null)) { throw 'RUNTIME_DEPENDENCY_UNAVAILABLE: node --version' }
+foreach ($requiredScript in @('node_modules\next\dist\bin\next', 'worker\runtime-config.mjs', 'worker\runtime-preflight.mjs', 'worker\fleet-supervisor.mjs', 'worker\service-supervisor.mjs', 'worker\service-runner.mjs', 'worker\auxiliary-supervisor.mjs', 'worker\processor.mjs', 'worker\batch-renderer.mjs', 'worker\template-processor.mjs', 'worker\delivery-watcher.mjs', 'worker\chatcut-sync.mjs', 'worker\render-overlays.py')) {
+  if (-not (Test-Path -LiteralPath (Join-Path $portalRoot $requiredScript) -PathType Leaf)) { throw "RUNTIME_DEPENDENCY_UNAVAILABLE: script:$requiredScript" }
+}
+& $runtimeNode (Join-Path $portalRoot 'worker\runtime-preflight.mjs') '--capability=web'
+if ($LASTEXITCODE -ne 0) { throw 'RUNTIME_DEPENDENCY_UNAVAILABLE: web preflight failed; see data\runtime-health\web.json' }
 New-Item -ItemType Directory -Force -Path $logRoot, $dataRoot | Out-Null
-$workerTempRoot = Join-Path $env:CUT_WORK_ROOT 'worker-scratch'
-$workerCacheRoot = Join-Path $env:CUT_WORK_ROOT 'cache\workers'
+$workerTempRoot = [string]$runtime.runtimeTempRoot
+$workerCacheRoot = Join-Path ([string]$runtime.runtimeCacheRoot) 'workers'
 New-Item -ItemType Directory -Force -Path $workerTempRoot, $workerCacheRoot | Out-Null
 $env:CUTFLOW_WORKER_TEMP_ROOT = $workerTempRoot
 $env:CUTFLOW_WORKER_CACHE_ROOT = $workerCacheRoot
@@ -91,17 +100,11 @@ $bootstrapTemp = Join-Path $workerTempRoot 'bootstrap'
 $bootstrapCache = Join-Path $workerCacheRoot 'bootstrap'
 New-Item -ItemType Directory -Force -Path $bootstrapTemp, $bootstrapCache | Out-Null
 
-$env:CODEX_HOME = $CodexHome
-$codexCliRoot = Join-Path $env:LOCALAPPDATA 'OpenAI\Codex\bin'
-$codexCli = Get-ChildItem -LiteralPath $codexCliRoot -Recurse -Filter 'codex.exe' -File -ErrorAction SilentlyContinue |
-  Sort-Object LastWriteTime -Descending |
-  Select-Object -First 1
-if ($codexCli) {
-  $env:CODEX_CLI_PATH = $codexCli.FullName
-} else {
-  $env:CODEX_CLI_PATH = Join-Path $codexCliRoot 'codex.exe'
-}
-$env:XDG_CACHE_HOME = 'D:\codex\cache'
+if ($CodexHome) { $env:CODEX_HOME = $CodexHome }
+else { Remove-Item Env:CODEX_HOME -ErrorAction SilentlyContinue }
+if ($CodexHome -and $runtime.codexCliExecutable) { $env:CODEX_CLI_PATH = [string]$runtime.codexCliExecutable }
+else { Remove-Item Env:CODEX_CLI_PATH -ErrorAction SilentlyContinue }
+$env:XDG_CACHE_HOME = [string]$runtime.runtimeCacheRoot
 $env:TEMP = $bootstrapTemp
 $env:TMP = $bootstrapTemp
 $env:TMPDIR = $bootstrapTemp
@@ -118,8 +121,7 @@ $finishedVideos = Convert-CodePoints @(25104, 29255)
 
 $env:ALLOWED_NAS_ROOTS = "\\192.168.120.60\$creativeDepartment-fb$adDelivery;\\192.168.120.60\$newDelivery"
 $env:GOLD_STANDARD_PATH = Join-Path $portalRoot 'standards\reference-sets\gc-good-20260805\gold-standard-v2.json'
-$env:PYTHONPATH = 'D:\codex\cache\pydeps'
-$env:PYTHON_PATH = $runtimePython
+$env:PYTHONPATH = Join-Path (Split-Path -Parent $runtimePython) 'Lib\site-packages'
 
 # G3-authorized production default. -ControlA is the one-command rollback;
 # it preserves the website, queues and workers while disabling the Hybrid path.
@@ -168,7 +170,11 @@ $codexStatus = 'unresponsive'
 $codexFailureClass = 'service_unavailable'
 $accountStatePath = Join-Path $dataRoot 'codex-account-state.json'
 $previousAccountState = $null
-if ($SkipAccountCheck) {
+if (-not $CodexHome) {
+  $codexResponse = 'Runtime Contract 中未配置 Codex Home；Codex 依赖任务保持不可用，非 Codex Worker 继续运行'
+  $codexStatus = 'unconfigured'
+  $codexFailureClass = 'service_unavailable'
+} elseif ($SkipAccountCheck) {
   # Skipping the probe is only a launcher optimisation.  It must never turn
   # a previously verified account into an "unavailable" account in the UI.
   # The normal start/restart path always performs a fresh probe and writes the
@@ -241,7 +247,7 @@ if ($SkipAccountCheck) {
   }
 }
 
-if (-not $SkipAccountCheck) {
+if (-not $SkipAccountCheck -or -not $CodexHome) {
   $accountState = @{
     checkedAt = (Get-Date).ToUniversalTime().ToString('o')
     codexHome = $CodexHome
@@ -300,8 +306,8 @@ function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [
   $workerTemp = Join-Path $workerTempRoot $Name
   $workerCache = Join-Path $workerCacheRoot $Name
   New-Item -ItemType Directory -Force -Path $workerTemp, $workerCache | Out-Null
-  # 不用 -UseNewEnvironment：worker 需要继承 NODE_OPTIONS (--openssl-legacy-provider)
-  # 以及 CODEX_HOME、FFMPEG_PATH、ALLOWED_NAS_ROOTS 等自定义环境变量。
+  # 不用 -UseNewEnvironment：worker 需要继承 NODE_OPTIONS、Runtime Contract
+  # 的 Codex Home（仅已配置时）和 NAS allowlist 等进程环境。
   # Path 重复键问题已在脚本顶部修复（重建单一 Path 键）。
   # Each Codex-capable service receives an isolated temporary and cache
   # directory. This prevents one service from cleaning up another service's

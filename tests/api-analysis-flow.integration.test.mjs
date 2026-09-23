@@ -10,8 +10,18 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { enqueueStage } from "../worker/service-queue.mjs";
 const execute = promisify(execFile);
-const ffmpeg = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
+const projectRuntime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+const ffmpeg = projectRuntime.ffmpegExecutable;
 const runner = fileURLToPath(new URL("../worker/service-runner.mjs", import.meta.url));
+
+async function writeRuntimeFixture(root) {
+  const runtime = { ...projectRuntime, runtimeProfile: "integration-test", runtimeRevision: "fixture-1", workRoot: root, deliveryRoot: root, codexHome: null, codexCliExecutable: null, runtimeTempRoot: path.join(root, "temp"), runtimeCacheRoot: path.join(root, "cache"), assets: { bgmRoot: root, lutRoot: root, subtitleTemplateRoot: root } };
+  await mkdir(path.join(root, "config"), { recursive: true });
+  await writeFile(path.join(root, "config", "cutflow-runtime.json"), JSON.stringify(runtime), "utf8");
+  for (const relative of ["worker/service-runner.mjs", "worker/processor.mjs"]) {
+    const file = path.join(root, relative); await mkdir(path.dirname(file), { recursive: true }); await writeFile(file, "// runtime preflight fixture\n", "utf8");
+  }
+}
 
 test("real worker completes sample analysis and visual grouping while Codex auth and executable are unavailable", { skip: !existsSync(ffmpeg), timeout: 60000 }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "api-analysis-flow-"));
@@ -32,6 +42,7 @@ test("real worker completes sample analysis and visual grouping while Codex auth
     const id = "11111111-2222-4333-8444-555555555555";
     const directory = path.join(root, "storage", "batches", id);
     await mkdir(directory, { recursive: true }); await mkdir(path.join(root, "data"));
+    await writeRuntimeFixture(root);
     const video = path.join(directory, "clip.mp4");
     await execute(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=180x320:r=24:d=3", "-c:v", "mpeg4", video], { windowsHide: true });
     await writeFile(path.join(root, "data", "codex-account-state.json"), JSON.stringify({ ready: false, authenticationValid: false }));
@@ -43,7 +54,7 @@ test("real worker completes sample analysis and visual grouping while Codex auth
     await enqueueStage({ root, batchId: id, stage: "analyze", operation: "reference", workflowVersion: 1 });
     await execute(process.execPath, [runner, "--service=analyze", "--once"], { cwd: root, windowsHide: true, timeout: 45000, env: { ...process.env,
       CUT_WORK_ROOT: root, CUTFLOW_MIN_FREE_BYTES: "0",
-      FFMPEG_PATH: ffmpeg, ENABLE_HYBRID_PILOT: "true", ENABLE_API_SEMANTIC_SCORER: "true",
+      ENABLE_HYBRID_PILOT: "true", ENABLE_API_SEMANTIC_SCORER: "true",
       AI_PROVIDER_BASE_URL: `http://127.0.0.1:${server.address().port}/v1`, AI_PROVIDER_API_KEY: "test-only",
       MODEL_FAST: "fixture", MODEL_STRONG: "fixture", CODEX_CLI_PATH: path.join(root, "missing.exe"),
     } });

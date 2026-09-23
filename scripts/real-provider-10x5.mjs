@@ -6,6 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { resolveProviderConfig } from "../lib/ai-provider-config.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 import { AiProviderAdapter } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
@@ -176,7 +177,7 @@ export async function runRealProvider10x5({ projectRoot = process.cwd(), root, f
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const ffmpeg = process.argv.find((arg) => arg.startsWith("--ffmpeg="))?.slice("--ffmpeg=".length) || process.env.FFMPEG_PATH;
+  const ffmpeg = (await loadRuntimeConfig(path.dirname(fileURLToPath(import.meta.url)).replace(/[\\/]scripts$/, ""))).ffmpegExecutable;
   const result = await runRealProvider10x5({ ffmpeg, keep: true });
   process.stdout.write(`${JSON.stringify(result.report, null, 2)}\nArtifacts: ${result.root}\n`);
 }

@@ -12,7 +12,6 @@ import { reviewScheduledProductVisualConsistency } from "../lib/product-visual-r
 import { resolveOutputAllocation } from "../lib/output-allocation.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
 
-const DEFAULT_PYTHON = "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe";
 const MEDIA_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".mp4", ".mov"]);
 const PROCESS_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_FFMPEG_TIMEOUT_MS) || 20 * 60 * 1000);
 const SUPPORTED_TRANSITIONS = new Set(["fade", "fadeblack", "dissolve", "wipeleft", "wiperight", "slideleft", "slideright", "pixelize"]);
@@ -879,7 +878,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   const renderCheckpoint = await readJson(checkpointPath, initialRenderCheckpoint());
   renderCheckpoint.outputs ??= {};
   await assertActive();
-  await run(process.env.PYTHON_PATH || DEFAULT_PYTHON, [path.join(root, "worker", "render-overlays.py"), "--edl", edlPath, "--output-dir", overlayDir, "--layout", textLayoutPath], "生成字幕与CVR图层", onActivity);
+  await run(runtimeConfig.pythonExecutable, [path.join(root, "worker", "render-overlays.py"), "--edl", edlPath, "--output-dir", overlayDir, "--layout", textLayoutPath], "生成字幕与CVR图层", onActivity);
   const hookOverlayPath = await requireRenderFile("hook overlay", path.join(overlayDir, "hook.png"));
   const cvrOverlayPath = await requireRenderFile("CVR overlay", path.join(overlayDir, "cvr.png"));
 

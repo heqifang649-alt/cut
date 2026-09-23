@@ -3,17 +3,19 @@
  * Runs the temporal analyzer against the labelled, real-video Golden Dataset.
  *
  * Source videos are read only. All generated results and visual evidence go to
- * TEMPORAL_GOLDEN_OUTPUT_DIR (D:\codex\tmp by default on Windows), never back
+ * TEMPORAL_GOLDEN_OUTPUT_DIR (or the Runtime Contract temporary root), never back
  * into the source directory or a production batch.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { decideArtifactGate, runArtifactAnalyzer } from "../worker/artifact-gate.mjs";
+import { loadRuntimeConfig } from "../worker/runtime-config.mjs";
 
 const workspace = process.cwd();
 const manifestPath = path.resolve(workspace, process.argv[2] || "tests/fixtures/golden-dataset/temporal-artifact-v1.json");
-const outputDir = path.resolve(process.env.TEMPORAL_GOLDEN_OUTPUT_DIR || (process.platform === "win32" ? "D:\\codex\\tmp\\temporal-artifact-golden" : ".tmp/temporal-artifact-golden"));
+const runtime = await loadRuntimeConfig(workspace);
+const outputDir = path.resolve(process.env.TEMPORAL_GOLDEN_OUTPUT_DIR || path.join(runtime.runtimeTempRoot, "temporal-artifact-golden"));
 
 const overlap = (left, right) => Math.max(0, Math.min(left.endTime, right.endTime) - Math.max(left.startTime, right.startTime));
 const annotationMatch = (prediction, annotation) => prediction.type === annotation.type && overlap(prediction, annotation) > 0;

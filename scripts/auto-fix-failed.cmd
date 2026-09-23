@@ -10,10 +10,15 @@ echo   GC Cutflow Auto Fix — 一键检测修复所有 failed 批次
 echo ============================================================
 echo.
 
-:: Use the managed Python runtime
-set "PYTHON_EXE=C:\Users\尔尔\.workbuddy\binaries\python\versions\3.13.12\python.exe"
+:: Executable comes from the Cutflow Runtime Contract.
+for /f "usebackq delims=" %%P in (`powershell.exe -NoProfile -Command "$r=Get-Content -LiteralPath 'config\cutflow-runtime.json' -Raw | ConvertFrom-Json; if ($r.schemaVersion -eq 3) { $r.pythonExecutable }"`) do set "PYTHON_EXE=%%P"
+if not defined PYTHON_EXE (
+  echo ERROR: pythonExecutable is missing from config\cutflow-runtime.json
+  pause
+  exit /b 1
+)
 if not exist "%PYTHON_EXE%" (
-  echo ERROR: managed Python not found at %PYTHON_EXE%
+  echo ERROR: configured Python is unavailable: %PYTHON_EXE%
   pause
   exit /b 1
 )

@@ -1,0 +1,248 @@
+{
+  "capturedAt": "2026-09-23T08:16:12.3988883+00:00",
+  "status": "RUNTIME_RELEASE_GATE_PASS",
+  "runtimeRevision": "2026-09-23.1",
+  "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+  "expectedMembers": 12,
+  "liveMembers": 12,
+  "identityValidMembers": 12,
+  "memberSetMatchesConfig": true,
+  "fleet": {
+    "pid": 58576,
+    "alive": true,
+    "runtimeRevision": "2026-09-23.1",
+    "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+    "claimsEnabled": false,
+    "heartbeatAgeSeconds": 0.4,
+    "identityValid": true
+  },
+  "members": [
+    {
+      "role": "analyze",
+      "instanceId": "analyze-1",
+      "supervisorPid": 58736,
+      "workerPid": 58764,
+      "heartbeatAgeSeconds": 1.0,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "analyze",
+      "instanceId": "analyze-2",
+      "supervisorPid": 59496,
+      "workerPid": 60284,
+      "heartbeatAgeSeconds": 0.6,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "analyze",
+      "instanceId": "analyze-3",
+      "supervisorPid": 59120,
+      "workerPid": 58868,
+      "heartbeatAgeSeconds": 0.0,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "clip",
+      "instanceId": "clip-1",
+      "supervisorPid": 59500,
+      "workerPid": 60824,
+      "heartbeatAgeSeconds": 4.6,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "clip",
+      "instanceId": "clip-2",
+      "supervisorPid": 59480,
+      "workerPid": 53640,
+      "heartbeatAgeSeconds": 3.9,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "clip",
+      "instanceId": "clip-3",
+      "supervisorPid": 59872,
+      "workerPid": 59716,
+      "heartbeatAgeSeconds": 3.5,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "render",
+      "instanceId": "render-1",
+      "supervisorPid": 62552,
+      "workerPid": 447192,
+      "heartbeatAgeSeconds": 2.9,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "render",
+      "instanceId": "render-2",
+      "supervisorPid": 62892,
+      "workerPid": 62404,
+      "heartbeatAgeSeconds": 2.5,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "render",
+      "instanceId": "render-3",
+      "supervisorPid": 63460,
+      "workerPid": 62832,
+      "heartbeatAgeSeconds": 2.0,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "template",
+      "instanceId": "template",
+      "supervisorPid": 61740,
+      "workerPid": 65164,
+      "heartbeatAgeSeconds": 0.4,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "delivery",
+      "instanceId": "delivery",
+      "supervisorPid": 62348,
+      "workerPid": 64660,
+      "heartbeatAgeSeconds": 0.9,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    },
+    {
+      "role": "chatcut",
+      "instanceId": "chatcut",
+      "supervisorPid": 65324,
+      "workerPid": 65700,
+      "heartbeatAgeSeconds": 0.3,
+      "runtimeRevision": "2026-09-23.1",
+      "runtimeConfigHash": "ab37e61b352a898926722e6b9fa8bec38389f6a3b10577d5915aeddf4de23018",
+      "claimsEnabled": false,
+      "workerIdentityValid": true,
+      "supervisorIdentityValid": true,
+      "live": true,
+      "valid": true
+    }
+  ],
+  "matchingCutWorkerProcesses": 25,
+  "orphanOrUnexpectedWorkerProcesses": 0,
+  "runtimePreflight": "READY",
+  "claimEnabled": false,
+  "activeLeases": 0,
+  "queueSha256": "b96cbfcdf14fd747dd11314ac2160b804f0f83000855a71bbe1c3b716622ae1e",
+  "queueUnchanged": true,
+  "queueStatusCounts": [
+    {
+      "status": "canceled",
+      "count": 64
+    },
+    {
+      "status": "completed",
+      "count": 231
+    },
+    {
+      "status": "manual",
+      "count": 22
+    },
+    {
+      "status": "queued",
+      "count": 4
+    }
+  ],
+  "batchesSha256": "68dc274c63f83b27857b038fb509cf223a363c02ffe363a5f7f8e50fc37babcd",
+  "batchesUnchanged": true,
+  "canaryStatus": "running",
+  "canaryBatchStates": [
+    {
+      "id": "80bdbd3e-7818-4459-9d7d-c89516f81c7e",
+      "status": "failed",
+      "updatedAt": "2026-09-23T04:39:06.039Z",
+      "unchanged": true
+    },
+    {
+      "id": "636ec1d0-2971-4fcb-b6b0-23e4b6fbf99f",
+      "status": "canceled",
+      "updatedAt": "2026-09-23T04:18:39.801Z",
+      "unchanged": true
+    },
+    {
+      "id": "5c8bab9a-e295-48b2-b8f5-9041d0b7bc7b",
+      "status": "failed",
+      "updatedAt": "2026-09-23T04:39:27.775Z",
+      "unchanged": true
+    }
+  ],
+  "canaryEvidenceFileCount": 6,
+  "canaryEvidenceUnchanged": true,
+  "finalChecks": {
+    "testRepository": "PASS: 467 passed, 0 failed, 1 skipped",
+    "nestedSuites": "PASS",
+    "typescript": "PASS",
+    "nextBuild": "PASS",
+    "diffCheck": "PASS",
+    "powershellAst": "PASS: 6 files",
+    "legacyPathScan": "PASS"
+  }
+}

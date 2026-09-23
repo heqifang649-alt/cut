@@ -1,5 +1,5 @@
 import path from "node:path";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   assertLease,
@@ -52,8 +52,16 @@ import { taskMatchesBatchVersion, taskMayOperate, workflowVersionOf } from "./ta
 import { taskNumberForBatch } from "../lib/task-number.mjs";
 import { assertWorkRootReady } from "../lib/work-paths.mjs";
 import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from "./resource-governor.mjs";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 
 const ROOT = process.cwd();
+const RUNTIME = await loadRuntimeConfig(ROOT);
+if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+else delete process.env.CODEX_HOME;
+if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+else delete process.env.CODEX_CLI_PATH;
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "analyze";
 const SERVICE_STAGES = { analyze: "analyze", clip: "clip", render: "render" };
 const STAGE = SERVICE_STAGES[SERVICE];
@@ -68,6 +76,7 @@ const DERIVED_ACTIVE_BATCH_STATUSES = new Set([
   "regroup_queued", "batch_queued", "editing", "revision_queued", "revising",
 ]);
 const DERIVED_STAGE_REOPEN_MS = 30_000;
+let runtimePreflightPassed = false;
 
 if (!STAGE) throw new Error(`Unsupported service: ${SERVICE}`);
 
@@ -81,7 +90,7 @@ async function fileExists(file) {
 
 async function writeServiceHeartbeat() {
   await mkdir(path.dirname(heartbeatFile), { recursive: true });
-  await writeFile(heartbeatFile, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID }), "utf8");
+  await writeFile(heartbeatFile, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID, claimsEnabled: claimsEnabled(), ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 
 async function markStage(root, batch, next, operation) {
@@ -203,6 +212,13 @@ async function runTask(task) {
   // without calling Codex or writing Batch state.
   if (!taskMayOperate(task, batch, marker)) return { completed: true, skipped: true };
   const codexRequired = isCodexServiceTask(task.stage, task.operation) && isCodexRequiredForBatch(batch);
+  if (codexRequired && !RUNTIME.codexHome) {
+    await writeJsonAtomic(path.join(ROOT, "data", "runtime-health", `${SERVICE}-codex.json`), {
+      status: "RUNTIME_DEPENDENCY_UNAVAILABLE", capability: `${SERVICE}:codex`, unavailable: ["codexHome"],
+      failureStage: "preflight", detectedAt: new Date().toISOString(), ...runtimeIdentity(RUNTIME),
+    }).catch(() => undefined);
+    return { deferred: true, retryAt: new Date(Date.now() + 60_000).toISOString(), reason: "RUNTIME_DEPENDENCY_UNAVAILABLE: codexHome" };
+  }
   if (codexRequired) {
     const account = await readJson(path.join(ROOT, "data", "codex-account-state.json"), null);
     if (account?.authenticationValid === false) {
@@ -491,11 +507,20 @@ async function processOnce() {
   let task;
   let renderPermit;
   try {
+    if (!runtimePreflightPassed) {
+      await preflightRuntime({ root: ROOT, capability: SERVICE, config: RUNTIME });
+      await rm(path.join(ROOT, "data", "runtime-health", `${SERVICE}.json`), { force: true }).catch(() => undefined);
+      runtimePreflightPassed = true;
+    }
+    if (!claimsEnabled()) return false;
     await assertWorkRootReady({ maxAgeMs: 10_000 });
     await promoteRetries({ root: ROOT, stage: STAGE });
     await syncDerivedTasks();
     task = await claimStage({ root: ROOT, stage: STAGE, workerId: WORKER_ID, leaseMs: LEASE_MS, allowedBatchIds: CANARY_BATCH_IDS.size ? CANARY_BATCH_IDS : undefined });
   } catch (error) {
+    if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
+      await writeJsonAtomic(path.join(ROOT, "data", "runtime-health", `${SERVICE}.json`), { status: error.code, capability: SERVICE, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString(), ...runtimeIdentity(RUNTIME) }).catch(() => undefined);
+    }
     console.error(`[${SERVICE}/${WORKER_ID}] Queue cycle failed; continuing to listen:`, error);
     return false;
   }

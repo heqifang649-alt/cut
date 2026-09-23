@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 
-const DEFAULT_FFMPEG = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
 
 export const VALIDATOR_POLICY = Object.freeze({
   minHeight: 720,
@@ -68,7 +67,7 @@ function parseTechnicalProbe(stderr) {
 }
 
 export function probeTechnical(videoPath, options = {}) {
-  const ffmpeg = options.ffmpeg || DEFAULT_FFMPEG;
+  const ffmpeg = options.ffmpeg;
   return new Promise((resolve, rejectProbe) => {
     const child = spawn(ffmpeg, ["-hide_banner", "-i", videoPath], { windowsHide: true, signal: options.signal });
     let stderr = "";
@@ -133,6 +132,7 @@ export function isNewValidatorEnabled(env = process.env) {
 }
 
 export async function validateVideo(videoPath, options = {}) {
+  if (!options.ffmpeg) throw new Error("ffmpeg executable must come from the Cutflow Runtime Contract");
   if (typeof videoPath !== "string" || videoPath.length === 0) throw new TypeError("videoPath is required");
   const policy = { ...VALIDATOR_POLICY, ...options.policy };
   const technical = options.technical || await probeTechnical(videoPath, options);

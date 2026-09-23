@@ -1,10 +1,21 @@
 {
-  "schemaVersion": 1,
-  "render": {
-    "ffmpegPath": "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe",
-    "bgmLibraryPath": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\bgm",
-    "lutPath": "E:\\尔尔本地\\3.通用-slog3.cube",
-    "subtitleTemplatePath": "D:\\自动剪辑网站\\standards\\text-layout-9x16-v1.json",
-    "outputPath": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\成片剪完的视频"
+  "schemaVersion": 3,
+  "runtimeProfile": "cutflow-hybrid-pilot",
+  "runtimeRevision": "2026-09-23.1",
+  "pythonExecutable": "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+  "nodeExecutable": "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+  "ffmpegExecutable": "D:\\自动剪辑网站\\.chatcut-media-import-cache\\8.1\\win32-x64\\ffmpeg.exe",
+  "ffprobeExecutable": "D:\\自动剪辑网站\\.chatcut-media-import-cache\\8.1\\win32-x64\\ffprobe.exe",
+  "workRoot": "E:\\cutflow批量",
+  "deliveryRoot": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\成片剪完的视频",
+  "codexHome": "D:\\codex\\.codex",
+  "codexCliExecutable": "C:\\Users\\尔尔\\AppData\\Local\\OpenAI\\Codex\\bin\\d375f7df50d3b421\\codex.exe",
+  "artifactAnalyzerExecutable": null,
+  "runtimeTempRoot": "E:\\cutflow批量\\worker-scratch",
+  "runtimeCacheRoot": "E:\\cutflow批量\\cache",
+  "assets": {
+    "bgmRoot": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\bgm",
+    "lutRoot": "E:\\尔尔本地\\3.通用-slog3.cube",
+    "subtitleTemplateRoot": "D:\\自动剪辑网站\\standards\\text-layout-9x16-v1.json"
   }
 }

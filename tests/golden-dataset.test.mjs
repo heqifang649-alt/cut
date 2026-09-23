@@ -11,7 +11,7 @@ test("golden validator dataset preserves Accept, Review, and Reject outcomes", a
   const dataset = await fixture("validator-cases.json");
   assert.equal(dataset.version, 1);
   for (const item of dataset.cases) {
-    const result = await validateVideo(`D:/golden/${item.id}.mp4`, item.input);
+    const result = await validateVideo(`D:/golden/${item.id}.mp4`, { ffmpeg: "test-runtime-ffmpeg", ...item.input });
     assert.equal(isValidationResult(result), true, item.id);
     assert.deepEqual(result, item.expected, item.id);
   }

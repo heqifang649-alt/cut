@@ -1,0 +1,119 @@
+{
+  "capturedAt": "2026-09-23T07:55:54.8022651+00:00",
+  "queueSha256": "b96cbfcdf14fd747dd11314ac2160b804f0f83000855a71bbe1c3b716622ae1e",
+  "batchesSha256": "68dc274c63f83b27857b038fb509cf223a363c02ffe363a5f7f8e50fc37babcd",
+  "fleetRuntimeSha256": "b3a1584682a3f8bc46b43d729cbef0b1de27f9ceeeafbe494f9f9490043ef940",
+  "fleetRuntime": {
+    "schemaVersion": 1,
+    "status": "running",
+    "pid": 34320,
+    "at": "2026-09-23T07:55:49.914Z",
+    "canaryBatchIds": [
+      "80bdbd3e-7818-4459-9d7d-c89516f81c7e",
+      "636ec1d0-2971-4fcb-b6b0-23e4b6fbf99f",
+      "5c8bab9a-e295-48b2-b8f5-9041d0b7bc7b"
+    ],
+    "members": [
+      {
+        "name": "analyze-1",
+        "pid": 452596
+      },
+      {
+        "name": "analyze-2",
+        "pid": 442868
+      },
+      {
+        "name": "analyze-3",
+        "pid": 453556
+      },
+      {
+        "name": "clip-1",
+        "pid": 450540
+      },
+      {
+        "name": "clip-2",
+        "pid": 430688
+      },
+      {
+        "name": "clip-3",
+        "pid": 29416
+      },
+      {
+        "name": "render-1",
+        "pid": 224336
+      },
+      {
+        "name": "render-2",
+        "pid": 29412
+      },
+      {
+        "name": "render-3",
+        "pid": 426936
+      },
+      {
+        "name": "template",
+        "pid": 40256
+      },
+      {
+        "name": "delivery",
+        "pid": 34812
+      },
+      {
+        "name": "chatcut",
+        "pid": 30024
+      }
+    ]
+  },
+  "canary": {
+    "status": "running",
+    "runId": "multi-batch-canary-2026-09-23T02-00-29-666Z",
+    "batchIds": [
+      "80bdbd3e-7818-4459-9d7d-c89516f81c7e",
+      "636ec1d0-2971-4fcb-b6b0-23e4b6fbf99f",
+      "5c8bab9a-e295-48b2-b8f5-9041d0b7bc7b"
+    ],
+    "batches": [
+      {
+        "id": "80bdbd3e-7818-4459-9d7d-c89516f81c7e",
+        "status": "failed",
+        "updatedAt": "2026-09-23T04:39:06.039Z",
+        "workflowVersion": 3,
+        "fileCount": 10
+      },
+      {
+        "id": "636ec1d0-2971-4fcb-b6b0-23e4b6fbf99f",
+        "status": "canceled",
+        "updatedAt": "2026-09-23T04:18:39.801Z",
+        "workflowVersion": 3,
+        "fileCount": 10
+      },
+      {
+        "id": "5c8bab9a-e295-48b2-b8f5-9041d0b7bc7b",
+        "status": "failed",
+        "updatedAt": "2026-09-23T04:39:27.775Z",
+        "workflowVersion": 3,
+        "fileCount": 10
+      }
+    ],
+    "evidenceDir": "D:\\自动剪辑网站\\.project-governance\\evidence\\multi-batch-canary\\multi-batch-canary-2026-09-23T02-00-29-666Z",
+    "evidenceFileCount": 6
+  },
+  "queue": {
+    "activeLeaseCount": 0,
+    "statusCounts": {
+      "queued": 4,
+      "canceled": 64,
+      "manual": 22,
+      "completed": 231
+    },
+    "executionStateCounts": {
+      "queued": 4,
+      "canceled": 58,
+      "manual": 25,
+      "completed": 234
+    },
+    "queued": 4,
+    "deferred": 0,
+    "backpressured": 0
+  }
+}

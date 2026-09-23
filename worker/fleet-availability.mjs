@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock } from "../lib/atomic-json.mjs";
 import { FLEET_MEMBERS } from "./fleet-supervisor.mjs";
-import { workPaths } from "../lib/work-paths.mjs";
+import { loadRuntimeConfig } from "./runtime-config.mjs";
 
 const FLEET_HEARTBEAT_MAX_AGE_MS = 15_000;
 const FLEET_START_TIMEOUT_MS = 20_000;
@@ -42,14 +42,18 @@ async function waitForFleet(root, { timeoutMs = FLEET_START_TIMEOUT_MS, isAlive 
 
 async function fleetEnvironment(root) {
   const production = await readJson(path.join(root, "data", "production-path.json"), null);
-  const work = workPaths();
+  const runtime = await loadRuntimeConfig(root);
   const env = {
     ...process.env,
-    CODEX_HOME: process.env.CODEX_HOME || "D:\\codex\\.codex",
-    CUTFLOW_WORKER_TEMP_ROOT: work.worker_scratch,
-    CUTFLOW_WORKER_CACHE_ROOT: path.join(work.cache, "workers"),
+    ...(runtime.codexHome ? { CODEX_HOME: runtime.codexHome } : {}),
+    CUT_WORK_ROOT: runtime.workRoot,
+    CUTFLOW_WORKER_TEMP_ROOT: runtime.runtimeTempRoot,
+    CUTFLOW_WORKER_CACHE_ROOT: path.join(runtime.runtimeCacheRoot, "workers"),
     NODE_OPTIONS: process.env.NODE_OPTIONS || "--openssl-legacy-provider",
   };
+  if (!runtime.codexHome) delete env.CODEX_HOME;
+  if (runtime.codexCliExecutable) env.CODEX_CLI_PATH = runtime.codexCliExecutable;
+  else delete env.CODEX_CLI_PATH;
   for (const [flag, value] of Object.entries(production?.flags || {})) env[flag] = String(value);
   if (production?.modelFast) env.MODEL_FAST = String(production.modelFast);
   if (production?.modelStrong) env.MODEL_STRONG = String(production.modelStrong);
@@ -57,7 +61,8 @@ async function fleetEnvironment(root) {
 }
 
 async function launchFleet(root, spawnFleet = spawn) {
-  const child = spawnFleet(process.execPath, [path.join(root, "worker", "fleet-supervisor.mjs")], {
+  const runtime = await loadRuntimeConfig(root);
+  const child = spawnFleet(runtime.nodeExecutable, [path.join(root, "worker", "fleet-supervisor.mjs")], {
     cwd: root,
     env: await fleetEnvironment(root),
     detached: true,

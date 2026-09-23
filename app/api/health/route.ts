@@ -48,16 +48,36 @@ export async function GET() {
   const legacyHeartbeat = await readState("worker-heartbeat.json") as { at?: string; pid?: number } | null;
   const legacyOnline = Boolean(legacyHeartbeat?.at && Date.now() - new Date(legacyHeartbeat.at).getTime() < 15000 && processIsAlive(legacyHeartbeat.pid));
   const services = await liveServiceHeartbeats();
-  const fleetRuntime = await readState("fleet-runtime.json") as { status?: string; at?: string; pid?: number; members?: Array<{ name?: string; pid?: number }> } | null;
+  const fleetRuntime = await readState("fleet-runtime.json") as { status?: string; at?: string; pid?: number; unavailable?: string[]; failureStage?: string; detectedAt?: string; runtimeProfile?: string; runtimeRevision?: string; runtimeConfigHash?: string; members?: Array<{ name?: string; pid?: number }> } | null;
   const byStage = Object.fromEntries(["analyze", "clip", "render"].map((stage) => [stage, services.filter((heartbeat) => heartbeat?.service === stage).length]));
   const servicesOnline = Object.values(byStage).every((count) => count >= 3);
   const fleetOnline = fleetRuntimeIsHealthy(fleetRuntime);
   const codexState = await readState("codex-account-state.json");
   const codexRuntime = await readCodexExecutionState(process.cwd());
   const chatcutState = await readState("chatcut-account-state.json");
+  const runtimeHealth = await (async () => {
+    try {
+      const directory = path.join(process.cwd(), "data", "runtime-health");
+      const names = (await readdir(directory)).filter((name) => name.endsWith(".json"));
+      return await Promise.all(names.map(async (name) => {
+        try { return JSON.parse(await readFile(path.join(directory, name), "utf8")) as { status?: string; capability?: string; unavailable?: string[]; failureStage?: string; detectedAt?: string; runtimeProfile?: string; runtimeRevision?: string; runtimeConfigHash?: string; at?: string }; } catch { return null; }
+      }));
+    } catch { return []; }
+  })();
+  const auxiliaryHealth = await Promise.all(["template", "delivery", "chatcut"].map(async (worker) => {
+    const value = await readState(`auxiliary-runtime/${worker}.json`) as { status?: string; unavailable?: string[]; failureStage?: string; detectedAt?: string; runtimeProfile?: string; runtimeRevision?: string; runtimeConfigHash?: string; updatedAt?: string; worker?: string } | null;
+    return value ? { worker, status: value.status, unavailable: value.unavailable, failureStage: value.failureStage, detectedAt: value.detectedAt, runtimeProfile: value.runtimeProfile, runtimeRevision: value.runtimeRevision, runtimeConfigHash: value.runtimeConfigHash, updatedAt: value.updatedAt } : null;
+  }));
   return NextResponse.json({
     workerOnline: fleetRuntime ? fleetOnline && servicesOnline : legacyOnline,
     workerBusy: false,
+    runtime: {
+      status: runtimeHealth.some((item) => item?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE")
+        || auxiliaryHealth.some((item) => item?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE")
+        || fleetRuntime?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE"
+        ? "RUNTIME_DEPENDENCY_UNAVAILABLE" : "READY",
+      workers: [...runtimeHealth.filter(Boolean), ...auxiliaryHealth.filter(Boolean), ...(fleetRuntime?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE" ? [{ worker: "fleet", status: fleetRuntime.status, unavailable: fleetRuntime.unavailable, failureStage: fleetRuntime.failureStage, detectedAt: fleetRuntime.detectedAt, runtimeProfile: fleetRuntime.runtimeProfile, runtimeRevision: fleetRuntime.runtimeRevision, runtimeConfigHash: fleetRuntime.runtimeConfigHash, at: fleetRuntime.at }] : [])],
+    },
     heartbeat: legacyHeartbeat || services[0] || null,
     services: { online: servicesOnline, fleetOnline, instances: services.length, requiredInstances: 9, byStage },
     codex: {

@@ -2,7 +2,9 @@ import { spawn } from "node:child_process";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
-import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
+import { loadRenderRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { createCodexClient, runCompletedCodexTurn } from "../lib/codex-client.mjs";
 import { isApiAnalysisEnabled, createVisualAnalyzer, analyzeVisualReference } from "./visual-analysis.mjs";
@@ -28,6 +30,12 @@ const TURN_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_TURN_
 const MAX_RECOVERY_ATTEMPTS = 2;
 const once = process.argv.includes("--once");
 const TEMPLATE_WORKER_ID = `template-${process.pid}`;
+const RUNTIME = await loadRenderRuntimeConfig(ROOT);
+if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+else delete process.env.CODEX_HOME;
+if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+else delete process.env.CODEX_CLI_PATH;
+await preflightRuntime({ root: ROOT, capability: "template", config: RUNTIME });
 
 class TurnTimeoutError extends Error {
   constructor() {
@@ -63,7 +71,7 @@ function runFfmpeg(executable, args) {
 async function extractTemplateBgm(template, samplePath, templateDir) {
   const runtimeConfig = await loadRenderRuntimeConfig(ROOT);
   const target = path.join(templateDir, "template-bgm.m4a");
-  await runFfmpeg(runtimeConfig.ffmpegPath, ["-hide_banner", "-loglevel", "error", "-y", "-i", samplePath, "-vn", "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k", target]);
+  await runFfmpeg(runtimeConfig.ffmpegExecutable, ["-hide_banner", "-loglevel", "error", "-y", "-i", samplePath, "-vn", "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k", target]);
   const info = await stat(target);
   if (!info.isFile() || info.size < 10_000) throw new Error("母版未提取到可用 BGM 音轨");
   return { id: crypto.randomUUID(), kind: "bgm", name: `${template.name} BGM.m4a`, relativePath: "template-bgm.m4a", storagePath: path.relative(ROOT, target), sourceType: "template", size: info.size, createdAt: new Date().toISOString() };
@@ -74,7 +82,7 @@ async function accountReady() { const state = await readJson(ACCOUNT_STATE, null
 async function writeAll(items) { await writeJsonAtomic(STORE, items); }
 async function writeHeartbeat() {
   await mkdir(path.dirname(HEARTBEAT), { recursive: true });
-  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid }), "utf8");
+  await writeFile(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, workerId: TEMPLATE_WORKER_ID, claimsEnabled: claimsEnabled(), ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 async function update(id, change) {
   return withFileLock(STORE, async () => {
@@ -117,7 +125,7 @@ async function analyze(template) {
   const samplePath = resolveStoredWorkspaceFile(ROOT, templateDir, template.file.storagePath);
   if (isApiAnalysisEnabled()) {
     const runtimeConfig = await loadRenderRuntimeConfig(ROOT);
-    const analyzer = await createVisualAnalyzer({ root: ROOT, directory: templateDir, cacheDirectory: templateWorkPaths(template).apiAnalysis, legacyCacheDirectory: path.join(templateDir, "api-analysis-v1"), ffmpeg: runtimeConfig.ffmpegPath,
+    const analyzer = await createVisualAnalyzer({ root: ROOT, directory: templateDir, cacheDirectory: templateWorkPaths(template).apiAnalysis, legacyCacheDirectory: path.join(templateDir, "api-analysis-v1"), ffmpeg: runtimeConfig.ffmpegExecutable,
       progress: () => update(template.id, item => { item.lastWorkerActivityAt = new Date().toISOString(); }),
     });
     const profile = await analyzeVisualReference({ analyzer, source: samplePath, schema: profileSchema });
@@ -205,6 +213,7 @@ async function analyze(template) {
 
 async function tick() {
   await writeHeartbeat();
+  if (!claimsEnabled()) return false;
   const readyTemplateWithoutBgm = (await readAll()).find((item) => item.status === "ready" && item.file && !item.bgm && !item.bgmExtractionError);
   if (readyTemplateWithoutBgm) {
     const templateDir = templateWorkspacePath(ROOT, readyTemplateWithoutBgm);
@@ -216,6 +225,10 @@ async function tick() {
       await update(readyTemplateWithoutBgm.id, (item) => { item.bgmExtractionError = error instanceof Error ? error.message : String(error); });
     }
     return true;
+  }
+  if (!isApiAnalysisEnabled() && !RUNTIME.codexHome) {
+    await writeJsonAtomic(path.join(ROOT, "data", "runtime-health", "template-codex.json"), { status: "RUNTIME_DEPENDENCY_UNAVAILABLE", capability: "template:codex", unavailable: ["codexHome"], failureStage: "preflight", detectedAt: new Date().toISOString(), ...runtimeIdentity(RUNTIME) });
+    return false;
   }
   if (!isApiAnalysisEnabled() && !(await accountReady())) return false;
   const template = (await readAll()).find((item) => ["queued", "analyzing"].includes(item.status) && (!item.codexRetryAt || new Date(item.codexRetryAt).getTime() <= Date.now()));

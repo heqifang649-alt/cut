@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 
-const DEFAULT_FFMPEG = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 112;
 const FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT;
@@ -10,7 +9,8 @@ function clamp(value, lower = 0, upper = 1) {
   return Math.min(upper, Math.max(lower, value));
 }
 
-function runSampleDecode(videoPath, { ffmpeg = DEFAULT_FFMPEG, sampleFps = SAMPLE_FPS, signal, start: requestedStart, duration: requestedDuration } = {}) {
+function runSampleDecode(videoPath, { ffmpeg, sampleFps = SAMPLE_FPS, signal, start: requestedStart, duration: requestedDuration } = {}) {
+  if (!ffmpeg) throw new Error("ffmpeg executable must come from the Cutflow Runtime Contract");
   const fps = Math.max(1, Number(sampleFps) || SAMPLE_FPS);
   const filter = `fps=${fps},scale=${FRAME_WIDTH}:${FRAME_HEIGHT}:force_original_aspect_ratio=decrease,pad=${FRAME_WIDTH}:${FRAME_HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=gray`;
   return new Promise((resolve, reject) => {

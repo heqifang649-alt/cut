@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { loadRuntimeConfig } from "./runtime-config.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { validateVideo } from "./ai-video-validator.mjs";
 
@@ -272,9 +273,9 @@ function validatorArtifacts(gate) {
   };
 }
 
-function commandAnalyzer(videoPath, options) {
-  const command = options.command || process.env.ARTIFACT_ANALYZER_COMMAND;
-  if (!command) throw new ArtifactAnalyzerUnavailableError("ARTIFACT_ANALYZER_COMMAND is not configured");
+async function commandAnalyzer(videoPath, options) {
+  const command = options.command || (await loadRuntimeConfig(process.cwd())).artifactAnalyzerExecutable;
+  if (!command) throw new ArtifactAnalyzerUnavailableError("artifactAnalyzerExecutable is not configured in the Cutflow Runtime Contract");
   const timeoutMs = Math.max(1_000, Number(options.timeoutMs || ARTIFACT_ANALYZER_TIMEOUT_MS));
   return new Promise((resolve, reject) => {
     const args = ["--input", videoPath, "--sample-fps", String(options.sampleFps || ARTIFACT_SAMPLE_FPS), "--format", "json"];

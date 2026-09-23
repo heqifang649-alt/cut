@@ -2,14 +2,22 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
+import { preflightRuntime } from "./runtime-preflight.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { releaseWorkerLeases } from "./service-queue.mjs";
 import { MAX_RECOVERY_ATTEMPTS, markManualRequired, scheduleRecovery } from "./recovery.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { update } from "./processor.mjs";
 import { workerInstancePaths } from "../lib/work-paths.mjs";
+import { claimsEnabled } from "./claim-control.mjs";
 
 const ROOT = process.cwd();
+let RUNTIME = await loadRuntimeConfig(ROOT);
+if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+else delete process.env.CODEX_HOME;
+if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+else delete process.env.CODEX_CLI_PATH;
 const SERVICE = process.argv.find((arg) => arg.startsWith("--service="))?.slice("--service=".length) || process.env.CUTFLOW_SERVICE || "render";
 const INSTANCE = process.argv.find((arg) => arg.startsWith("--instance="))?.slice("--instance=".length) || process.env.CUTFLOW_SERVICE_INSTANCE || `${SERVICE}-${process.pid}`;
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_SERVICE_RESTART_DELAY_MS) || 3_000);
@@ -49,6 +57,8 @@ async function writeRuntime(change) {
     schemaVersion: 1,
     service: SERVICE,
     workerId: INSTANCE,
+    ...runtimeIdentity(RUNTIME),
+    claimsEnabled: claimsEnabled(),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -147,6 +157,19 @@ async function restartAfterCrash(reason) {
 }
 
 async function launch() {
+  RUNTIME = await loadRuntimeConfig(ROOT);
+  if (RUNTIME.codexHome) process.env.CODEX_HOME = RUNTIME.codexHome;
+  else delete process.env.CODEX_HOME;
+  if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExecutable;
+  else delete process.env.CODEX_CLI_PATH;
+  try {
+    await preflightRuntime({ root: ROOT, capability: SERVICE, config: RUNTIME });
+  } catch (error) {
+    if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
+      await writeJsonAtomic(path.join(ROOT, "data", "runtime-health", `${SERVICE}.json`), { status: error.code, capability: SERVICE, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString(), ...runtimeIdentity(RUNTIME) }).catch(() => undefined);
+    }
+    throw error;
+  }
   const current = await readRuntime();
   await writeRuntime({
     status: "starting",
@@ -155,7 +178,7 @@ async function launch() {
     nextRestartAt: undefined,
   });
   lastChildOutput = "";
-  child = spawn(process.execPath, [runnerPath, `--service=${SERVICE}`, `--instance=${INSTANCE}`], {
+  child = spawn(RUNTIME.nodeExecutable, [runnerPath, `--service=${SERVICE}`, `--instance=${INSTANCE}`], {
     cwd: ROOT,
     env: { ...process.env, CUTFLOW_SERVICE_INSTANCE: INSTANCE },
     windowsHide: true,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { importBatchToShotPool } from "../worker/ai-ingest.mjs";
@@ -9,12 +10,13 @@ import {
   isArtifactGateEnabled,
   readArtifactEvidence,
   setArtifactReviewDecision,
-  validateWithArtifactGate,
+  validateWithArtifactGate as validateWithRuntime,
 } from "../worker/artifact-gate.mjs";
+const validateWithArtifactGate = (options) => validateWithRuntime({ ffmpeg: "test-runtime-ffmpeg", ...options });
 
 const technical = { width: 1080, height: 1920, duration: 5, bitrate: 4_000_000, frameRate: 30, frameRateConsistent: true };
 const budget = { productVisibility: 0.92, productCentered: true, motionEnergy: "medium" };
-const TMP_ROOT = "D:\\codex\\tmp";
+const TMP_ROOT = os.tmpdir();
 
 async function fixture() {
   await mkdir(TMP_ROOT, { recursive: true });
