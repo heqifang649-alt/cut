@@ -13,6 +13,10 @@ import { claimsEnabled } from "./claim-control.mjs";
 // .env.local as the single source of truth while preserving explicitly passed
 // process environment values.
 process.loadEnvFile(".env.local");
+// An explicit maintenance launch must win even if the child process did not
+// inherit the launcher's environment and .env.local enables normal claims.
+const FORCE_NO_CLAIM = process.argv.includes("--no-claim");
+if (FORCE_NO_CLAIM) process.env.CUTFLOW_CLAIM_ENABLED = "false";
 
 const ROOT = process.cwd();
 let RUNTIME = await loadRuntimeConfig(ROOT);
@@ -150,7 +154,7 @@ async function repairAdoptedMembers() {
 
 function memberEnvironment(member) {
   const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
-  const canaryScoped = Boolean(canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS);
+  const canaryScoped = !FORCE_NO_CLAIM && Boolean(canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS);
   return {
     ...process.env,
     TEMP: workerTemp,
@@ -226,7 +230,7 @@ async function main() {
     throw error;
   }
   const health = await assertWorkRootReady({ maxAgeMs: 0 });
-  canaryEnvironment = await loadCanaryEnvironment();
+  canaryEnvironment = FORCE_NO_CLAIM ? {} : await loadCanaryEnvironment();
   await log(`CUT_WORK_ROOT ready: ${health.root}; free ${(health.freeBytes / 2 ** 30).toFixed(2)} GiB.`);
   if (canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS) await log(`Canary isolation active for ${canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS}.`);
   process.once("SIGINT", () => { stop().catch(() => undefined); });

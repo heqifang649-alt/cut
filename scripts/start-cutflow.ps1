@@ -354,6 +354,9 @@ function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [
 }
 
 $listener = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($NoClaim -and $listener) {
+  throw 'No-Claim requires restart-cutflow.ps1 -NoClaim while Web is already running; the existing Web watchdog may relaunch a claims-enabled Fleet.'
+}
 if (-not $listener) {
   $nextCli = Join-Path $portalRoot 'node_modules\next\dist\bin\next'
   Start-Process -FilePath $runtimeNode -ArgumentList @($nextCli, 'start', '-p', '3001', '-H', '0.0.0.0') `
@@ -367,7 +370,9 @@ if (-not $listener) {
 # The fleet supervisor is the persistent parent of every stage/auxiliary
 # supervisor. If any supervisor exits, it is recreated without requiring the
 # launcher or a user session to remain open.
-Start-Worker 'fleet-supervisor' @('worker\fleet-supervisor.mjs') (Join-Path $dataRoot 'fleet-runtime.json') 'worker\fleet-supervisor.mjs'
+$fleetArguments = @('worker\fleet-supervisor.mjs')
+if ($NoClaim) { $fleetArguments += '--no-claim' }
+Start-Worker 'fleet-supervisor' $fleetArguments (Join-Path $dataRoot 'fleet-runtime.json') 'worker\fleet-supervisor.mjs'
 
 $webReady = $false
 $servicesReady = $false
@@ -403,6 +408,17 @@ do {
 } while ((Get-Date) -lt $deadline)
 
 if (-not $webReady -or -not $servicesReady) { throw 'Cutflow failed its startup health check. See logs\*.stderr.log.' }
+if ($NoClaim) {
+  $fleetRuntime = Get-Content -LiteralPath (Join-Path $dataRoot 'fleet-runtime.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($fleetRuntime.claimsEnabled -ne $false) { throw 'No-Claim Fleet Gate failed: Fleet is claims-enabled.' }
+  foreach ($service in @('analyze', 'clip', 'render')) {
+    foreach ($index in 1..3) {
+      $instance = "$service-$index"
+      $heartbeat = Get-Content -LiteralPath (Join-Path $dataRoot "service-heartbeats\$service-$instance.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($heartbeat.claimsEnabled -ne $false) { throw "No-Claim Fleet Gate failed: $instance is claims-enabled." }
+    }
+  }
+}
 if (-not $NoBrowser) {
   . (Join-Path $PSScriptRoot 'cutflow-lan-url.ps1')
   $lanUrl = Get-CutflowLanUrl
