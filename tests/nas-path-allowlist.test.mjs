@@ -137,6 +137,8 @@ test("creating a NAS Batch re-checks the path instead of storing whatever was po
       "@/lib/auth": { requireSameOrigin: () => true, currentUser: async () => ({ id: "owner" }), forbidden: () => ({ status: 403 }), unauthenticated: () => ({ status: 401 }) },
       "@/lib/template-store": { getSharedTemplate: async () => null },
       "@/lib/tenant-paths.mjs": { batchFileRoot: () => {}, resolveStoredWorkspaceFile: () => "", templateWorkspacePath: () => "" },
+      "../../../worker/service-queue.mjs": { readQueue: async () => ({ tasks: [] }) },
+      "../../../lib/atomic-json.mjs": { readJson: async () => null },
       "@/lib/nas": nas,
       "@/lib/types": types,
     };

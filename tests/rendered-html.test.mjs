@@ -13,7 +13,7 @@ test("current application uses the GC Cutflow Next entrypoint", async () => {
     readFile(new URL("package.json", root), "utf8"),
   ]);
 
-  assert.match(config, /distDir:\s*["']\.next-runtime["']/);
+  assert.match(config, /distDir:\s*(?:process\.env\.CUTFLOW_NEXT_DIST_DIR\s*\|\|\s*)?["']\.next-runtime["']/);
   assert.match(layout, /<html lang="zh-CN">/);
   assert.match(layout, /GC Cutflow/);
   assert.match(page, /^"use client";/);
