@@ -412,7 +412,13 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
         }
         if (stopReason !== "PROVIDER_BACKPRESSURE") {
           consecutiveErrors += 1;
-          if ([401, 403].includes(normalized.status) || ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PILOT_REQUEST_CAP_REACHED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code)) stopReason = normalized.code;
+          const providerPaused = ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code);
+          const transientProviderFailure = normalized.status === 429 || normalized.status >= 500
+            || ["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_REQUEST_FAILED"].includes(normalized.code);
+          if (providerPaused || (consecutiveErrors >= 3 && transientProviderFailure)) {
+            stopReason = "PROVIDER_BACKPRESSURE";
+            providerRetryAt ||= new Date(Date.now() + 60_000).toISOString();
+          } else if ([401, 403].includes(normalized.status) || normalized.code === "PILOT_REQUEST_CAP_REACHED") stopReason = normalized.code;
           else if (consecutiveErrors >= 3) stopReason = "SEMANTIC_REPEATED_FAILURES";
         }
       } finally {

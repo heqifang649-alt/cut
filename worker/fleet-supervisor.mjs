@@ -47,12 +47,16 @@ export const FLEET_MEMBERS = [
 ];
 
 const children = new Map();
+const restartFailures = new Map();
+export function fleetRestartDelayMs(failures, baseMs = RESTART_DELAY_MS) {
+  return Math.min(5 * 60_000, baseMs * 2 ** Math.min(Math.max(0, failures - 1), 7));
+}
 let stopping = false;
 let heartbeatTimer = null;
 
 function processIsAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch { return false; }
+  try { process.kill(pid, 0); return true; } catch (error) { return error?.code === "EPERM"; }
 }
 
 function truncate(value, limit = 1_000) {
@@ -175,6 +179,7 @@ async function launchMember(member) {
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
+  child.startedAt = Date.now();
   children.set(member.name, child);
   await log(`${member.name} supervisor started (pid ${child.pid}).`);
   for (const stream of [child.stdout, child.stderr]) {
@@ -184,8 +189,11 @@ async function launchMember(member) {
   child.once("exit", (code, signal) => {
     children.delete(member.name);
     if (stopping) return;
-    log(`${member.name} supervisor exited (code ${code ?? "unknown"}${signal ? `, signal ${signal}` : ""}); restarting.`).catch(() => undefined);
-    setTimeout(() => launchMember(member).catch((error) => log(`${member.name} restart failed: ${truncate(error.message)}`)), RESTART_DELAY_MS);
+    const failures = Date.now() - child.startedAt >= 60_000 ? 1 : (restartFailures.get(member.name) || 0) + 1;
+    restartFailures.set(member.name, failures);
+    const delayMs = fleetRestartDelayMs(failures);
+    log(`${member.name} supervisor exited (code ${code ?? "unknown"}${signal ? `, signal ${signal}` : ""}); restarting in ${delayMs}ms.`).catch(() => undefined);
+    setTimeout(() => launchMember(member).catch((error) => log(`${member.name} restart failed: ${truncate(error.message)}`)), delayMs);
   });
   await writeHeartbeat();
 }

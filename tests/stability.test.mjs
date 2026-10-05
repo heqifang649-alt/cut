@@ -135,7 +135,7 @@ test("token locks recover an abandoned dead-owner lock without stealing a live o
     await utimes(lockFile, new Date(0), new Date(0));
     await assert.rejects(
       withFileLock(file, async () => undefined, { staleMs: 1, timeoutMs: 100 }),
-      /等待数据锁超时/,
+      /等待数据锁(?:恢复)?超时/,
     );
     assert.equal((await readJson(lockFile, null))?.token, "live-token");
   } finally {

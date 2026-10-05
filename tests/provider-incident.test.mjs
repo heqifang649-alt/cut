@@ -76,6 +76,12 @@ test('business rejection and cancellation do not count; valid unusable result re
   assert.equal((await a.scoreShot({ model: 'm', shotId: 's', prompt: 'x' })).result.usable, false);
   assert.equal((await assertProviderAvailable(config, 'm', { root })).consecutiveFailures, 0);
 });
+test('local Shot budget expiration does not open a global Provider incident', async () => {
+  const root = await temp();
+  for (let n = 0; n < 4; n++) await recordProviderResult(config, 'm', { code: 'SEMANTIC_SHOT_BUDGET_EXCEEDED' }, { root });
+  const health = await assertProviderAvailable(config, 'm', { root });
+  assert.equal(health.consecutiveFailures, 0);
+});
 test('valid quality evidence with wrong SKU remains a valid Provider result', async () => {
   const root = await temp();
   const evidence = { schema_version:'quality-evidence-provider.v2', source_id:'s', artifacts:Object.fromEntries(['hand','face','body','temporal'].map(k=>[k,{severity:'none',confidence:1,region:'unknown',evidence_frames:[]} ])), product:{match:'mismatch',wrong_sku:'mismatch',product_error:'match',graphic_text_logo:'mismatch',color:'match',structure:'match',evidence_frames:[1],confidence:1},usability:'unusable',confidence:1 };

@@ -13,7 +13,7 @@ let watchdogTimer = null;
 
 function processIsAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
-  try { process.kill(pid, 0); return true; } catch { return false; }
+  try { process.kill(pid, 0); return true; } catch (error) { return error?.code === "EPERM"; }
 }
 
 export function fleetRuntimeIsHealthy(runtime, { now = Date.now(), isAlive = processIsAlive } = {}) {
@@ -27,6 +27,20 @@ export function fleetRuntimeIsHealthy(runtime, { now = Date.now(), isAlive = pro
   });
 }
 
+// Batch claims need the stage fleet. Optional Codex-dependent auxiliaries can
+// be degraded without starting a second Fleet supervisor over live workers.
+export function fleetRuntimeIsOperational(runtime, options = {}) {
+  const { now = Date.now(), isAlive = processIsAlive } = options;
+  if (runtime?.status !== "running" || !isAlive(Number(runtime.pid))) return false;
+  const heartbeatAt = new Date(runtime.at || 0).getTime();
+  if (!Number.isFinite(heartbeatAt) || now - heartbeatAt > FLEET_HEARTBEAT_MAX_AGE_MS) return false;
+  const members = new Map((Array.isArray(runtime.members) ? runtime.members : []).map((member) => [member.name, member]));
+  return FLEET_MEMBERS.filter((member) => member.script === "service-supervisor.mjs").every((required) => {
+    const member = members.get(required.name);
+    return member && isAlive(Number(member.pid));
+  });
+}
+
 async function readFleetRuntime(root) {
   return readJson(path.join(root, "data", "fleet-runtime.json"), null);
 }
@@ -35,7 +49,7 @@ async function waitForFleet(root, { timeoutMs = FLEET_START_TIMEOUT_MS, isAlive 
   const deadline = Date.now() + timeoutMs;
   do {
     const runtime = await readFleetRuntime(root);
-    if (fleetRuntimeIsHealthy(runtime, { isAlive })) return runtime;
+    if (fleetRuntimeIsOperational(runtime, { isAlive })) return runtime;
     await new Promise((resolve) => setTimeout(resolve, 250));
   } while (Date.now() < deadline);
   throw new Error("Worker Fleet 启动超时；任务已保留在队列中，将继续自动恢复");
@@ -91,7 +105,7 @@ function armFleetWatchdog(root) {
 
 export async function ensureFleetAvailable({ root = process.cwd(), spawnFleet = spawn, isAlive, timeoutMs, armWatchdog = true } = {}) {
   const current = await readFleetRuntime(root);
-  if (fleetRuntimeIsHealthy(current, { isAlive })) {
+  if (fleetRuntimeIsOperational(current, { isAlive })) {
     if (armWatchdog) armFleetWatchdog(root);
     return current;
   }
@@ -99,7 +113,13 @@ export async function ensureFleetAvailable({ root = process.cwd(), spawnFleet = 
   const guardFile = path.join(root, "data", "fleet-start.guard");
   const runtime = await withFileLock(guardFile, async () => {
     const latest = await readFleetRuntime(root);
-    if (fleetRuntimeIsHealthy(latest, { isAlive })) return latest;
+    if (fleetRuntimeIsOperational(latest, { isAlive })) return latest;
+    // A live parent owns its stage members. Give it time to repair them; a
+    // second parent would duplicate claims and amplify an auxiliary crash.
+    const parentPid = Number(latest?.pid);
+    if (Number.isInteger(parentPid) && parentPid > 0 && (isAlive ? isAlive(parentPid) : processIsAlive(parentPid))) {
+      return waitForFleet(root, { timeoutMs, isAlive });
+    }
     await launchFleet(root, spawnFleet);
     return waitForFleet(root, { timeoutMs, isAlive });
   }, { timeoutMs: Math.max(FLEET_START_TIMEOUT_MS + 5_000, Number(timeoutMs || 0) + 5_000) });

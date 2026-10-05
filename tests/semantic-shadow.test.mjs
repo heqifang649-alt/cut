@@ -31,7 +31,8 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
   } };
   const progress = [];
   const options = { root, concurrency: 1, batchDir: root, batch: { id: "budget", files: [], referenceProfile: {} }, shotPool: { shots }, adapter, config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" }, env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root }, shotBudgetMs: 250, stageBudgetMs: 15000, onProgress: (value) => progress.push(value) };
-  await assert.rejects(runSemanticShadow(options), { code: "SEMANTIC_ANALYSIS_PAUSED" });
+  const paused = await runSemanticShadow(options);
+  assert.equal(paused.continuation.reason, "PROVIDER_BACKPRESSURE");
   assert.deepEqual(calls, ["shot-1", "shot-2", "shot-3", "shot-4"]);
   const snapshots = await readdir(path.join(root, "semantic-history/snapshots"));
   const evidence = JSON.parse(await readFile(path.join(root, "semantic-history/snapshots", snapshots[0]), "utf8"));
