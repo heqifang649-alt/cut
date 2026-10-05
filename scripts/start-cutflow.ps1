@@ -54,11 +54,11 @@ function Get-CutflowSetting([string]$name, [string]$current) {
 # 上的 ncrypto::CSPRNG 断言问题。
 $runtimeFile = Join-Path $portalRoot 'config\cutflow-runtime.json'
 if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { throw "Runtime Contract not found: $runtimeFile" }
-$runtime = Get-Content -LiteralPath $runtimeFile -Raw | ConvertFrom-Json
+$runtime = Get-Content -LiteralPath $runtimeFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($runtime.schemaVersion -ne 3 -or -not $runtime.runtimeProfile -or -not $runtime.runtimeRevision) { throw 'Unsupported Cutflow Runtime Contract schema.' }
 $providerConfigFile = Join-Path $portalRoot 'data\ai-provider-config.json'
 if (-not (Test-Path -LiteralPath $providerConfigFile -PathType Leaf)) { throw "Provider config not found: $providerConfigFile" }
-$providerConfig = Get-Content -LiteralPath $providerConfigFile -Raw | ConvertFrom-Json
+$providerConfig = Get-Content -LiteralPath $providerConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if (-not $providerConfig.fastModel -or -not $providerConfig.strongModel) { throw 'Provider fastModel and strongModel must be configured in data\ai-provider-config.json.' }
 $runtimeNode = [string]$runtime.nodeExecutable
 $runtimePython = [string]$runtime.pythonExecutable
