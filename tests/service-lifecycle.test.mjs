@@ -57,6 +57,22 @@ test("production launcher uses a persistent fleet supervisor", async () => {
   assert.match(fleet, /multi-batch-canary\.json/);
   assert.match(fleet, /canary\?\.status !== "running"/);
   assert.match(fleet, /CUTFLOW_CANARY_BATCH_IDS: batchIds\.join/);
+  assert.match(fleet, /terminalReason: "canary_batch_canceled"/);
+  assert.match(fleet, /status: "aborted"/);
+  assert.match(fleet, /selected Batch .* was canceled/);
+  assert.match(fleet, /runtime-health", "fleet\.json"/);
+  assert.match(fleet, /await preflightRuntime\([\s\S]*?await rm\(path\.join\(ROOT, "data", "runtime-health", "fleet\.json"\)/);
+});
+
+test("the production launcher enables normal queue claims by default", async () => {
+  const [source, restart] = await Promise.all([
+    readFile(new URL("scripts/start-cutflow.ps1", root), "utf8"),
+    readFile(new URL("scripts/restart-cutflow.ps1", root), "utf8"),
+  ]);
+  assert.match(source, /Get-CutflowSetting 'CUTFLOW_CLAIM_ENABLED' \$null/);
+  assert.match(source, /if \(\$NoClaim\) \{ \$claimSetting = 'false' \}/);
+  assert.match(restart, /-NoClaim:\$noClaim/);
+  assert.match(await readFile(new URL("../.env.local", import.meta.url), "utf8"), /(?:^|\r?\n)CUTFLOW_CLAIM_ENABLED=true(?:\r?\n|$)/);
 });
 
 test("every task-producing route checks the fleet and directly queues service stages", async () => {
@@ -81,6 +97,18 @@ test("every task-producing route checks the fleet and directly queues service st
   }
 });
 
+test("batch API explains queued work held outside an active canary scope", async () => {
+  const [route, page] = await Promise.all([
+    readFile(new URL("app/api/batches/route.ts", root), "utf8"),
+    readFile(new URL("app/page.tsx", root), "utf8"),
+  ]);
+  assert.match(route, /fleet-runtime\.json/);
+  assert.match(route, /queueHoldReason: "canary_scope"/);
+  assert.match(route, /task\.status === "queued"/);
+  assert.match(page, /受控验证暂缓/);
+  assert.match(page, /验证结束后会自动继续/);
+});
+
 test("deterministic filename grouping does not wait for Codex authentication", async () => {
   const source = await readFile(new URL("worker/processor.mjs", root), "utf8");
   assert.match(source, /groupProductsByFilename\(productFiles\)\.groups\.length > 0\) return false/);
@@ -96,8 +124,9 @@ test("production launcher defaults to Hybrid and preserves a one-switch Control 
     assert.match(start, new RegExp(flag));
   }
   assert.match(start, /if \(\$ControlA\) \{ 'false' \} else \{ 'true' \}/);
-  assert.match(start, /\$env:MODEL_FAST = 'gpt-6-astra'/);
-  assert.match(start, /\$env:MODEL_STRONG = 'gpt-6-astra'/);
+  assert.match(start, /data\\ai-provider-config\.json/);
+  assert.match(start, /\$env:MODEL_FAST = \[string\]\$providerConfig\.fastModel/);
+  assert.match(start, /\$env:MODEL_STRONG = \[string\]\$providerConfig\.strongModel/);
   assert.match(start, /\$env:ENABLE_ARTIFACT_GATE = 'false'/);
   assert.match(start, /production-path\.json/);
   assert.match(start, /mode = if \(\$ControlA\) \{ 'control_a' \} else \{ 'hybrid' \}/);

@@ -1,5 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $controlARollback = $args -contains '-ControlA'
+$noClaim = $args -contains '-NoClaim'
 $portalRoot = Split-Path -Parent $PSScriptRoot
 $dataRoot = Join-Path $portalRoot 'data'
 
@@ -81,4 +82,4 @@ Get-ChildItem -LiteralPath $dataRoot -Filter '*.lock' -File -ErrorAction Silentl
 }
 
 Start-Sleep -Milliseconds 700
-& (Join-Path $PSScriptRoot 'start-cutflow.ps1') -NoBrowser -ControlA:$controlARollback
+& (Join-Path $PSScriptRoot 'start-cutflow.ps1') -NoBrowser -ControlA:$controlARollback -NoClaim:$noClaim

@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -82,6 +82,36 @@ async function loadCanaryEnvironment() {
   const canary = await readJson(canaryFile, null);
   const batchIds = Array.isArray(canary?.batchIds) ? canary.batchIds.filter((value) => typeof value === "string" && value) : [];
   if (canary?.status !== "running" || canary?.fairSchedulerEnabled !== true || batchIds.length < 3 || batchIds.length > 5) return {};
+  const batches = await readJson(path.join(ROOT, "data", "batches.json"), []);
+  const canceledBatchIds = Array.isArray(batches)
+    ? batches.filter((batch) => batchIds.includes(batch?.id) && batch?.status === "canceled").map((batch) => batch.id)
+    : [];
+  if (canceledBatchIds.length) {
+    const endedAt = new Date().toISOString();
+    const aborted = {
+      ...canary,
+      status: "aborted",
+      endedAt,
+      terminalReason: "canary_batch_canceled",
+      canceledBatchIds,
+    };
+    await writeJsonAtomic(canaryFile, aborted);
+    const evidenceRoot = path.resolve(ROOT, ".project-governance", "evidence", "multi-batch-canary");
+    const evidenceDir = path.resolve(ROOT, canary.evidenceDir || "");
+    const relativeEvidenceDir = path.relative(evidenceRoot, evidenceDir);
+    if (relativeEvidenceDir && relativeEvidenceDir !== ".." && !relativeEvidenceDir.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeEvidenceDir)) {
+      await writeJsonAtomic(path.join(evidenceDir, "canary-aborted.json"), {
+        kind: "CUT_CANARY_ABORTED",
+        runId: canary.runId,
+        endedAt,
+        reason: "canary_batch_canceled",
+        canceledBatchIds,
+        message: "A selected Canary Batch was canceled. This run cannot meet its declared output target; prior artifacts are retained, and the canary claim scope is released.",
+      }).catch(() => undefined);
+    }
+    await log(`Canary ${canary.runId} aborted because selected Batch ${canceledBatchIds.join(", ")} was canceled; releasing the scoped claim allowlist.`);
+    return {};
+  }
   return {
     ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true",
     CUTFLOW_CANARY_BATCH_IDS: batchIds.join(","),
@@ -112,12 +142,22 @@ async function repairAdoptedMembers() {
 
 function memberEnvironment(member) {
   const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
+  const canaryScoped = Boolean(canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS);
   return {
     ...process.env,
     TEMP: workerTemp,
     TMP: workerTemp,
     TMPDIR: workerTemp,
     XDG_CACHE_HOME: workerCache,
+    // Canary service queues may run under the explicit Batch allowlist while
+    // auxiliary workers remain in no-claim mode (they otherwise scan global
+    // template, delivery, and ChatCut work outside the Batch queue scope).
+    ...(canaryScoped ? {
+      // The Fleet itself stays in No-Claim mode. Only stage workers get a
+      // claim capability, and service-runner still fences every claim to the
+      // explicit CUTFLOW_CANARY_BATCH_IDS allowlist above.
+      CUTFLOW_CLAIM_ENABLED: member.script === "service-supervisor.mjs" ? "true" : "false",
+    } : {}),
     ...(member.script === "service-supervisor.mjs" ? { CUTFLOW_SERVICE_INSTANCE: member.name, ...canaryEnvironment } : {}),
   };
 }
@@ -163,6 +203,10 @@ async function stop() {
 async function main() {
   try {
     await preflightRuntime({ root: ROOT, capability: "fleet", config: RUNTIME });
+    // A previous preflight failure is an incident record, not permanent
+    // runtime state. Leaving it behind after a later successful launch makes
+    // /api/health report a false outage indefinitely.
+    await rm(path.join(ROOT, "data", "runtime-health", "fleet.json"), { force: true }).catch(() => undefined);
   } catch (error) {
     if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
       await writeJsonAtomic(runtimeFile, { schemaVersion: 1, status: error.code, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString(), ...runtimeIdentity(RUNTIME), at: new Date().toISOString(), pid: process.pid, members: [] });

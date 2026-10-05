@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { readJson, withFileLock } from "../lib/atomic-json.mjs";
+import { readLocalProviderConfig } from "../lib/ai-provider-config.mjs";
 import { FLEET_MEMBERS } from "./fleet-supervisor.mjs";
 import { loadRuntimeConfig } from "./runtime-config.mjs";
 
@@ -42,9 +43,14 @@ async function waitForFleet(root, { timeoutMs = FLEET_START_TIMEOUT_MS, isAlive 
 
 async function fleetEnvironment(root) {
   const production = await readJson(path.join(root, "data", "production-path.json"), null);
+  const provider = await readLocalProviderConfig(root);
   const runtime = await loadRuntimeConfig(root);
   const env = {
     ...process.env,
+    // A web/API-triggered Fleet recovery must inherit the maintenance gate.
+    // Canary stage workers receive their narrowly scoped exception from the
+    // Fleet supervisor; an absent flag must never open the global queue.
+    CUTFLOW_CLAIM_ENABLED: process.env.CUTFLOW_CLAIM_ENABLED === "true" ? "true" : "false",
     ...(runtime.codexHome ? { CODEX_HOME: runtime.codexHome } : {}),
     CUT_WORK_ROOT: runtime.workRoot,
     CUTFLOW_WORKER_TEMP_ROOT: runtime.runtimeTempRoot,
@@ -55,8 +61,10 @@ async function fleetEnvironment(root) {
   if (runtime.codexCliExecutable) env.CODEX_CLI_PATH = runtime.codexCliExecutable;
   else delete env.CODEX_CLI_PATH;
   for (const [flag, value] of Object.entries(production?.flags || {})) env[flag] = String(value);
-  if (production?.modelFast) env.MODEL_FAST = String(production.modelFast);
-  if (production?.modelStrong) env.MODEL_STRONG = String(production.modelStrong);
+  if (provider.fastModel) env.MODEL_FAST = provider.fastModel;
+  else delete env.MODEL_FAST;
+  if (provider.strongModel) env.MODEL_STRONG = provider.strongModel;
+  else delete env.MODEL_STRONG;
   return env;
 }
 

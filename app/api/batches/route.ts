@@ -8,6 +8,8 @@ import { accessibleOwnerIds } from "@/lib/access";
 import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/lib/auth";
 import { validateNasPath } from "@/lib/nas";
 import { batchFileRoot, resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
+import { readQueue } from "../../../worker/service-queue.mjs";
+import { readJson } from "../../../lib/atomic-json.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +17,30 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await currentUser();
   if (!user) return unauthenticated();
-  return NextResponse.json({ batches: await listBatchesForOwners(accessibleOwnerIds(user)) });
+  const batches = await listBatchesForOwners(accessibleOwnerIds(user));
+  const root = process.cwd();
+  const [queue, fleet] = await Promise.all([
+    readQueue(root),
+    readJson(path.join(root, "data", "fleet-runtime.json"), null),
+  ]);
+  const canaryBatchIds = Array.isArray(fleet?.canaryBatchIds)
+    ? new Set(fleet.canaryBatchIds.filter((id: unknown): id is string => typeof id === "string"))
+    : new Set<string>();
+  const hasCanaryScope = canaryBatchIds.size > 0;
+  const queuedTasks = queue.tasks as Array<{ batchId: string; status: string; stage: "analyze" | "clip" | "render" }>;
+  const batchesWithQueueState = batches.map((batch) => {
+    const queuedTask = queuedTasks.find((task) => task.batchId === batch.id && task.status === "queued");
+    if (!hasCanaryScope || !queuedTask || canaryBatchIds.has(batch.id)) return batch;
+    return {
+      ...batch,
+      execution: batch.execution && {
+        ...batch.execution,
+        stage: queuedTask.stage,
+        queueHoldReason: "canary_scope" as const,
+      },
+    };
+  });
+  return NextResponse.json({ batches: batchesWithQueueState });
 }
 
 export async function POST(request: Request) {

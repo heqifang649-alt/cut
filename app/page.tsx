@@ -165,6 +165,7 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.execution?.state === "backpressured") return { label: "资源退避中", detail: batch.renderingLabel || "全局资源暂不可用，任务已保留并会自动继续。" };
   if (batch.execution?.state === "waiting_continuation") return { label: "等待分片续跑", detail: batch.renderingLabel || "当前 quantum 已保存，Batch 已回到队列环尾。" };
   if (batch.execution?.state === "retry_wait") return { label: "等待重试", detail: batch.renderingLabel || "当前阶段正在等待自动恢复窗口。" };
+  if (batch.execution?.state === "queued" && batch.execution.queueHoldReason === "canary_scope") return { label: "受控验证暂缓", detail: "任务已安全保留在队列中。当前 Worker 正在运行受控 Canary，本批次不在其执行范围内；验证结束后会自动继续。" };
   if (batch.execution?.state === "queued") return { label: "排队中", detail: batch.renderingLabel || "任务已进入全局队列。" };
   if (batch.execution?.state === "running") return { label: "执行中", detail: batch.renderingLabel || `正在执行 ${batch.execution.stage || "当前"} 阶段。` };
   if (batch.status === "reference_ready") return { label: "等待确认", detail: "产品分组与样片母版等待确认。" };
@@ -494,9 +495,12 @@ function TransitionSummary({ batch }: { batch: Batch }) {
   </div>;
 }
 
-function ProductDetectionPanel({ detection, evidence = [], status, selections, onSelect, onConfirm, confirmPending, unhandledCount, confirmError }: { detection: ProductDetection; evidence?: ProductGroupEvidence[]; status?: string; selections?: Record<string, string>; onSelect?: (file: string, value: string) => void; onConfirm?: () => void; confirmPending?: boolean; unhandledCount?: number; confirmError?: string }) {
+function ProductDetectionPanel({ detection, evidence = [], status, targetOutputsPerBatch, coveragePolicy, selections, onSelect, onConfirm, confirmPending, unhandledCount, confirmError }: { detection: ProductDetection; evidence?: ProductGroupEvidence[]; status?: string; targetOutputsPerBatch?: number; coveragePolicy?: CoveragePolicy; selections?: Record<string, string>; onSelect?: (file: string, value: string) => void; onConfirm?: () => void; confirmPending?: boolean; unhandledCount?: number; confirmError?: string }) {
   const evidenceByGroup = new Map(evidence.map((item) => [item.groupId, item]));
   const isEditable = status === "reference_ready" && typeof onSelect === "function";
+  const outputTargetWillAdjust = Number.isSafeInteger(targetOutputsPerBatch)
+    && Number(targetOutputsPerBatch) > 0
+    && Number(targetOutputsPerBatch) < detection.groups.length;
   const runningNotice = status && status !== "reference_ready" && status !== "uploading" && status !== "detecting_products"
     ? "当前阶段分组已锁定，不能修改；人工确认需在开始剪辑前完成。"
     : null;
@@ -507,6 +511,8 @@ function ProductDetectionPanel({ detection, evidence = [], status, selections, o
         <div className="confidence">{Math.round(detection.confidence * 100)}% 总体置信度</div>
       </div>
       <p className="profile-summary">{detection.summary}</p>
+      {detection.targetOutputAdjustment && <div className="notice-banner" role="status">已识别 {detection.targetOutputAdjustment.to} 款可产出产品，本批目标已自动调整为 {detection.targetOutputAdjustment.to} 条（原目标 {detection.targetOutputAdjustment.from} 条）。每款至少 1 条，质量门禁仍会逐款检查。</div>}
+      {outputTargetWillAdjust && <div className="notice-banner" role="status">已识别 {detection.groups.length} 款产品；确认后目标将从 {targetOutputsPerBatch} 条自动调整为 {detection.groups.length} 条，确保每款至少产出 1 条。质量门禁仍会逐款检查。</div>}
       <div className="product-groups">
         {detection.groups.map((group, index) => {
           const groupEvidence = evidenceByGroup.get(group.id);
@@ -1852,7 +1858,7 @@ export default function Home() {
             {selected.referenceProfile ? <ProfilePanel profile={selected.referenceProfile} /> : (
               <div className={`analysis-placeholder ${activeStatuses.includes(selected.status) && selected.status !== "failed" ? "is-working" : ""}`}><div className="radar"><i/><i/><span>AI</span></div><div><strong>{selected.status === "failed" ? "任务失败" : "等待样片识别结果"}{activeStatuses.includes(selected.status) && selected.status !== "failed" ? <span className="live-dots" /> : null}</strong><p>{selected.error || "剪辑工作机会读取样片，提取镜头时长、转场、字幕安全区、色彩和CVR样式。"}{selected.lastWorkerActivityAt && activeStatuses.includes(selected.status) && selected.status !== "failed" ? <> <span className={activityClass(activityAgeSec(selected.lastWorkerActivityAt))}>已分析 {activityAgeSec(selected.lastWorkerActivityAt)} 秒</span></> : null}</p></div></div>
             )}
-            {selected.productDetection ? <ProductDetectionPanel detection={selected.productDetection} evidence={selected.status === "reference_ready" ? productGroupEvidenceByBatch[selected.id] : undefined} status={selected.status} selections={confirmKey ? confirmSelections[confirmKey] : undefined} onSelect={setConfirmSelection} onConfirm={approveProfile} confirmPending={confirmPending} unhandledCount={unhandledCount} confirmError={confirmError} /> : selected.referenceProfile && (
+            {selected.productDetection ? <ProductDetectionPanel detection={selected.productDetection} evidence={selected.status === "reference_ready" ? productGroupEvidenceByBatch[selected.id] : undefined} status={selected.status} targetOutputsPerBatch={selected.targetOutputsPerBatch} coveragePolicy={selected.coveragePolicy} selections={confirmKey ? confirmSelections[confirmKey] : undefined} onSelect={setConfirmSelection} onConfirm={approveProfile} confirmPending={confirmPending} unhandledCount={unhandledCount} confirmError={confirmError} /> : selected.referenceProfile && (
               <div className="analysis-placeholder compact is-working"><div className="radar"><i/><i/><span>衣</span></div><div><strong>正在自动识别产品<span className="live-dots" /></strong><p>无需文件夹分类，系统正在比较所有视频中的衣服底色、图案、号码、袖口与正反面关系。{selected.lastWorkerActivityAt ? <> <span className={activityClass(activityAgeSec(selected.lastWorkerActivityAt))}>已分析 {activityAgeSec(selected.lastWorkerActivityAt)} 秒</span></> : null}</p></div></div>
             )}
             {artifactEvidenceByBatch[selected.id]?.sources?.length ? <section className="artifact-review-panel">

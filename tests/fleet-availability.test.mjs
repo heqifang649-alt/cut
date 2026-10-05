@@ -38,8 +38,13 @@ test("an accepted task can start a missing fleet from saved production settings"
     });
     await writeJsonAtomic(path.join(root, "data", "production-path.json"), {
       flags: { ENABLE_HYBRID_PILOT: "true" },
-      modelFast: "fast-model",
-      modelStrong: "strong-model",
+      modelFast: "stale-status-model",
+      modelStrong: "stale-status-model",
+    });
+    await writeJsonAtomic(path.join(root, "data", "ai-provider-config.json"), {
+      providerId: "test-provider", baseUrl: "https://provider.invalid/v1", apiKey: "test-key",
+      fastModel: "fast-model", strongModel: "strong-model", candidateModels: ["fast-model", "strong-model"],
+      maxConcurrency: 2, requestTimeoutMs: 30_000, pilotRequestCap: 10, retryLimit: 0,
     });
     let spawnOptions;
     const spawnFleet = (_executable, _args, options) => {
@@ -51,6 +56,7 @@ test("an accepted task can start a missing fleet from saved production settings"
     assert.equal(runtime.status, "running");
     assert.equal(spawnOptions.env.ENABLE_HYBRID_PILOT, "true");
     assert.equal(spawnOptions.env.MODEL_FAST, "fast-model");
+    assert.equal(spawnOptions.env.MODEL_STRONG, "strong-model");
     assert.equal(spawnOptions.detached, true);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

@@ -1,7 +1,8 @@
-param(
+﻿param(
   [switch]$NoBrowser,
   [switch]$SkipAccountCheck,
-  [switch]$ControlA
+  [switch]$ControlA,
+  [switch]$NoClaim
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,6 +56,10 @@ $runtimeFile = Join-Path $portalRoot 'config\cutflow-runtime.json'
 if (-not (Test-Path -LiteralPath $runtimeFile -PathType Leaf)) { throw "Runtime Contract not found: $runtimeFile" }
 $runtime = Get-Content -LiteralPath $runtimeFile -Raw | ConvertFrom-Json
 if ($runtime.schemaVersion -ne 3 -or -not $runtime.runtimeProfile -or -not $runtime.runtimeRevision) { throw 'Unsupported Cutflow Runtime Contract schema.' }
+$providerConfigFile = Join-Path $portalRoot 'data\ai-provider-config.json'
+if (-not (Test-Path -LiteralPath $providerConfigFile -PathType Leaf)) { throw "Provider config not found: $providerConfigFile" }
+$providerConfig = Get-Content -LiteralPath $providerConfigFile -Raw | ConvertFrom-Json
+if (-not $providerConfig.fastModel -or -not $providerConfig.strongModel) { throw 'Provider fastModel and strongModel must be configured in data\ai-provider-config.json.' }
 $runtimeNode = [string]$runtime.nodeExecutable
 $runtimePython = [string]$runtime.pythonExecutable
 if (-not $runtimeNode -or -not $runtimePython) { throw 'Runtime Contract must configure nodeExecutable and pythonExecutable.' }
@@ -110,6 +115,15 @@ $env:TMP = $bootstrapTemp
 $env:TMPDIR = $bootstrapTemp
 $env:XDG_CACHE_HOME = $bootstrapCache
 
+# Normal startup processes production queue work. Use -NoClaim for maintenance;
+# the saved .env.local value is the durable policy and a per-process false
+# cannot silently put an ordinary restart back into maintenance mode.
+$claimSetting = Get-CutflowSetting 'CUTFLOW_CLAIM_ENABLED' $null
+if (-not $claimSetting) { $claimSetting = $env:CUTFLOW_CLAIM_ENABLED }
+if ($NoClaim) { $claimSetting = 'false' }
+if (-not $claimSetting) { $claimSetting = 'true' }
+$env:CUTFLOW_CLAIM_ENABLED = if ($claimSetting -eq 'false') { 'false' } else { 'true' }
+
 function Convert-CodePoints([int[]]$Codes) {
   return -join ($Codes | ForEach-Object { [char]$_ })
 }
@@ -137,12 +151,12 @@ foreach ($flag in $hybridFlags) {
   [Environment]::SetEnvironmentVariable($flag, $(if ($ControlA) { 'false' } else { 'true' }), 'Process')
 }
 $env:ENABLE_ARTIFACT_GATE = 'false'
-$env:MODEL_FAST = 'gpt-6-astra'
-$env:MODEL_STRONG = 'gpt-6-astra'
+$env:MODEL_FAST = [string]$providerConfig.fastModel
+$env:MODEL_STRONG = [string]$providerConfig.strongModel
 if ($ControlA) {
   Write-Host 'Cutflow production path: Control A rollback mode.' -ForegroundColor Yellow
 } else {
-  Write-Host 'Cutflow production path: Hybrid deterministic default (gpt-6-astra).' -ForegroundColor Green
+  Write-Host "Cutflow production path: Hybrid deterministic default ($($providerConfig.fastModel))." -ForegroundColor Green
 }
 $productionPathState = @{
   schemaVersion = 1
@@ -202,8 +216,9 @@ if (-not $CodexHome) {
   $capture = $null
   $probeExitCode = $null
   do {
-    $probeOutput = Join-Path $logRoot "codex-probe-$([guid]::NewGuid().ToString('N')).stdout.log"
-    $probeError = Join-Path $logRoot "codex-probe-$([guid]::NewGuid().ToString('N')).stderr.log"
+    $probeId = [guid]::NewGuid().ToString()
+    $probeOutput = Join-Path $logRoot "codex-probe-$probeId.stdout.log"
+    $probeError = Join-Path $logRoot "codex-probe-$probeId.stderr.log"
     $probeProcess = $null
     try {
       $probeProcess = Start-Process -FilePath $runtimeNode -ArgumentList @((Join-Path $portalRoot 'scripts\check-codex.mjs')) -WorkingDirectory $portalRoot -RedirectStandardOutput $probeOutput -RedirectStandardError $probeError -WindowStyle Hidden -PassThru

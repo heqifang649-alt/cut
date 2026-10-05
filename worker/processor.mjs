@@ -22,6 +22,7 @@ import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveBatchFile, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { resolveProductGroupsForConsumption } from "../lib/product-confirmation.mjs";
+import { alignTargetWithDetectedProducts } from "../lib/output-allocation.mjs";
 import { createCodexClient, isCodexReconnectNotice } from "../lib/codex-client.mjs";
 import { productReferenceForGroup } from "../lib/product-reference-match.mjs";
 import { isApiAnalysisEnabled, createVisualAnalyzer, analyzeVisualReference, groupVisualProducts, validateGrouping } from "./visual-analysis.mjs";
@@ -1067,7 +1068,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = autoApproved ? "batch_queued" : "reference_ready";
       item.progress = autoApproved ? 35 : 38;
-      item.productDetection = savedDetection;
+      persistDetectedProductTarget(item, savedDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = autoApproved ? "已恢复产品文件夹分组，已进入后续队列" : "已恢复产品识别结果，等待确认";
       item.lastWorkerActivityAt = new Date().toISOString();
@@ -1085,7 +1086,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = "batch_queued";
       item.progress = 35;
-      item.productDetection = directoryDetection;
+      persistDetectedProductTarget(item, directoryDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = `已按产品文件夹确认 ${directoryDetection.groups.length} 款，跳过人工确认并进入后续队列`;
       item.lastWorkerActivityAt = new Date().toISOString();
@@ -1105,7 +1106,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = "reference_ready";
       item.progress = 38;
-      item.productDetection = filenameDetection;
+      persistDetectedProductTarget(item, filenameDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
       item.lastWorkerActivityAt = new Date().toISOString();
@@ -1126,7 +1127,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await writeJsonAtomic(path.join(batchDir, "product-groups.json"), detection);
     await cacheManualGroupingEvidence(batch, batchDir, detection.groups, productFiles, productReferenceFiles).catch(() => undefined);
     await update(batch.id, item => {
-      item.status = "reference_ready"; item.progress = 38; item.productDetection = detection;
+      item.status = "reference_ready"; item.progress = 38; persistDetectedProductTarget(item, detection);
       item.recoveryAttempts = 0; item.error = undefined;
       item.renderingLabel = filenameDetection.groups.length
         ? `已优先使用文件名分组 ${filenameDetection.groups.length} 款，视觉 API 仅处理 ${visualFiles.length} 条未命名素材；请确认`
@@ -1142,7 +1143,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = "reference_ready";
       item.progress = 38;
-      item.productDetection = filenameDetection;
+      persistDetectedProductTarget(item, filenameDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
       item.lastWorkerActivityAt = new Date().toISOString();
@@ -1179,11 +1180,17 @@ ${prior}${correctionText}
   await update(batch.id, (item) => {
     item.status = "reference_ready";
     item.progress = 38;
-    item.productDetection = detection;
+    persistDetectedProductTarget(item, detection);
     item.threadId = thread.id || item.threadId;
     item.recoveryAttempts = 0;
     item.lastWorkerActivityAt = new Date().toISOString();
   });
+}
+
+function persistDetectedProductTarget(batch, detection) {
+  const aligned = alignTargetWithDetectedProducts(batch, detection);
+  batch.targetOutputsPerBatch = aligned.batch.targetOutputsPerBatch;
+  batch.productDetection = aligned.detection;
 }
 
 async function semanticProgress(batch, progress) {

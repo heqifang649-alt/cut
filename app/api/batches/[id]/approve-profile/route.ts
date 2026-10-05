@@ -7,6 +7,7 @@ import { currentUser, forbidden, requireSameOrigin, unauthenticated } from "@/li
 import { taskNumberForBatch } from "@/lib/task-number.mjs";
 import { enqueueStage } from "@/worker/service-queue.mjs";
 import { ensureFleetAvailable } from "@/worker/fleet-availability.mjs";
+import { preflightRuntime } from "@/worker/runtime-preflight.mjs";
 import { batchWorkspacePath, resolveBatchFile } from "@/lib/tenant-paths.mjs";
 import { writeJsonAtomic } from "@/lib/atomic-json.mjs";
 import {
@@ -19,6 +20,7 @@ import {
   buildRetryArtifact,
   planConfirm,
 } from "@/lib/approve-profile-decision.mjs";
+import { setTargetToDetectedProductCount, resolveOutputAllocation } from "@/lib/output-allocation.mjs";
 
 export const runtime = "nodejs";
 
@@ -86,6 +88,32 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
       }
     };
 
+    // Fail before advancing the workflow when the confirmed product count
+    // cannot satisfy the batch-wide output contract.  Previously this was
+    // discovered only after quality/semantic work had already been queued.
+    // Use the renderer's allocation rule so the confirmation boundary and
+    // final scheduler boundary cannot silently disagree.
+    if (current.autoDetectProducts && current.productDetection) {
+      validateConfirmation({
+        detection: current.productDetection,
+        assignments,
+        currentVersion: Number(current.workflowVersion) || 1,
+        providedVersion,
+        resolveExists,
+      });
+      const confirmed = applyConfirmation(current.productDetection, assignments ?? []);
+      const renderableGroups = confirmed.groups.filter((group: { files?: string[] }) => (group.files || []).length > 0);
+      const { batch: coveredBatch } = setTargetToDetectedProductCount(current, renderableGroups.length);
+      resolveOutputAllocation(coveredBatch, renderableGroups.map((group: { id: string; confidence?: number }) => ({ product_id: group.id, product: group })));
+    }
+
+    // A confirmation is the final user action before a normal batch is
+    // consumed by Analyze/Clip/Render.  Verify the complete render contract
+    // here, before mutating the Batch or enqueuing work, so a stale Python,
+    // FFmpeg, delivery-root, or workspace path cannot turn a valid submission
+    // into a late manual failure.
+    await preflightRuntime({ root, capability: "render" });
+
     const batch = await mutateBatch(id, (item) => {
       if (item.status !== "reference_ready") throw new Error("批次状态已变化，请刷新后重新确认。");
       const versionToConfirm = Number(item.workflowVersion) || 1;
@@ -106,11 +134,15 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
           resolveExists,
         });
         const applied = applyConfirmation(detection, assignments ?? []);
+        const renderableGroups = applied.groups.filter((group: { files?: string[] }) => (group.files || []).length > 0);
+        const { batch: targetAdjustedBatch, adjustment } = setTargetToDetectedProductCount(item, renderableGroups.length);
+        if (adjustment) item.targetOutputsPerBatch = targetAdjustedBatch.targetOutputsPerBatch;
         item.productDetection = {
           ...detection,
           groups: applied.groups,
           unassigned: [],
           excluded: applied.excluded,
+          ...(adjustment ? { targetOutputAdjustment: { ...adjustment, at: new Date().toISOString() } } : {}),
           humanConfirmation: {
             at: new Date().toISOString(),
             by: (user as unknown as { username?: string; id: string }).username || user.id,

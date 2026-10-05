@@ -87,6 +87,7 @@ export type ProductDetection = {
   reasons?: string[];
   // Files the human explicitly excluded during reference_ready confirmation.
   excluded?: string[];
+  targetOutputAdjustment?: { from: number; to: number; reason: string; at: string };
   // Audit trail written by the approve-profile route. Never mutates AI confidence.
   humanConfirmation?: {
     at: string;
@@ -206,6 +207,7 @@ export type Batch = {
     state: BatchExecutionState;
     stage?: "analyze" | "clip" | "render";
     reason?: string;
+    queueHoldReason?: "canary_scope";
     retryAt?: string;
     updatedAt: string;
   };
