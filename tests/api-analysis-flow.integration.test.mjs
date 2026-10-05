@@ -60,6 +60,7 @@ test("real worker completes sample analysis and visual grouping while Codex auth
     } });
     const stored = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"))[0];
     assert.equal(stored.status, "reference_ready", stored.error);
+    assert.equal(stored.execution, undefined, "completed recognition must not remain running");
     assert.equal(stored.productDetection.groupingMethod, "visual");
     assert.equal(stored.productDetection.autoApproved, false);
     assert.deepEqual(stored.productDetection.groups[0].files, ["clip.mp4"]);

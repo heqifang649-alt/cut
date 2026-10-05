@@ -1068,6 +1068,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = autoApproved ? "batch_queued" : "reference_ready";
       item.progress = autoApproved ? 35 : 38;
+      if (!autoApproved) item.execution = undefined;
       persistDetectedProductTarget(item, savedDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = autoApproved ? "已恢复产品文件夹分组，已进入后续队列" : "已恢复产品识别结果，等待确认";
@@ -1106,6 +1107,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = "reference_ready";
       item.progress = 38;
+      item.execution = undefined;
       persistDetectedProductTarget(item, filenameDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
@@ -1127,7 +1129,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await writeJsonAtomic(path.join(batchDir, "product-groups.json"), detection);
     await cacheManualGroupingEvidence(batch, batchDir, detection.groups, productFiles, productReferenceFiles).catch(() => undefined);
     await update(batch.id, item => {
-      item.status = "reference_ready"; item.progress = 38; persistDetectedProductTarget(item, detection);
+      item.status = "reference_ready"; item.progress = 38; item.execution = undefined; persistDetectedProductTarget(item, detection);
       item.recoveryAttempts = 0; item.error = undefined;
       item.renderingLabel = filenameDetection.groups.length
         ? `已优先使用文件名分组 ${filenameDetection.groups.length} 款，视觉 API 仅处理 ${visualFiles.length} 条未命名素材；请确认`
@@ -1143,6 +1145,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     await update(batch.id, (item) => {
       item.status = "reference_ready";
       item.progress = 38;
+      item.execution = undefined;
       persistDetectedProductTarget(item, filenameDetection);
       item.recoveryAttempts = 0;
       item.renderingLabel = `已按文件名生成 ${filenameDetection.groups.length} 个产品 Session，等待确认`;
@@ -1180,6 +1183,7 @@ ${prior}${correctionText}
   await update(batch.id, (item) => {
     item.status = "reference_ready";
     item.progress = 38;
+    item.execution = undefined;
     persistDetectedProductTarget(item, detection);
     item.threadId = thread.id || item.threadId;
     item.recoveryAttempts = 0;

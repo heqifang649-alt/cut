@@ -81,6 +81,7 @@ test("a deterministic regroup task is claimed and completed without Codex", { ti
   const stored = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"))[0];
   const queue = JSON.parse(await readFile(path.join(root, "data", "service-queue.json"), "utf8"));
   assert.equal(stored.status, "reference_ready");
+  assert.equal(stored.execution, undefined, "manual confirmation must clear the running marker");
   assert.deepEqual(stored.productDetection.groups.map((group) => group.id), ["gc1-m1", "gc2-m1"]);
   assert.equal(queue.tasks.at(-1).status, "completed");
   assert.equal(queue.tasks.at(-1).attempt, 0);

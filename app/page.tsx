@@ -161,6 +161,7 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.status === "review") return { label: "等待审核", detail: "成片已生成，等待人工确认。" };
   if (batch.status === "completed") return { label: "已完成", detail: "成片已通过并完成交付。" };
   if (batch.status === "canceled") return { label: "已取消", detail: "任务已取消。" };
+  if (batch.status === "reference_ready") return { label: "等待确认", detail: batch.renderingLabel || "产品分组与样片母版等待确认。" };
   if (batch.execution?.state === "review_ready") return { label: "等待审核", detail: "成片与 manifest 已就绪，等待人工确认。" };
   if (batch.execution?.state === "backpressured") return { label: "资源退避中", detail: batch.renderingLabel || "全局资源暂不可用，任务已保留并会自动继续。" };
   if (batch.execution?.state === "waiting_continuation") return { label: "等待分片续跑", detail: batch.renderingLabel || "当前 quantum 已保存，Batch 已回到队列环尾。" };
@@ -168,7 +169,6 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.execution?.state === "queued" && batch.execution.queueHoldReason === "canary_scope") return { label: "受控验证暂缓", detail: "任务已安全保留在队列中。当前 Worker 正在运行受控 Canary，本批次不在其执行范围内；验证结束后会自动继续。" };
   if (batch.execution?.state === "queued") return { label: "排队中", detail: batch.renderingLabel || "任务已进入全局队列。" };
   if (batch.execution?.state === "running") return { label: "执行中", detail: batch.renderingLabel || `正在执行 ${batch.execution.stage || "当前"} 阶段。` };
-  if (batch.status === "reference_ready") return { label: "等待确认", detail: "产品分组与样片母版等待确认。" };
   if (["reference_queued", "regroup_queued", "batch_queued", "revision_queued"].includes(batch.status)) {
     if (batch.renderingLabel?.includes("Codex 认证")) return { label: "等待模型认证", detail: batch.renderingLabel };
     if (batch.renderingLabel?.includes("自动恢复")) return { label: "自动恢复中", detail: batch.renderingLabel };
