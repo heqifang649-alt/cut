@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { ensureFleetAvailable, fleetRuntimeIsHealthy, fleetRuntimeIsOperational } from "../worker/fleet-availability.mjs";
-import { FLEET_MEMBERS, fleetRestartDelayMs } from "../worker/fleet-supervisor.mjs";
+import { FLEET_MEMBERS, fleetRestartDelayMs, fleetRuntimeIsRecent } from "../worker/fleet-supervisor.mjs";
 
 function healthyRuntime(now = Date.now()) {
   return {
@@ -21,6 +21,15 @@ test("repeated supervisor crashes back off to five minutes", () => {
   assert.equal(fleetRestartDelayMs(1, 3_000), 3_000);
   assert.equal(fleetRestartDelayMs(2, 3_000), 6_000);
   assert.equal(fleetRestartDelayMs(9, 3_000), 300_000);
+});
+
+test("missing or stale fleet runtime does not attempt member adoption", () => {
+  const now = Date.now();
+  assert.equal(fleetRuntimeIsRecent(null, now), false);
+  assert.equal(fleetRuntimeIsRecent({}, now), false);
+  assert.equal(fleetRuntimeIsRecent({ at: "invalid" }, now), false);
+  assert.equal(fleetRuntimeIsRecent({ at: new Date(now - 60_000).toISOString() }, now), false);
+  assert.equal(fleetRuntimeIsRecent({ at: new Date(now - 1_000).toISOString() }, now), true);
 });
 
 test("fleet health requires the parent and every required supervisor", () => {

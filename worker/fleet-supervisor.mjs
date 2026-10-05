@@ -124,8 +124,7 @@ async function loadCanaryEnvironment() {
 
 async function adoptLiveMembers() {
   const prior = await readJson(runtimeFile, null);
-  const recent = Number.isFinite(new Date(prior?.at || 0).getTime()) && Date.now() - new Date(prior.at).getTime() < 60_000;
-  if (!recent) return;
+  if (!fleetRuntimeIsRecent(prior)) return;
   const priorMembers = new Map((Array.isArray(prior?.members) ? prior.members : []).map((member) => [member.name, member]));
   for (const member of FLEET_MEMBERS) {
     const existing = priorMembers.get(member.name);
@@ -134,6 +133,11 @@ async function adoptLiveMembers() {
       await log(`${member.name} supervisor adopted (pid ${existing.pid}).`);
     }
   }
+}
+
+export function fleetRuntimeIsRecent(prior, now = Date.now()) {
+  const at = prior?.at ? new Date(prior.at).getTime() : NaN;
+  return Number.isFinite(at) && at <= now && now - at < 60_000;
 }
 
 async function repairAdoptedMembers() {
