@@ -9,7 +9,7 @@ import { taskNumberForBatch } from "../lib/task-number.mjs";
 
 const ROOT = process.cwd();
 
-export async function prepareProductionCanary({ batchIds, targetOutputsPerBatch = 5 } = {}) {
+export async function prepareProductionCanary({ batchIds } = {}) {
   if (!Array.isArray(batchIds) || batchIds.length < 3 || batchIds.length > 5) throw new Error("Canary requires 3-5 explicit Batch ids");
   const uniqueIds = [...new Set(batchIds)];
   if (uniqueIds.length !== batchIds.length) throw new Error("Canary Batch ids must be unique");
@@ -31,21 +31,20 @@ export async function prepareProductionCanary({ batchIds, targetOutputsPerBatch 
     await resetBatchStagesForExplicitRetry({ root: ROOT, batchId: original.id, reason: `production_canary:${runId}` });
     const batch = await mutateBatch(original.id, (item) => {
       item.workflowVersion = Math.max(1, Number(item.workflowVersion) || 1) + 1;
-      item.targetOutputsPerBatch = targetOutputsPerBatch;
       item.coveragePolicy = "all_products_required";
-      item.status = "regroup_queued";
-      item.progress = 24;
+      item.status = "reference_queued";
+      item.progress = 10;
       item.error = undefined;
-      item.renderingLabel = "生产 Canary：等待产品识别";
+      item.renderingLabel = "生产 Canary：等待样片与产品识别";
       item.execution = { state: "queued", stage: "analyze", reason: `production_canary:${runId}`, updatedAt: new Date().toISOString() };
     });
     await mkdir(batchDir, { recursive: true });
     await writeJsonAtomic(path.join(batchDir, "reference-profile.json"), batch.referenceProfile);
-    await writeJsonAtomic(path.join(batchDir, "service-stage.json"), { schemaVersion: 1, next: "analyze", operation: "regroup", workflowVersion: batch.workflowVersion, queuedAt: new Date().toISOString(), canaryRunId: runId });
-    await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "regroup", priority: batch.priority, workflowVersion: batch.workflowVersion, reason: `production_canary:${runId}`, taskNumber: taskNumberForBatch(batch) });
-    prepared.push({ id: batch.id, taskNumber: taskNumberForBatch(batch), name: batch.name, workflowVersion: batch.workflowVersion, targetOutputsPerBatch, coveragePolicy: batch.coveragePolicy });
+    await writeJsonAtomic(path.join(batchDir, "service-stage.json"), { schemaVersion: 1, next: "analyze", operation: "reference", workflowVersion: batch.workflowVersion, queuedAt: new Date().toISOString(), canaryRunId: runId });
+    await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: batch.workflowVersion, reason: `production_canary:${runId}`, taskNumber: taskNumberForBatch(batch) });
+    prepared.push({ id: batch.id, taskNumber: taskNumberForBatch(batch), name: batch.name, workflowVersion: batch.workflowVersion, targetOutputsPerBatch: batch.targetOutputsPerBatch, coveragePolicy: batch.coveragePolicy });
   }
-  const state = { schemaVersion: 1, runId, status: "running", startedAt: new Date().toISOString(), featureFlagDefaultChanged: false, fairSchedulerEnabled: true, batchIds: uniqueIds, targetOutputsPerBatch, coveragePolicy: "all_products_required", evidenceDir, prepared };
+  const state = { schemaVersion: 1, runId, status: "running", startedAt: new Date().toISOString(), featureFlagDefaultChanged: false, fairSchedulerEnabled: true, batchIds: uniqueIds, targetPolicy: "detected_products", coveragePolicy: "all_products_required", evidenceDir, prepared };
   await writeJsonAtomic(path.join(ROOT, "data", "multi-batch-canary.json"), state);
   await writeJsonAtomic(path.join(evidenceDir, "canary-start.json"), state);
   return state;

@@ -33,7 +33,6 @@ function restartPlan(batch: Batch, task: RestartSource, marker: RestartSource, r
       : { stage: "render", operation, status: "editing", progress: 50 };
   }
   if (operation === "reference") return { stage: "analyze", operation, status: "reference_queued", progress: 10 };
-  if (batch.referenceProfile && batch.templateId && batch.transitionMode !== "template_transition") return { stage: "analyze", operation: "regroup", status: "regroup_queued", progress: 24 };
   return { stage: "analyze", operation: "reference", status: "reference_queued", progress: 10 };
 }
 
@@ -68,9 +67,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     const batch = await mutateBatch(id, (item) => {
       if (!item.files.some((file) => file.kind === "products")) throw new Error("Product source files are required before queueing.");
-      const plan = planned || (item.referenceProfile && item.templateId && item.transitionMode !== "template_transition"
-        ? { stage: "analyze", operation: "regroup", status: "regroup_queued", progress: 24 }
-        : { stage: "analyze", operation: "reference", status: "reference_queued", progress: 10 });
+      // First submission is not a regroup. The reference operation reuses a
+      // saved template profile, then runs the normal product-detection path.
+      const plan = planned || { stage: "analyze", operation: "reference", status: "reference_queued", progress: 10 };
       if (!item.referenceProfile && plan.operation === "reference" && !item.files.some((file) => file.kind === "reference")) {
         throw new Error("A reference video is required before analysis.");
       }
@@ -81,9 +80,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       item.renderingLabel = undefined;
       item.execution = { state: "queued", stage: plan.stage, updatedAt: new Date().toISOString() };
     });
-    const plan: Pick<RestartPlan, "stage" | "operation"> = planned || (batch.status === "regroup_queued"
-      ? { stage: "analyze", operation: "regroup" }
-      : { stage: "analyze", operation: "reference" });
+    const plan: Pick<RestartPlan, "stage" | "operation"> = planned || { stage: "analyze", operation: "reference" };
     await writeJsonAtomic(path.join(batchDir, "service-stage.json"), {
       schemaVersion: 1,
       next: plan.stage,

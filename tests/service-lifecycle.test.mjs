@@ -97,6 +97,15 @@ test("every task-producing route checks the fleet and directly queues service st
   }
 });
 
+test("first submission uses reference analysis rather than manual regroup", async () => {
+  const route = await readFile(new URL("app/api/batches/[id]/queue-reference/route.ts", root), "utf8");
+  const canary = await readFile(new URL("scripts/prepare-production-canary.mjs", root), "utf8");
+  assert.match(route, /const plan = planned \|\| \{ stage: "analyze", operation: "reference", status: "reference_queued"/);
+  assert.match(canary, /item\.status = "reference_queued"/);
+  assert.match(canary, /operation: "reference"/);
+  assert.doesNotMatch(canary, /item\.targetOutputsPerBatch\s*=/);
+});
+
 test("batch API explains queued work held outside an active canary scope", async () => {
   const [route, page] = await Promise.all([
     readFile(new URL("app/api/batches/route.ts", root), "utf8"),
