@@ -37,6 +37,10 @@ const logFile = path.join(workPaths().worker_scratch, "logs", "fleet-supervisor.
 const canaryFile = path.join(ROOT, "data", "multi-batch-canary.json");
 let canaryEnvironment = {};
 
+export function canaryHoldsGlobalClaims(canary) {
+  return ["running", "aborted"].includes(canary?.status);
+}
+
 export const FLEET_MEMBERS = [
   ...["analyze", "clip", "render"].flatMap((service) => [1, 2, 3].map((index) => ({
     name: `${service}-${index}`,
@@ -230,6 +234,8 @@ async function main() {
     throw error;
   }
   const health = await assertWorkRootReady({ maxAgeMs: 0 });
+  const canaryControl = await readJson(canaryFile, null);
+  if (canaryHoldsGlobalClaims(canaryControl)) process.env.CUTFLOW_CLAIM_ENABLED = "false";
   canaryEnvironment = FORCE_NO_CLAIM ? {} : await loadCanaryEnvironment();
   await log(`CUT_WORK_ROOT ready: ${health.root}; free ${(health.freeBytes / 2 ** 30).toFixed(2)} GiB.`);
   if (canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS) await log(`Canary isolation active for ${canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS}.`);

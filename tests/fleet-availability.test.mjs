@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { ensureFleetAvailable, fleetRuntimeIsHealthy, fleetRuntimeIsOperational } from "../worker/fleet-availability.mjs";
-import { FLEET_MEMBERS, fleetRestartDelayMs, fleetRuntimeIsRecent } from "../worker/fleet-supervisor.mjs";
+import { FLEET_MEMBERS, canaryHoldsGlobalClaims, fleetRestartDelayMs, fleetRuntimeIsRecent } from "../worker/fleet-supervisor.mjs";
 
 function healthyRuntime(now = Date.now()) {
   return {
@@ -30,6 +30,14 @@ test("missing or stale fleet runtime does not attempt member adoption", () => {
   assert.equal(fleetRuntimeIsRecent({ at: "invalid" }, now), false);
   assert.equal(fleetRuntimeIsRecent({ at: new Date(now - 60_000).toISOString() }, now), false);
   assert.equal(fleetRuntimeIsRecent({ at: new Date(now - 1_000).toISOString() }, now), true);
+});
+
+test("running or aborted canary holds global claims closed after a Fleet restart", () => {
+  assert.equal(canaryHoldsGlobalClaims({ status: "running", fairSchedulerEnabled: true }), true);
+  assert.equal(canaryHoldsGlobalClaims({ status: "aborted", fairSchedulerEnabled: true }), true);
+  assert.equal(canaryHoldsGlobalClaims({ status: "running", fairSchedulerEnabled: false }), true);
+  assert.equal(canaryHoldsGlobalClaims({ status: "completed", fairSchedulerEnabled: true }), false);
+  assert.equal(canaryHoldsGlobalClaims(null), false);
 });
 
 test("fleet health requires the parent and every required supervisor", () => {
