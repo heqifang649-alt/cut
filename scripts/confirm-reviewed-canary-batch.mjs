@@ -46,10 +46,12 @@ if (expectedMethod === "filename") {
   }
 } else {
   const evidence = await readJson(path.join(batchWorkspacePath(root, current), "group-evidence.v1.json"), null);
-  if (evidence?.groups?.length !== expectedSessions || evidence.groups.some((group) => !group.video?.thumbnailPath || !group.productImage?.thumbnailPath
+  const hasProductReferences = current.files.some((file) => file.kind === "product_refs");
+  if (evidence?.groups?.length !== expectedSessions || evidence.groups.some((group) => !group.video?.thumbnailPath || (hasProductReferences && !group.productImage?.thumbnailPath)
     || !detection.groups.some((item) => item.id === group.groupId))) throw new Error("Visual group evidence is incomplete");
   for (const group of evidence.groups) {
-    if (!(await stat(group.video.thumbnailPath).catch(() => null))?.isFile() || !(await stat(group.productImage.thumbnailPath).catch(() => null))?.isFile()) {
+    if (!(await stat(group.video.thumbnailPath).catch(() => null))?.isFile()
+      || (hasProductReferences && !(await stat(group.productImage.thumbnailPath).catch(() => null))?.isFile())) {
       throw new Error("Visual group evidence thumbnails are unavailable");
     }
   }
