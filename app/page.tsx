@@ -497,22 +497,23 @@ function TransitionSummary({ batch }: { batch: Batch }) {
 
 function ProductDetectionPanel({ detection, evidence = [], status, targetOutputsPerBatch, selections, onSelect, onConfirm, confirmPending, unhandledCount, confirmError }: { detection: ProductDetection; evidence?: ProductGroupEvidence[]; status?: string; targetOutputsPerBatch?: number; selections?: Record<string, string>; onSelect?: (file: string, value: string) => void; onConfirm?: () => void; confirmPending?: boolean; unhandledCount?: number; confirmError?: string }) {
   const evidenceByGroup = new Map(evidence.map((item) => [item.groupId, item]));
+  const detectedProductCount = new Set(detection.groups.map((group) => group.productKey || group.id)).size;
   const isEditable = status === "reference_ready" && typeof onSelect === "function";
   const outputTargetWillAdjust = Number.isSafeInteger(targetOutputsPerBatch)
     && Number(targetOutputsPerBatch) > 0
-    && Number(targetOutputsPerBatch) < detection.groups.length;
+    && Number(targetOutputsPerBatch) < detectedProductCount;
   const runningNotice = status && status !== "reference_ready" && status !== "uploading" && status !== "detecting_products"
     ? "当前阶段分组已锁定，不能修改；人工确认需在开始剪辑前完成。"
     : null;
   return (
     <div className="detection-panel">
       <div className="profile-head">
-        <div><span className="eyebrow">产品识别</span><h3>自动识别到 {detection.groups.length} 款产品</h3></div>
+        <div><span className="eyebrow">产品识别</span><h3>自动识别到 {detectedProductCount} 款产品</h3></div>
         <div className="confidence">{Math.round(detection.confidence * 100)}% 总体置信度</div>
       </div>
       <p className="profile-summary">{detection.summary}</p>
       {detection.targetOutputAdjustment && <div className="notice-banner" role="status">已识别 {detection.targetOutputAdjustment.to} 款可产出产品，本批目标已自动调整为 {detection.targetOutputAdjustment.to} 条（原目标 {detection.targetOutputAdjustment.from} 条）。每款至少 1 条，质量门禁仍会逐款检查。</div>}
-      {outputTargetWillAdjust && <div className="notice-banner" role="status">已识别 {detection.groups.length} 款产品；确认后目标将从 {targetOutputsPerBatch} 条自动调整为 {detection.groups.length} 条，确保每款至少产出 1 条。质量门禁仍会逐款检查。</div>}
+      {outputTargetWillAdjust && <div className="notice-banner" role="status">已识别 {detectedProductCount} 款产品；确认后目标将从 {targetOutputsPerBatch} 条自动调整为 {detectedProductCount} 条，确保每款至少产出 1 条。质量门禁仍会逐款检查。</div>}
       <div className="product-groups">
         {detection.groups.map((group, index) => {
           const groupEvidence = evidenceByGroup.get(group.id);

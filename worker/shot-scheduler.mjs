@@ -33,7 +33,7 @@ function groupForProductView(group) {
   if (!group || typeof group !== "object" || typeof group.id !== "string" || group.id.length === 0 || typeof group.label !== "string" || !Array.isArray(group.files) || !group.files.every((file) => typeof file === "string" && file.length > 0)) {
     throw new TypeError("Product View requires a confirmed product group");
   }
-  return { id: group.id, label: group.label, files: [...group.files] };
+  return { id: group.id, label: group.label, files: [...group.files], ...(group.productKey ? { productKey: group.productKey } : {}) };
 }
 
 function matchingGroupFile(shotPath, group) {

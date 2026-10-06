@@ -379,6 +379,7 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
     const timeline = materializeProductTimeline(rawSegments, master, { transitionProfile: productProfile, featureEnabled });
     return {
       product_id: product.id,
+      ...(product.productKey ? { product_key: product.productKey } : {}),
       display_name: product.label,
       duration_seconds: timeline.durationSeconds,
       visual_consistency_verified: true,
@@ -773,7 +774,9 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDi
   const allocatedProducts = scheduledProducts.filter((entry) => selectedProductIds.has(String(entry?.product?.id || entry?.product?.product_id)));
   const coverageExclusions = scheduledProducts
     .filter((entry) => !selectedProductIds.has(String(entry?.product?.id || entry?.product?.product_id)))
-    .map((entry) => ({ product_id: String(entry?.product?.id || entry?.product?.product_id), reason: "coverage_policy:best_products_allowed" }));
+    .map((entry) => ({ product_id: String(entry?.product?.id || entry?.product?.product_id),
+      reason: outputAllocation.alternateSessionIds?.includes(String(entry?.product?.id || entry?.product?.product_id))
+        ? "alternate_model_session:same_product" : "coverage_policy:best_products_allowed" }));
   await mkdir(editDir, { recursive: true });
   await writeJsonAtomic(path.join(editDir, "output-allocation.v1.json"), { ...outputAllocation, generatedAt: new Date().toISOString() });
   const legacyEdlPath = path.join(editDir, "batch-edl.json");

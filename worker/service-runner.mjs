@@ -359,6 +359,17 @@ async function handleFailure(task, error) {
     codexCircuit = await tripCodexConcurrencyCircuit({ root: ROOT, message, task, service: SERVICE, workerId: WORKER_ID, kind: classification.kind }).catch(() => null);
   }
 
+  if (classification.kind === "provider_backpressure") {
+    const retryAt = new Date(Date.now() + Math.max(60_000, Math.min(300_000, Number(error?.retryAfterMs) || 90_000))).toISOString();
+    await update(task.batchId, (item) => {
+      item.error = undefined;
+      item.renderingLabel = "Provider 全局容量受限，已保存进度，等待自动续跑";
+      item.lastWorkerActivityAt = new Date().toISOString();
+      item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_GLOBAL_BACKPRESSURE", retryAt, updatedAt: new Date().toISOString() };
+    });
+    return deferStage({ root: ROOT, task, reason: "PROVIDER_GLOBAL_BACKPRESSURE", notBefore: retryAt, fairMultiBatch: true });
+  }
+
   const writeBatchState = async (change) => {
     try {
       await update(task.batchId, change);
@@ -439,6 +450,7 @@ async function handleFailure(task, error) {
         if (circuitManual) item.error = "Codex 账户并发限制已连续触发 5 次，等待人工检查账户并发或配额。";
         item.renderingLabel = "等待人工处理";
         item.lastWorkerActivityAt = new Date().toISOString();
+        item.execution = { state: "failed", stage: task.stage, reason: classification.kind, updatedAt: new Date().toISOString() };
         if (inactivityTimeout) item.codexTurn = { ...item.codexTurn, state: "manual_required", turnId: undefined };
       }))) return { state: "lost", lost: true };
       await markManualRequired({ root: ROOT, batchId: task.batchId, stage: task.stage, message: inactivityTimeout ? codexInactivityManualMessage() : (circuitManual ? "Codex 账户并发限制已连续触发 5 次。" : message) }).catch(() => undefined);
@@ -474,7 +486,7 @@ async function handleFailure(task, error) {
     const attempt = result.attempt || task.attempt + 1;
     if (result.state === "manual") {
       await markManualRequired({ root: ROOT, batchId: task.batchId, stage: task.stage, message: error instanceof Error ? error.message : String(error) });
-      await update(task.batchId, (item) => { item.status = "failed"; item.error = "自动恢复连续失败 3 次，请人工处理"; item.renderingLabel = "等待人工处理"; });
+      await update(task.batchId, (item) => { item.status = "failed"; item.error = "自动恢复连续失败 3 次，请人工处理"; item.renderingLabel = "等待人工处理"; item.execution = { state: "failed", stage: task.stage, reason: classification.kind, updatedAt: new Date().toISOString() }; });
     } else {
       await scheduleRecovery({ root: ROOT, batchId: task.batchId, attempt, stage: task.stage, classification, message: error instanceof Error ? error.message : String(error) });
       await update(task.batchId, (item) => { item.error = undefined; item.renderingLabel = `自动恢复中：${classification.label}，第${attempt}次尝试`; });

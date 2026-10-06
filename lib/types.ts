@@ -65,6 +65,7 @@ export type ReferenceProfile = {
 export type ProductGroup = {
   id: string;
   label: string;
+  productKey?: string;
   signature: string;
   confidence: number;
   files: string[];

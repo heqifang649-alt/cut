@@ -13,6 +13,7 @@ test("one named model collapses into its product Session", () => {
 test("multiple named models become isolated Sessions without hardcoded model names", () => {
   const result = groupProductsByFilename(files("TT1_ModelA_front.mp4", "TT1_ModelB_front.mp4", "TT1_ModelA_detail.mp4"));
   assert.deepEqual(result.groups.map((group) => group.id), ["TT1_ModelA", "TT1_ModelB"]);
+  assert.deepEqual(result.groups.map((group) => group.productKey), ["TT1", "TT1"]);
   assert.deepEqual(result.groups[0].files, ["TT1_ModelA_front.mp4", "TT1_ModelA_detail.mp4"]);
 });
 
@@ -20,6 +21,12 @@ test("Windows duplicate suffixes are ignored during product and model parsing", 
   const result = groupProductsByFilename(files("TT6_M1(1).mp4", "TT6_M1 (2).mp4", "TT6_M2 (3).mp4"));
   assert.deepEqual(result.groups.map((group) => group.id), ["TT6_M1", "TT6_M2"]);
   assert.deepEqual(result.groups[0].files, ["TT6_M1(1).mp4", "TT6_M1 (2).mp4"]);
+});
+
+test("hyphenated model Sessions keep separate media while sharing one Product key", () => {
+  const result = groupProductsByFilename(files("TT5-M1 (1).mp4", "TT5-M1 (2).mp4", "TT5-M2 (1).mp4"));
+  assert.deepEqual(result.groups.map((group) => group.id), ["TT5-M1", "TT5-M2"]);
+  assert.deepEqual(result.groups.map((group) => group.productKey), ["TT5", "TT5"]);
 });
 
 test("full-width Windows duplicate suffixes are ignored during parsing", () => {

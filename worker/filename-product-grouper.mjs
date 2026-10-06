@@ -91,6 +91,9 @@ export function groupProductsByFilename(files) {
       const group = sessions.get(key) || {
         id,
         label: id,
+        // Hyphenated filenames such as TT5-M1/TT5-M2 retain isolated
+        // Sessions but share the underlying Product identity TT5.
+        productKey: product.replace(/-(?:m|model)[a-z0-9]+$/i, "").toUpperCase(),
         signature: hasMultipleModels ? `文件名产品编号 ${product}；模特 Session ${entry.model}` : `文件名产品编号 ${product}`,
         confidence: 1,
         files: [],

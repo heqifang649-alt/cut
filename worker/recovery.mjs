@@ -437,6 +437,9 @@ export function classifyRecoveryError(error, context = {}) {
   const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;
   if (context.canceled) return { category: "fatal", kind: "canceled", recoverable: false, label: "任务已取消" };
   if (errorCode === "visual_analysis_invalid") return { category: "business", kind: "visual_analysis_invalid", recoverable: false, label: "视觉 API 返回无效结果，等待核对" };
+  if (errorCode.startsWith("provider_") && (error?.status === 429 || /concurrency limit exceeded|too many concurrent|too many requests|rate limit/.test(message))) {
+    return { category: "recoverable", kind: "provider_backpressure", recoverable: true, label: "Provider 全局容量受限，等待自动续跑" };
+  }
   if (errorCode.startsWith("provider_")) {
     const recoverable = error?.retryable === true || ["provider_timeout", "provider_rate_limited", "provider_circuit_open"].includes(errorCode);
     return { category: recoverable ? "recoverable" : "business", kind: "visual_api_provider", recoverable, label: recoverable ? "视觉 API 暂时不可用，正在退避重试" : "视觉 API 连接需要处理" };

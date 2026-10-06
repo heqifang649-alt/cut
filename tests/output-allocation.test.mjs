@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { alignTargetWithDetectedProducts, resolveOutputAllocation } from "../lib/output-allocation.mjs";
+import { alignTargetWithDetectedProducts, countRenderableProducts, resolveOutputAllocation } from "../lib/output-allocation.mjs";
 
 const products = (...ids) => ids.map((id, index) => ({
   product: { id },
@@ -59,6 +59,27 @@ test("unrenderable empty detection groups do not inflate the target", () => {
   assert.deepEqual(result.detection.targetOutputAdjustment, {
     from: 5, to: 1, reason: "one_output_per_detected_product", at: "2026-09-24T00:00:00.000Z",
   });
+});
+
+test("two model Sessions of one Product count once and render the stronger Session", () => {
+  const groups = [
+    { id: "TT4", productKey: "TT4", files: ["TT4.mp4"] },
+    { id: "TT5_M1", productKey: "TT5", files: ["TT5_M1.mp4"] },
+    { id: "TT5_M2", productKey: "TT5", files: ["TT5_M2.mp4"] },
+  ];
+  assert.equal(countRenderableProducts(groups), 2);
+  const aligned = alignTargetWithDetectedProducts({ targetOutputsPerBatch: 3, coveragePolicy: "all_products_required" }, { groups });
+  assert.equal(aligned.batch.targetOutputsPerBatch, 2);
+  const allocation = resolveOutputAllocation(aligned.batch, [
+    { product: { id: "TT4", productKey: "TT4" }, scheduleResult: { qualityScore: 0.8 } },
+    { product: { id: "TT5_M1", productKey: "TT5" }, scheduleResult: { qualityScore: 0.7 } },
+    { product: { id: "TT5_M2", productKey: "TT5" }, scheduleResult: { qualityScore: 0.9 } },
+  ]);
+  assert.equal(allocation.requestedOutputs, 2);
+  assert.equal(allocation.renderableProductCount, 2);
+  assert.deepEqual(allocation.selectedProductIds, ["TT4", "TT5_M2"]);
+  assert.deepEqual(allocation.alternateSessionIds, ["TT5_M1"]);
+  assert.deepEqual(allocation.excludedProductIds, []);
 });
 
 test("best_products_allowed deterministically selects the highest-ranked Products", () => {

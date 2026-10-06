@@ -20,7 +20,7 @@ import {
   buildRetryArtifact,
   planConfirm,
 } from "@/lib/approve-profile-decision.mjs";
-import { setTargetToDetectedProductCount, resolveOutputAllocation } from "@/lib/output-allocation.mjs";
+import { countRenderableProducts, setTargetToDetectedProductCount, resolveOutputAllocation } from "@/lib/output-allocation.mjs";
 
 export const runtime = "nodejs";
 
@@ -103,7 +103,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
       });
       const confirmed = applyConfirmation(current.productDetection, assignments ?? []);
       const renderableGroups = confirmed.groups.filter((group: { files?: string[] }) => (group.files || []).length > 0);
-      const { batch: coveredBatch } = setTargetToDetectedProductCount(current, renderableGroups.length);
+      const { batch: coveredBatch } = setTargetToDetectedProductCount(current, countRenderableProducts(renderableGroups));
       resolveOutputAllocation(coveredBatch, renderableGroups.map((group: { id: string; confidence?: number }) => ({ product_id: group.id, product: group })));
     }
 
@@ -135,7 +135,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
         });
         const applied = applyConfirmation(detection, assignments ?? []);
         const renderableGroups = applied.groups.filter((group: { files?: string[] }) => (group.files || []).length > 0);
-        const { batch: targetAdjustedBatch, adjustment } = setTargetToDetectedProductCount(item, renderableGroups.length);
+        const { batch: targetAdjustedBatch, adjustment } = setTargetToDetectedProductCount(item, countRenderableProducts(renderableGroups));
         if (adjustment) item.targetOutputsPerBatch = targetAdjustedBatch.targetOutputsPerBatch;
         item.productDetection = {
           ...detection,
