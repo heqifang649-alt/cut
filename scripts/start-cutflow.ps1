@@ -59,7 +59,7 @@ if ($runtime.schemaVersion -ne 3 -or -not $runtime.runtimeProfile -or -not $runt
 $providerConfigFile = Join-Path $portalRoot 'data\ai-provider-config.json'
 if (-not (Test-Path -LiteralPath $providerConfigFile -PathType Leaf)) { throw "Provider config not found: $providerConfigFile" }
 $providerConfig = Get-Content -LiteralPath $providerConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $providerConfig.fastModel -or -not $providerConfig.strongModel) { throw 'Provider fastModel and strongModel must be configured in data\ai-provider-config.json.' }
+if (-not $NoClaim -and (-not $providerConfig.fastModel -or -not $providerConfig.strongModel)) { throw 'Provider fastModel and strongModel must be configured in data\ai-provider-config.json.' }
 $runtimeNode = [string]$runtime.nodeExecutable
 $runtimePython = [string]$runtime.pythonExecutable
 if (-not $runtimeNode -or -not $runtimePython) { throw 'Runtime Contract must configure nodeExecutable and pythonExecutable.' }

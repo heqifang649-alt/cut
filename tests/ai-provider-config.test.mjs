@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { normalizeProviderBaseUrl, publicProviderConfig, resolveProviderConfig, saveLocalProviderConfig } from "../lib/ai-provider-config.mjs";
+import { normalizeProviderBaseUrl, publicProviderConfig, resolveProviderConfig, saveLocalProviderConfig, saveProviderProbeMetadata } from "../lib/ai-provider-config.mjs";
 
 test("provider base URL normalizes a v1 endpoint exactly once", () => {
   assert.equal(normalizeProviderBaseUrl("https://example.test/v1/responses/"), "https://example.test/v1");
@@ -58,4 +58,32 @@ test("a changed Provider identity gets a new id and does not carry old health me
   assert.equal(next.connectionStatus, "UNKNOWN");
   assert.equal(next.lastTestedAt, null);
   assert.deepEqual(next.lastProbe, {});
+});
+
+test("a failed capability probe cannot clear the selected production models", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-failed-probe-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await saveLocalProviderConfig(root, {
+    baseUrl: "https://provider.test/v1",
+    apiKey: "test-key",
+    fastModel: "gpt-6-sol",
+    strongModel: "gpt-6-sol",
+  });
+  const failed = await saveProviderProbeMetadata(root, {
+    connectionStatus: "FAIL",
+    fastModel: "",
+    strongModel: "",
+    lastProbe: { providerReadyForP1: false },
+  });
+  assert.equal(failed.fastModel, "gpt-6-sol");
+  assert.equal(failed.strongModel, "gpt-6-sol");
+  assert.equal(failed.connectionStatus, "FAIL");
+  const passed = await saveProviderProbeMetadata(root, {
+    connectionStatus: "PASS",
+    fastModel: "model-fast",
+    strongModel: "model-strong",
+    lastProbe: { providerReadyForP1: true },
+  });
+  assert.equal(passed.fastModel, "model-fast");
+  assert.equal(passed.strongModel, "model-strong");
 });
