@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { taskMatchesBatchVersion, taskMayOperate, workflowVersionOf } from "../worker/task-fence.mjs";
+import { taskMatchesBatchVersion, taskMayFinalize, taskMayOperate, workflowVersionOf } from "../worker/task-fence.mjs";
+
+test("stage owner may finalize only its own completed transition", () => {
+  const quality = { operation: "quality", workflowVersion: 5 };
+  assert.equal(taskMayOperate(quality, { status: "editing", workflowVersion: 5 }, { next: "clip", workflowVersion: 5 }), false);
+  assert.equal(taskMayFinalize(quality, { status: "editing", workflowVersion: 5 }, { next: "clip", workflowVersion: 5 }), true);
+  assert.equal(taskMayFinalize(quality, { status: "editing", workflowVersion: 6 }, { next: "clip", workflowVersion: 6 }), false);
+  assert.equal(taskMayFinalize(quality, { status: "failed", workflowVersion: 5 }, { next: "clip", workflowVersion: 5 }), false);
+  const render = { operation: "render", workflowVersion: 5 };
+  assert.equal(taskMayOperate(render, { status: "review", workflowVersion: 5 }, { next: null, workflowVersion: 5 }), false);
+  assert.equal(taskMayFinalize(render, { status: "review", workflowVersion: 5 }, { next: null, workflowVersion: 5 }), true);
+});
 
 test("workflow and lease fencing reject a stale reference after a newer manual/failed transition", () => {
   const task = { stage: "analyze", operation: "reference", workflowVersion: 3 };

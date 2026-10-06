@@ -48,7 +48,7 @@ import {
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
-import { taskMatchesBatchVersion, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
+import { taskMayFinalize, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
 import { taskNumberForBatch } from "../lib/task-number.mjs";
 import { assertWorkRootReady } from "../lib/work-paths.mjs";
 import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from "./resource-governor.mjs";
@@ -106,20 +106,6 @@ async function taskStillCurrent(task) {
   if (!batch) return false;
   const marker = await readJson(stageFile(batch), null);
   return taskMayOperate(task, batch, marker);
-}
-
-function taskMayFinalize(task, batch, marker) {
-  if (!taskMatchesBatchVersion(task, batch)) return false;
-  if (taskMayOperate(task, batch, marker)) return true;
-  const finishedStates = {
-    reference: ["reference_ready", "batch_queued"],
-    regroup: ["reference_ready", "batch_queued"],
-    quality: ["editing"],
-    edit: ["editing"],
-    revision: ["revising"],
-    render: ["review", "failed"],
-  };
-  return Boolean(finishedStates[task.operation]?.includes(batch.status));
 }
 
 async function taskCanFinalize(task) {
@@ -545,7 +531,10 @@ async function processOnce() {
     if (renderPermit) heartbeatRenderPermit({ root: ROOT, permit: renderPermit, leaseMs: LEASE_MS }).catch(() => undefined);
     if (task.codexSlot) heartbeatCodexExecution({ root: ROOT, slot: task.codexSlot }).catch(() => undefined);
   }, HEARTBEAT_MS);
-  setLeaseGuard(async () => (await assertLease({ root: ROOT, task })) && (await taskStillCurrent(task)));
+  // A successful task may already have written the next-stage marker (or
+  // Review status) while it still owns its lease. Allow only that bounded
+  // finalization window; assertLease continues to fence stale workers.
+  setLeaseGuard(async () => (await assertLease({ root: ROOT, task })) && (await taskCanFinalize(task)));
   setFailureContext({
     service: SERVICE,
     workerInstance: task.lease?.workerId || WORKER_ID,

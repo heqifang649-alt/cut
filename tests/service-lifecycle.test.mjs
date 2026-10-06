@@ -24,6 +24,13 @@ test("service runner isolates task and failure-handler exceptions", async () => 
   assert.match(source, /batch\.status === "detecting_products" && marker\?\.operation === "regroup" \? "regroup" : "reference"/);
   assert.doesNotMatch(source, /account\?\.apiReady === true && account\?\.executorReady === false/);
   assert.ok(source.indexOf("setLeaseGuard(async () => (await assertLease({ root: ROOT, task }))") < source.indexOf("await markServiceRecoveryReady(task)"));
+  assert.match(source, /setLeaseGuard\(async \(\) => \(await assertLease\(\{ root: ROOT, task \}\)\) && \(await taskCanFinalize\(task\)\)\)/);
+});
+
+test("Hybrid render forwards complete semantic evidence to the Product visual gate", async () => {
+  const source = await readFile(new URL("worker/processor.mjs", root), "utf8");
+  assert.match(source, /semanticEvidence\?\.complete !== true \|\| !Array\.isArray\(semanticEvidence\.records\)/);
+  assert.match(source, /renderBatchFromRenderPlans\(\{[\s\S]*?semanticEvidence,/);
 });
 
 test("supervisor bounds recovery after a child worker crash", async () => {

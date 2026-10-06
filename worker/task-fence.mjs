@@ -24,3 +24,20 @@ export function taskMayOperate(task, batch, marker = null) {
   if (task.operation === "render" && (marker?.next !== "render" || (marker.workflowVersion && workflowVersionOf(marker) !== workflowVersionOf(task)))) return false;
   return true;
 }
+
+// A stage may publish its next marker before its current lease is completed.
+// Permit only the owner's final Batch write while the workflow version and
+// resulting Batch status still match that stage.
+export function taskMayFinalize(task, batch, marker = null) {
+  if (!taskMatchesBatchVersion(task, batch)) return false;
+  if (taskMayOperate(task, batch, marker)) return true;
+  const finishedStates = {
+    reference: ["reference_ready", "batch_queued"],
+    regroup: ["reference_ready", "batch_queued"],
+    quality: ["editing"],
+    edit: ["editing"],
+    revision: ["revising"],
+    render: ["review", "failed"],
+  };
+  return Boolean(finishedStates[task.operation]?.includes(batch.status));
+}

@@ -1536,6 +1536,12 @@ async function runRenderBatch(batch) {
   const partitioned = isNewRendererEnabled()
     ? partitionScheduledProducts(scheduleArtifact?.products || [])
     : null;
+  const semanticEvidence = isNewRendererEnabled() && isSemanticShadowEnabled()
+    ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
+    : undefined;
+  if (isNewRendererEnabled() && isSemanticShadowEnabled() && (semanticEvidence?.complete !== true || !Array.isArray(semanticEvidence.records))) {
+    throw new Error("Render requires complete semantic evidence for Product visual review");
+  }
   const editDir = await resolveBatchArtifactPath(ROOT, refreshed, "edit");
   const outputDir = batchArtifactWritePath(refreshed, "renders");
   const rendered = isNewRendererEnabled()
@@ -1548,6 +1554,7 @@ async function runRenderBatch(batch) {
       ffmpeg: runtimeConfig.ffmpegExecutable,
       scheduledProducts: partitioned.renderable,
       excludedProducts: Array.isArray(scheduleArtifact?.excluded_products) ? scheduleArtifact.excluded_products : partitioned.excludedProducts,
+      semanticEvidence,
       isCanceled: () => isCanceled(batch.id),
       onProgress,
       onActivity,
