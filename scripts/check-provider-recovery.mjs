@@ -83,9 +83,12 @@ const dStages = report.steps.filter(step => /^D[123]$/.test(step.stage)).map(ste
   exceeded60sWithin90s: step.success === true && step.firstDataLatencyMs > 60_000 && step.firstDataLatencyMs <= recoveryIdleTimeoutMs,
 }));
 let resume = null;
+let autoContinuingBackpressuredBatch = false;
 if (report.status === 'RECOVERY_VERIFIED') {
   const providerHealth = await readProviderHealth(config, model, { root });
-  resume = await resumeOneBatchAfterProviderRecovery({ root, batchId: batch.id, providerHealth });
+  const latest = JSON.parse(await readFile(path.join(root, 'data/batches.json'), 'utf8')).find(item => item.id === batch.id);
+  if (latest?.status === 'failed') resume = await resumeOneBatchAfterProviderRecovery({ root, batchId: batch.id, providerHealth });
+  else autoContinuingBackpressuredBatch = latest?.status === 'editing' && latest?.execution?.state === 'backpressured';
 }
-console.log(JSON.stringify({ status: report.status, report: path.join(out, 'report.json'), recoveryIdleTimeoutMs, dStages, batchResumed: Boolean(resume), resumedBatchCount: resume?.resumedBatchCount || 0, resumedBatchId: resume?.batch?.id || null }));
+console.log(JSON.stringify({ status: report.status, report: path.join(out, 'report.json'), recoveryIdleTimeoutMs, dStages, batchResumed: Boolean(resume), resumedBatchCount: resume?.resumedBatchCount || 0, resumedBatchId: resume?.batch?.id || null, autoContinuingBackpressuredBatch }));
 if (report.status !== 'RECOVERY_VERIFIED') process.exitCode = 1;

@@ -62,3 +62,9 @@ test('unverified Provider cannot resume a Batch', async () => {
     /RECOVERY_VERIFIED/,
   );
 });
+
+test('A-D operator script does not mutate a backpressured or canceled Batch after verification', async () => {
+  const source = await readFile(new URL('../scripts/check-provider-recovery.mjs', import.meta.url), 'utf8');
+  assert.match(source, /if \(latest\?\.status === 'failed'\) resume = await resumeOneBatchAfterProviderRecovery/);
+  assert.match(source, /latest\?\.status === 'editing' && latest\?\.execution\?\.state === 'backpressured'/);
+});
