@@ -188,6 +188,21 @@ test("an explicit retry clears terminal manual work before a new stage is enqueu
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test("explicit retry reopens the same canceled stage key without a duplicate live task", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-same-stage-retry-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const options = { root, batchId: "batch-same-stage", stage: "analyze", operation: "quality", workflowVersion: 2, reason: "semantic_late_transient_recovery" };
+  await enqueueStage(options);
+  const task = await claimStage({ root, stage: "analyze", workerId: "analyze-1" });
+  assert.equal((await retryStage({ root, task, reason: "transient timeout", maxAttempts: 1 })).state, "manual");
+  await resetBatchStagesForExplicitRetry({ root, batchId: options.batchId, reason: options.reason });
+  const reopened = await enqueueStage(options);
+  assert.equal(reopened.status, "queued");
+  assert.equal(reopened.attempt, 0);
+  const queue = await readJson(path.join(root, "data", "service-queue.json"), { tasks: [] });
+  assert.deepEqual(queue.tasks.filter((item) => item.batchId === options.batchId).map((item) => item.status), ["canceled", "queued"]);
+});
+
 test("the manual retry route resumes the recorded stage instead of always restarting reference analysis", async () => {
   const route = await (await import("node:fs/promises")).readFile(new URL("../app/api/batches/[id]/queue-reference/route.ts", import.meta.url), "utf8");
   assert.match(route, /readRecoveryState/);

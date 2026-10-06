@@ -166,6 +166,9 @@ function desiredWorkflowVersion(workflowVersion) {
 
 function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersion, reopenCompletedAfterMs }) {
   if (!task || Number(task.workflowVersion || 1) !== desiredWorkflowVersion(workflowVersion)) return false;
+  // Explicit recovery cancels the old terminal task before enqueuing the same
+  // key. Never mistake a canceled record with matching options for live work.
+  if (task.status === "canceled") return false;
   // Manual and completed tasks are terminal for one workflow version. Periodic
   // discovery must not append another copy while the Batch state catches up.
   if (task.status === "manual") return true;
