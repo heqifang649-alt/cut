@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,8 +18,9 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
   const shots = Array.from({ length: 5 }, (_, i) => ({ id: `shot-${i + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
   const calls = [];
   let stall = true;
-  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, signal }) => {
+  const adapter = { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, signal, onRequestEvent }) => {
     calls.push(shotId);
+    await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
     if (stall && shotId !== "shot-1") {
       const cache = JSON.parse(await readFile(path.join(root, "cache", "legacy", "budget", "semantic-cache.v1.json"), "utf8"));
       assert.equal(Object.values(cache.entries)[0].result.shot_id, "shot-1");
@@ -47,6 +49,41 @@ test("semantic budgets cancel stalled scoring, checkpoint successes, and resume 
   stall = true;
   const cached = await runSemanticShadow({ ...options, stageBudgetMs: 0 });
   assert.equal(cached.evidence.complete, true, "cached scores need no stage budget");
+});
+
+test("fair semantic scoring treats a pre-dispatch budget expiry as backpressure without consuming a Shot attempt", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-admission-wait-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  let dispatched = 0;
+  let waitForPermit = true;
+  const options = {
+    root, batchDir: root, batch: { id: "admission-wait", files: [], workflowVersion: 1 },
+    shotPool: { shots: [{ id: "waiting-shot", path: frame, source: "fixture", start: 0, end: 1 }] },
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, signal, onRequestEvent }) => {
+      if (waitForPermit) await new Promise((resolve, reject) => {
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+      dispatched += 1;
+      await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } },
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 10_000, shotBudgetMs: 30, concurrency: 1,
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const paused = await runSemanticShadow(options);
+    assert.equal(paused.continuation.reason, "PROVIDER_BACKPRESSURE");
+    assert.equal(paused.evidence.records.filter((record) => record.status === "error").length, 0);
+  }
+  assert.equal(dispatched, 0);
+  waitForPermit = false;
+  const resumed = await runSemanticShadow(options);
+  assert.equal(resumed.evidence.complete, true);
+  assert.equal(dispatched, 1);
 });
 
 test("two-shot pool drains at segment boundary and resumes only unfinished shots", async (t) => {
@@ -123,9 +160,10 @@ test("a late transient Shot gets bounded retries after earlier quanta without re
   const calls = new Map();
   const options = {
     root, batchDir: root, batch: { id: "late-timeout", files: [], workflowVersion: 1 }, shotPool: { shots },
-    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, onRequestEvent }) => {
       const count = (calls.get(shotId) || 0) + 1;
       calls.set(shotId, count);
+      await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
       if (shotId === "late-7" && count === 1) throw new ProviderAdapterError("transient fixture timeout", { code: "SEMANTIC_SHOT_BUDGET_EXCEEDED", retryable: false });
       return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
     } },
@@ -151,8 +189,9 @@ test("late transient retries stop after three cache-keyed evaluations", async (t
   const calls = new Map();
   const options = {
     root, batchDir: root, batch: { id: "late-cap", files: [], workflowVersion: 1 }, shotPool: { shots },
-    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, onRequestEvent }) => {
       calls.set(shotId, (calls.get(shotId) || 0) + 1);
+      await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
       if (shotId === "cap-4") throw new ProviderAdapterError("transient fixture timeout", { code: "SEMANTIC_SHOT_BUDGET_EXCEEDED", retryable: false });
       return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
     } },
@@ -176,9 +215,10 @@ test("a late malformed Provider response pauses for bounded retry rather than fa
   const calls = new Map();
   const options = {
     root, batchDir: root, batch: { id: "malformed", files: [], workflowVersion: 1 }, shotPool: { shots },
-    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId, onRequestEvent }) => {
       const count = (calls.get(shotId) || 0) + 1;
       calls.set(shotId, count);
+      await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
       if (shotId === "malformed-4" && count === 1) throw new ProviderAdapterError("invalid response", { code: "PROVIDER_MALFORMED_RESPONSE", retryable: false });
       return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
     } },

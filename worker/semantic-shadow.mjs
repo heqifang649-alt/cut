@@ -348,6 +348,7 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
       const timer = setTimeout(() => controller.abort(new ProviderAdapterError(budgetCode, { code: budgetCode, retryable: false })), budgetMs);
       let performance;
       let providerCompleted = false;
+      let requestStarted = false;
       enterProvider();
       try {
         const scored = await runner.scoreShot({
@@ -369,6 +370,7 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
             }
           },
           onRequestEvent: async (event) => {
+            if (event.phase === "start") requestStarted = true;
             await evaluation.onRequestEvent(event);
             if (!fairMultiBatch && concurrency === 2 && event.phase === "end" && (event.httpStatus === 429 || event.timeout)) {
               degradationOwner ||= shot.id;
@@ -397,7 +399,8 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
         const normalized = error instanceof ProviderAdapterError
           ? new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]), { code: error.code, status: error.status, retryable: error.retryable })
           : new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]));
-        if (fairMultiBatch && (normalized.code === "PROVIDER_BACKPRESSURE" || normalized.status === 429)) {
+        if (fairMultiBatch && (normalized.code === "PROVIDER_BACKPRESSURE" || normalized.status === 429
+          || (normalized.code === "SEMANTIC_SHOT_BUDGET_EXCEEDED" && !requestStarted))) {
           stopReason = "PROVIDER_BACKPRESSURE";
           providerRetryAt = error?.retryAt || new Date(Date.now() + Math.max(30_000, Number(error?.retryAfterMs) || 0)).toISOString();
           performance = evaluation.metric("backpressured", normalized.code);
@@ -464,7 +467,8 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
         // quanta. Bound retries by immutable, cache-keyed evaluation history.
         const performance = await writeSemanticPerformance(batchDir);
         const mayRetry = failedRecords.every((record) => {
-          const evaluations = performance.evaluations.filter((item) => item.shotId === record.shotId && item.cacheKey === record.cacheKey);
+          const evaluations = performance.evaluations.filter((item) => item.shotId === record.shotId
+            && item.cacheKey === record.cacheKey && item.requestCount > 0);
           return evaluations.length > 0 && evaluations.length < MAX_TRANSIENT_SHOT_EVALUATIONS;
         });
         stopReason = mayRetry ? "SEMANTIC_PENDING_SHOTS" : "SEMANTIC_INCOMPLETE";
