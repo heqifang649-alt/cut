@@ -46,6 +46,8 @@ import {
   tripCodexConcurrencyCircuit,
 } from "./recovery.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { resolveProviderConfig } from "../lib/ai-provider-config.mjs";
+import { readProviderHealth } from "../lib/provider-incident.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { taskMayFinalize, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
@@ -288,6 +290,24 @@ async function runTask(task) {
 
 async function handleFailure(task, error) {
   const message = error instanceof Error ? error.message : String(error);
+  // The Incident may open while a quality stage is scoring Shots. A partial
+  // semantic result is then Provider backpressure, not a terminal Batch fault.
+  if (task.operation === "quality" && error?.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(message)) {
+    const { config } = await resolveProviderConfig(ROOT);
+    const model = config.fastModel;
+    const health = model ? await readProviderHealth(config, model, { root: ROOT }) : null;
+    if (["OPEN_WAITING_PROVIDER", "PENDING_RECOVERY"].includes(health?.status)) {
+      const retryAt = new Date(Date.now() + 60_000).toISOString();
+      await update(task.batchId, (item) => {
+        item.status = "editing";
+        item.error = undefined;
+        item.renderingLabel = "Provider Incident 已隔离，等待 A–D 恢复检查；已完成评分保留";
+        item.lastWorkerActivityAt = new Date().toISOString();
+        item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_INCIDENT_OPEN", retryAt, updatedAt: new Date().toISOString() };
+      });
+      return deferStage({ root: ROOT, task, reason: "PROVIDER_INCIDENT_OPEN", notBefore: retryAt, fairMultiBatch: true });
+    }
+  }
   // Older workers may have emitted a plain Schedule Failed error before the
   // structured Provider code was added. Recover the sidecar evidence here so
   // an explicit requeue receives the same bounded two-attempt policy.
@@ -365,7 +385,12 @@ async function handleFailure(task, error) {
   }
 
   const releaseAsManual = async (state, label, recoveryMarker) => {
-    if (!(await writeBatchState((item) => { item.status = "failed"; item.error = message; item.renderingLabel = label; }))) return { state: "lost", lost: true };
+    if (!(await writeBatchState((item) => {
+      item.status = "failed";
+      item.error = message;
+      item.renderingLabel = label;
+      item.execution = { state: "failed", stage: task.stage, reason: classification.kind, updatedAt: new Date().toISOString() };
+    }))) return { state: "lost", lost: true };
     await recoveryMarker({ root: ROOT, batchId: task.batchId, stage: task.stage, message }).catch(() => undefined);
     return retryStage({ root: ROOT, task, reason: message, maxAttempts: 0 }).catch((queueError) => {
       console.error(`[${SERVICE}/${WORKER_ID}] Could not release ${task.key}:`, queueError);

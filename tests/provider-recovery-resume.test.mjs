@@ -26,6 +26,8 @@ test('verified Provider resumes exactly one Batch at quality and preserves compl
   assert.equal(resumed.resumedBatchCount, 1);
   const batches = await readJson(path.join(root, 'data', 'batches.json'), []);
   assert.equal(batches[0].status, 'batch_queued');
+  assert.equal(batches[0].execution.state, 'queued');
+  assert.equal(batches[0].execution.stage, 'analyze');
   assert.equal(batches[0].workflowVersion, 4);
   assert.equal(batches[1].status, 'failed');
   assert.equal(batches[1].workflowVersion, 7);

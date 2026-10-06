@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolveProviderConfig } from '../lib/ai-provider-config.mjs';
 import { AiProviderAdapter } from '../lib/ai-provider-adapter.mjs';
 import { readProviderHealth, requireProviderRecovery, runProviderRecovery } from '../lib/provider-incident.mjs';
+import { recoveryStageDeadline } from '../lib/provider-recovery-deadline.mjs';
 import { resumeOneBatchAfterProviderRecovery } from '../lib/provider-recovery-resume.mjs';
 import { extractRepresentativeFrames, semanticPrompt } from '../worker/semantic-shadow.mjs';
 import { loadRenderRuntimeConfig } from '../worker/runtime-config.mjs';
@@ -11,21 +12,27 @@ import { loadRenderRuntimeConfig } from '../worker/runtime-config.mjs';
 // Explicit operator entry point. It mutates exactly one Batch only after A-D
 // succeeds; failed checks never touch production Batch or queue state.
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const i = a.indexOf('='); return [a.slice(0, i), a.slice(i + 1)]; }));
-if (args['--provider-restored'] !== 'yes' || !args['--batch'] || !args['--vision-image'] || !args['--vision-answer'] || !args['--vision-question']) {
-  throw new Error('Require --provider-restored=yes --batch=<id> --vision-image=<known fixture> --vision-question=<question> --vision-answer=<expected exact answer>');
+if (args['--provider-restored'] !== 'yes' || !args['--batch'] || !args['--expected-model'] || !args['--vision-image'] || !args['--vision-answer'] || !args['--vision-question']) {
+  throw new Error('Require --provider-restored=yes --batch=<id> --expected-model=<approved active fastModel> --vision-image=<known fixture> --vision-question=<question> --vision-answer=<expected exact answer>');
 }
 process.loadEnvFile('.env.local');
 const root = process.cwd();
 const recoveryIdleTimeoutMs = 90_000;
 const { config } = await resolveProviderConfig(root);
-const model = config.fastModel || config.candidateModels?.[0] || config.strongModel;
-if (!model) throw new Error('No active Provider model is configured');
+const model = config.fastModel;
+if (!model || model !== args['--expected-model']) throw new Error('Approved active fastModel is missing or changed; Recovery Check refused before Provider dispatch');
 const batches = JSON.parse(await readFile(path.join(root, 'data/batches.json'), 'utf8'));
 const batch = batches.find(b => b.id === args['--batch'] || b.taskNumber === args['--batch']);
 if (!batch) throw new Error('Batch not found');
 const original = path.join(root, 'storage/users', batch.ownerId, 'batches', batch.id);
 const rawPool = await readFile(path.join(original, 'shot-pool.json'));
-const shots = JSON.parse(rawPool).shots.filter(s => !s.reject).slice(0, 4);
+const availableShots = JSON.parse(rawPool).shots.filter(s => !s.reject);
+const requestedShotIds = args['--shot-ids']?.split(',').map((id) => id.trim()).filter(Boolean);
+if (requestedShotIds && (requestedShotIds.length !== 4 || new Set(requestedShotIds).size !== 4)) throw new Error('Require four distinct --shot-ids');
+const shots = requestedShotIds
+  ? requestedShotIds.map((id) => availableShots.find((shot) => shot.id === id))
+  : availableShots.slice(0, 4);
+if (shots.some((shot) => !shot)) throw new Error('Recovery Shot does not belong to the Batch ShotPool');
 if (shots.length < 4) throw new Error('Four distinct real Shots required');
 const out = path.join(root, '.project-governance/evidence/provider-recovery', randomUUID());
 await mkdir(out, { recursive: true });
@@ -48,6 +55,9 @@ await requireProviderRecovery(config, {
 const report = await runProviderRecovery({ config, model, root, verifyInputs, reportFile: path.join(out, 'report.json'), check: async (stage, permit) => {
   // Each check is isolated; no hidden retries or fallback and unchanged timeout.
   const adapter = new AiProviderAdapter({ ...config, protocolMode: protocol, retryLimit: 0 }, { root, recoveryPermit: permit });
+  // The adapter timeout is idle-time based. A trickling stream can otherwise
+  // pass after several minutes even though the production Shot budget is 90s.
+  const deadline = recoveryStageDeadline(recoveryIdleTimeoutMs);
   const events = []; const inputHashes = []; let result; let shotIdentity;
   try {
     if (sha(await readFile(path.join(original, 'shot-pool.json'))) !== sha(rawPool)) throw new Error('Frozen ShotPool changed');
@@ -58,7 +68,7 @@ const report = await runProviderRecovery({ config, model, root, verifyInputs, re
     if (stage === 'A' || stage === 'B') {
       const fixture = stage === 'B' ? await image(path.resolve(args['--vision-image'])) : null;
       if (fixture) inputHashes.push(fixture.hash);
-      const r = await adapter.complete({ ...common, timeoutMs: recoveryIdleTimeoutMs, prompt: stage === 'A' ? 'Reply with exactly READY.' : args['--vision-question'], images: fixture ? [fixture.url] : [] });
+      const r = await adapter.complete({ ...common, timeoutMs: recoveryIdleTimeoutMs, signal: deadline.signal, prompt: stage === 'A' ? 'Reply with exactly READY.' : args['--vision-question'], images: fixture ? [fixture.url] : [] });
       result = r.text;
       if (r.text.trim() !== (stage === 'A' ? 'READY' : args['--vision-answer'])) throw Object.assign(new Error('Unexpected verification answer'), { code: 'RECOVERY_ANSWER_MISMATCH' });
     } else {
@@ -67,10 +77,17 @@ const report = await runProviderRecovery({ config, model, root, verifyInputs, re
       if (!files.length) throw new Error('No real Shot frame');
       const frames = await Promise.all(files.map(image)); inputHashes.push(...frames.map(f => f.hash));
       shotIdentity = { shotId: shot.id, source: shot.path, start: shot.start, end: shot.end };
-      result = (await adapter.scoreShot({ ...common, timeoutMs: recoveryIdleTimeoutMs, shotId: shot.id, prompt: semanticPrompt({ shot, hardMetrics: { productVisibility: shot.productVisibility, productCentered: shot.productCentered, motionEnergy: shot.motionEnergy, duration: shot.duration, tags: shot.tags }, requirements: batch.requirements }), images: frames.map(f => f.url) })).result;
+      result = (await adapter.scoreShot({ ...common, timeoutMs: recoveryIdleTimeoutMs, signal: deadline.signal, shotId: shot.id, prompt: semanticPrompt({ shot, hardMetrics: { productVisibility: shot.productVisibility, productCentered: shot.productCentered, motionEnergy: shot.motionEnergy, duration: shot.duration, tags: shot.tags }, requirements: batch.requirements }), images: frames.map(f => f.url) })).result;
     }
     return { valid: true, protocol, model, inputHashes, events, result, shotIdentity };
-  } catch (e) { e.protocol = protocol; e.events = events; throw e; }
+  } catch (e) {
+    // Only these locally generated semantic validation messages are printed;
+    // never print the provider's raw payload, prompt, images, or credential.
+    if (e?.code === 'PROVIDER_MALFORMED_RESPONSE' && /^Provider semantic result failed validation: /.test(e.message)) {
+      process.stderr.write(`Recovery ${stage} semantic validation: ${e.message}\n`);
+    }
+    e.protocol = protocol; e.events = events; throw e;
+  } finally { deadline.close(); }
 } });
 const dStages = report.steps.filter(step => /^D[123]$/.test(step.stage)).map(step => ({
   stage: step.stage,
