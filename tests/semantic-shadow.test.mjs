@@ -114,6 +114,59 @@ test("fair semantic quantum admits at most eight new shots and resumes from comm
   assert.deepEqual(final.evidence.records.map((record) => record.shotId), shots.map((shot) => shot.id));
 });
 
+test("a late transient Shot gets bounded retries after earlier quanta without rescoring completed Shots", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-late-timeout-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 7 }, (_, index) => ({ id: `late-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = new Map();
+  const options = {
+    root, batchDir: root, batch: { id: "late-timeout", files: [], workflowVersion: 1 }, shotPool: { shots },
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+      const count = (calls.get(shotId) || 0) + 1;
+      calls.set(shotId, count);
+      if (shotId === "late-7" && count === 1) throw new ProviderAdapterError("transient fixture timeout", { code: "SEMANTIC_SHOT_BUDGET_EXCEEDED", retryable: false });
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } },
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 60_000, shotBudgetMs: 5_000, quantumShotLimit: 1, concurrency: 1,
+  };
+  for (let segment = 1; segment <= 6; segment++) assert.ok((await runSemanticShadow(options)).continuation);
+  const paused = await runSemanticShadow(options);
+  assert.equal(paused.continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal(paused.evidence.records.filter((record) => record.result).length, 6);
+  const final = await runSemanticShadow(options);
+  assert.equal(final.evidence.complete, true);
+  assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 1, 1, 1, 2]);
+});
+
+test("late transient retries stop after three cache-keyed evaluations", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-late-cap-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 4 }, (_, index) => ({ id: `cap-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = new Map();
+  const options = {
+    root, batchDir: root, batch: { id: "late-cap", files: [], workflowVersion: 1 }, shotPool: { shots },
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+      calls.set(shotId, (calls.get(shotId) || 0) + 1);
+      if (shotId === "cap-4") throw new ProviderAdapterError("transient fixture timeout", { code: "SEMANTIC_SHOT_BUDGET_EXCEEDED", retryable: false });
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } },
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 60_000, shotBudgetMs: 5_000, quantumShotLimit: 1, concurrency: 1,
+  };
+  for (let segment = 1; segment <= 3; segment++) assert.ok((await runSemanticShadow(options)).continuation);
+  assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  await assert.rejects(runSemanticShadow(options), (error) => error.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(error.message));
+  assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 3]);
+});
+
 test("new video requests extract only sent slots and keep cached input identity", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-frame-slots-"));
   t.after(() => rm(root, { recursive: true, force: true }));

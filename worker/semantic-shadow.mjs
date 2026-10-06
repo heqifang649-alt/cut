@@ -11,11 +11,13 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { batchArtifactWritePath, resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 import { productReferencesForGroup } from "../lib/product-reference-match.mjs";
-import { preserveSemanticSnapshot, shotEvidencePath, startSemanticObservation, writeImmutableJson } from "../lib/semantic-observation.mjs";
+import { preserveSemanticSnapshot, shotEvidencePath, startSemanticObservation, writeImmutableJson, writeSemanticPerformance } from "../lib/semantic-observation.mjs";
 
 export const SEMANTIC_EVIDENCE_FILE = "semantic-evidence.v1.json";
 export const SEMANTIC_CACHE_FILE = "semantic-cache.v1.json";
 export const SEMANTIC_PROMPT_VERSION = "semantic-shot-prompt.v1";
+const MAX_TRANSIENT_SHOT_EVALUATIONS = 3;
+const TRANSIENT_SHOT_ERRORS = new Set(["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT"]);
 
 export const isApiSemanticScorerEnabled = (env = process.env) => env.ENABLE_API_SEMANTIC_SCORER === "true";
 export const isHybridPilotEnabled = (env = process.env) => env.ENABLE_HYBRID_PILOT === "true";
@@ -453,8 +455,20 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
     await Promise.all(Array.from({ length: concurrency }, (_, lane) => consume(lane)));
     await commitTail;
     if (fatalError) throw fatalError;
-    if (!stopReason && records.some((record) => record.status === "error")) {
-      stopReason = segment < 3 ? "SEMANTIC_PENDING_SHOTS" : "SEMANTIC_INCOMPLETE";
+    const failedRecords = records.filter((record) => record.status === "error");
+    if (!stopReason && failedRecords.length) {
+      if (segment < 3) stopReason = "SEMANTIC_PENDING_SHOTS";
+      else if (failedRecords.every((record) => TRANSIENT_SHOT_ERRORS.has(record.error?.code))) {
+        // Segment count is not a Shot retry count: a late Shot can receive its
+        // first attempt in segment seven after earlier Shots consumed six
+        // quanta. Bound retries by immutable, cache-keyed evaluation history.
+        const performance = await writeSemanticPerformance(batchDir);
+        const mayRetry = failedRecords.every((record) => {
+          const evaluations = performance.evaluations.filter((item) => item.shotId === record.shotId && item.cacheKey === record.cacheKey);
+          return evaluations.length > 0 && evaluations.length < MAX_TRANSIENT_SHOT_EVALUATIONS;
+        });
+        stopReason = mayRetry ? "SEMANTIC_PENDING_SHOTS" : "SEMANTIC_INCOMPLETE";
+      } else stopReason = "SEMANTIC_INCOMPLETE";
     }
     if (!stopReason && records.some((record) => record.status === "skipped_no_shot_frame")) stopReason = "SEMANTIC_MISSING_SHOT_FRAME";
     records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
