@@ -167,6 +167,31 @@ test("late transient retries stop after three cache-keyed evaluations", async (t
   assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 3]);
 });
 
+test("a late malformed Provider response pauses for bounded retry rather than failing the Batch", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-malformed-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  const shots = Array.from({ length: 4 }, (_, index) => ({ id: `malformed-${index + 1}`, path: frame, source: "fixture", start: 0, end: 1 }));
+  const calls = new Map();
+  const options = {
+    root, batchDir: root, batch: { id: "malformed", files: [], workflowVersion: 1 }, shotPool: { shots },
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async ({ shotId }) => {
+      const count = (calls.get(shotId) || 0) + 1;
+      calls.set(shotId, count);
+      if (shotId === "malformed-4" && count === 1) throw new ProviderAdapterError("invalid response", { code: "PROVIDER_MALFORMED_RESPONSE", retryable: false });
+      return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
+    } },
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", ENABLE_FAIR_MULTI_BATCH_SCHEDULER: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 60_000, shotBudgetMs: 5_000, quantumShotLimit: 1, concurrency: 1,
+  };
+  for (let segment = 1; segment <= 3; segment++) assert.ok((await runSemanticShadow(options)).continuation);
+  assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
+  assert.equal((await runSemanticShadow(options)).evidence.complete, true);
+  assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 2]);
+});
+
 test("new video requests extract only sent slots and keep cached input identity", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-frame-slots-"));
   t.after(() => rm(root, { recursive: true, force: true }));

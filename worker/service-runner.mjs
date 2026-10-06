@@ -560,17 +560,20 @@ async function processOnce() {
     }
   } catch (error) {
     if (await isCanceled(task.batchId).catch(() => false)) return true;
-    if (error?.code === "PROVIDER_BACKPRESSURE") {
+    if (["PROVIDER_BACKPRESSURE", "PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED"].includes(error?.code)) {
       const retryAt = typeof error.retryAt === "string"
         ? error.retryAt
         : new Date(Date.now() + Math.max(30_000, Number(error.retryAfterMs) || 0)).toISOString();
+      const reason = error.code === "PROVIDER_BACKPRESSURE" ? "PROVIDER_BACKPRESSURE" : error.code;
       await update(task.batchId, (item) => {
         item.error = undefined;
-        item.renderingLabel = `Provider 全局退避中，将在 ${new Date(retryAt).toLocaleTimeString("zh-CN", { hour12: false })} 后自动继续`;
+        item.renderingLabel = reason === "PROVIDER_BACKPRESSURE"
+          ? `Provider 全局退避中，将在 ${new Date(retryAt).toLocaleTimeString("zh-CN", { hour12: false })} 后自动继续`
+          : "Provider Incident 已隔离，等待 A–D 恢复检查；任务与已完成证据已保留";
         item.lastWorkerActivityAt = new Date().toISOString();
-        item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_BACKPRESSURE", retryAt, updatedAt: new Date().toISOString() };
+        item.execution = { state: "backpressured", stage: task.stage, reason, retryAt, updatedAt: new Date().toISOString() };
       }).catch(() => undefined);
-      await deferStage({ root: ROOT, task, reason: "PROVIDER_BACKPRESSURE", notBefore: retryAt });
+      await deferStage({ root: ROOT, task, reason, notBefore: retryAt });
       return true;
     }
     try {

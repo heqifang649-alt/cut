@@ -17,7 +17,7 @@ export const SEMANTIC_EVIDENCE_FILE = "semantic-evidence.v1.json";
 export const SEMANTIC_CACHE_FILE = "semantic-cache.v1.json";
 export const SEMANTIC_PROMPT_VERSION = "semantic-shot-prompt.v1";
 const MAX_TRANSIENT_SHOT_EVALUATIONS = 3;
-const TRANSIENT_SHOT_ERRORS = new Set(["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT"]);
+const TRANSIENT_SHOT_ERRORS = new Set(["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_MALFORMED_RESPONSE"]);
 
 export const isApiSemanticScorerEnabled = (env = process.env) => env.ENABLE_API_SEMANTIC_SCORER === "true";
 export const isHybridPilotEnabled = (env = process.env) => env.ENABLE_HYBRID_PILOT === "true";
@@ -416,7 +416,7 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
           consecutiveErrors += 1;
           const providerPaused = ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code);
           const transientProviderFailure = normalized.status === 429 || normalized.status >= 500
-            || ["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_REQUEST_FAILED"].includes(normalized.code);
+            || ["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_REQUEST_FAILED", "PROVIDER_MALFORMED_RESPONSE"].includes(normalized.code);
           if (providerPaused || (consecutiveErrors >= 3 && transientProviderFailure)) {
             stopReason = "PROVIDER_BACKPRESSURE";
             providerRetryAt ||= new Date(Date.now() + 60_000).toISOString();
