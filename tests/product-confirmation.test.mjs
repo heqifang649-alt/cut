@@ -57,6 +57,27 @@ test("validateConfirmation accepts a complete decision set", () => {
   assert.equal(validateConfirmation({ detection, assignments, currentVersion: 1, providedVersion: 1 }), true);
 });
 
+test("visual confirmation requires existing, unique structured product references when observations are present", () => {
+  const detection = baseDetection({
+    groups: [
+      { id: "G1", files: ["a.mp4"], productReferenceFiles: ["red.jpg"] },
+      { id: "G2", files: ["b.mp4"], productReferenceFiles: ["blue.jpg"] },
+    ],
+    unassigned: [],
+    observations: [{ file: "red.jpg", reference: true }, { file: "blue.jpg", reference: true }],
+  });
+  assert.equal(validateConfirmation({ detection, currentVersion: 1, resolveExists: () => true }), true);
+  const reused = structuredClone(detection);
+  reused.groups[1].productReferenceFiles = ["red.jpg"];
+  assert.throws(() => validateConfirmation({ detection: reused, currentVersion: 1, resolveExists: () => true }), /多个产品组复用/);
+  const invented = structuredClone(detection);
+  invented.groups[1].productReferenceFiles = ["invented.jpg"];
+  assert.throws(() => validateConfirmation({ detection: invented, currentVersion: 1, resolveExists: () => true }), /不存在/);
+  const missing = structuredClone(detection);
+  missing.groups[1].productReferenceFiles = [];
+  assert.throws(() => validateConfirmation({ detection: missing, currentVersion: 1, resolveExists: () => true }), /缺少已确认的真实商品图/);
+});
+
 test("validateConfirmation rejects an unhandled file", () => {
   const detection = baseDetection();
   const assignments = [{ file: "u1.mp4", groupId: "G1" }];

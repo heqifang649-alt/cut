@@ -28,6 +28,14 @@ test("honors explicitly declared product references before filename inference", 
   assert.equal(result[0].relativePath, "shared/gc1反.jpg");
 });
 
+test("never treats a rejected prose mention or empty structured assignment as a product reference", () => {
+  const candidates = [{ relativePath: "3 (2).jpeg" }, { relativePath: "3.jpeg" }];
+  const rejected = { id: "P003", files: ["3.1.mp4"], notes: "3 (2).jpeg 结构不一致，未作为对应依据" };
+  assert.equal(productReferenceForGroup(rejected, candidates), null);
+  assert.equal(productReferenceForGroup({ ...rejected, productReferenceFiles: [] }, candidates), null);
+  assert.deepEqual(productReferencesForGroup({ ...rejected, productReferenceFiles: ["3.jpeg"] }, candidates).map(file => file.relativePath), ["3.jpeg"]);
+});
+
 test("matches numeric product sessions to imported sample-photo suffixes without using a shared folder", () => {
   const samples = [{ relativePath: "refs/样衣1.jpg" }, { relativePath: "refs/样衣2.jpg" }];
   assert.equal(productReferenceForGroup({ id: "1", files: ["1.mp4"] }, samples)?.relativePath, "refs/样衣1.jpg");

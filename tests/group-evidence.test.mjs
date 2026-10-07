@@ -43,14 +43,20 @@ test("manual grouping evidence leaves an unmatched product image empty instead o
   assert.equal(snapshot.groups[0].productImage, null);
 });
 
-test("visual grouping evidence uses the product image explicitly named in the group notes", () => {
+test("visual grouping evidence requires a structured product reference, not a prose mention", () => {
   const snapshot = buildGroupEvidenceSnapshot(
     [{ id: "款式-A", label: "款式-A", files: ["video-a.mp4"], notes: "命中的参考图：look-a.png" }],
     [{ relativePath: "video-a.mp4" }],
     [{ relativePath: "look-a.png" }, { relativePath: "look-b.png" }],
     "2026-08-11T00:00:00.000Z",
   );
-  assert.deepEqual(snapshot.groups[0].productImage, { relativePath: "look-a.png" });
+  assert.equal(snapshot.groups[0].productImage, null);
+  const declared = buildGroupEvidenceSnapshot(
+    [{ id: "款式-A", label: "款式-A", files: ["video-a.mp4"], productReferenceFiles: ["look-a.png"], notes: "look-b.png 不匹配" }],
+    [{ relativePath: "video-a.mp4" }],
+    [{ relativePath: "look-a.png" }, { relativePath: "look-b.png" }],
+  );
+  assert.deepEqual(declared.groups[0].productImage, { relativePath: "look-a.png" });
 });
 
 test("filename sessions match their product reference by product family and prefer the front image", () => {

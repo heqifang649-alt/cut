@@ -1133,7 +1133,9 @@ async function detectProducts(batch, activeThread = null, correction = "") {
   if (isApiAnalysisEnabled() && filenameDetection.unassigned.length) {
     const analyzer = await visualAnalyzerForBatch(batch);
     const visualFiles = productFiles.filter((file) => filenameDetection.unassigned.includes(file.relativePath));
-    const guardedSchema = guardedProductAutoConfirmEnabled() && !filenameDetection.groups.length && productReferenceFiles.length > 0;
+    // Request traceable reference assignments even while auto-confirm remains
+    // disabled. This prevents prose notes from becoming accidental references.
+    const guardedSchema = !filenameDetection.groups.length && productReferenceFiles.length > 0;
     const visualDetection = await groupVisualProducts({ analyzer, schema: guardedSchema ? guardedProductDetectionSchema : productDetectionSchema, correction, prior: batch.productDetection,
       files: visualFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file) })),
       references: productReferenceFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file), reference: true })),
@@ -1141,7 +1143,7 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     const detection = filenameDetection.groups.length
       ? { ...mergeFilenameAndVisualDetection(filenameDetection, visualDetection, productFiles.map(file => file.relativePath)), groupingMethod: "filename_then_visual", autoApproved: false }
       : { ...visualDetection, groupingMethod: "visual", autoApproved: false };
-    const autoDecision = guardedSchema ? assessVisualProductAutoConfirmation(detection, productFiles, productReferenceFiles) : null;
+    const autoDecision = guardedSchema && guardedProductAutoConfirmEnabled() ? assessVisualProductAutoConfirmation(detection, productFiles, productReferenceFiles) : null;
     if (autoDecision?.eligible) {
       detection.autoApproved = true;
       detection.autoConfirmation = { ...autoDecision, confirmedAt: new Date().toISOString() };
