@@ -3,8 +3,23 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { assertLease, cancelBatchStages, cancelStage, claimStage, completeStage, deferStage, enqueueStage, heartbeatLease, promoteRetries, queueOverview, releaseWorkerLeases, resetBatchStagesForExplicitRetry, retryStage } from "../worker/service-queue.mjs";
+import { assertLease, cancelBatchStages, cancelStage, claimStage, completeStage, deferStage, enqueueStage, heartbeatLease, holdQueuedStageForBatch, promoteRetries, queueOverview, releaseWorkerLeases, resetBatchStagesForExplicitRetry, retryStage } from "../worker/service-queue.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+
+test("historical operator hold excludes only the exact queued task and requires explicit retry", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-operator-hold-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await enqueueStage({ root, batchId: "historical", stage: "analyze", operation: "quality", workflowVersion: 4 });
+  await enqueueStage({ root, batchId: "fresh", stage: "analyze", operation: "reference", workflowVersion: 2 });
+  await assert.rejects(holdQueuedStageForBatch({ root, batchId: "historical", stage: "analyze", operation: "quality", workflowVersion: 3, reason: "operator_hold" }), /changed/);
+  const held = await holdQueuedStageForBatch({ root, batchId: "historical", stage: "analyze", operation: "quality", workflowVersion: 4, reason: "operator_hold" });
+  assert.equal(held.status, "manual");
+  assert.equal((await enqueueStage({ root, batchId: "historical", stage: "analyze", operation: "quality", workflowVersion: 4 })).status, "manual");
+  assert.equal((await claimStage({ root, stage: "analyze", workerId: "normal-worker" })).batchId, "fresh");
+  assert.equal(await claimStage({ root, stage: "analyze", workerId: "another-worker" }), null);
+  assert.equal((await resetBatchStagesForExplicitRetry({ root, batchId: "historical" })).length, 1);
+  assert.equal((await enqueueStage({ root, batchId: "historical", stage: "analyze", operation: "quality", workflowVersion: 5 })).status, "queued");
+});
 
 test("semantic continuation requeues without incrementing attempts or advancing to clip", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-continuation-"));

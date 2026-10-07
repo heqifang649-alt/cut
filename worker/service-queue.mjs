@@ -295,6 +295,24 @@ export async function manualStageForBatch({ root, batchId, workflowVersion }) {
   return queue.tasks.find((task) => task.batchId === batchId && task.status === "manual" && (workflowVersion === undefined || Number(task.workflowVersion || 1) === Number(workflowVersion))) || null;
 }
 
+// Explicit, reversible operator hold for a known historical task. Periodic
+// discovery preserves manual tasks; only an explicit retry may reopen them.
+export async function holdQueuedStageForBatch({ root, batchId, stage, operation, workflowVersion, reason }) {
+  if (!batchId || !SERVICE_STAGES.includes(stage) || !operation || !reason || !Number.isSafeInteger(Number(workflowVersion))) throw new TypeError("A precise queued task and hold reason are required");
+  return mutate(root, (queue) => {
+    const task = latestTaskForKey(queue.tasks, taskKey(batchId, stage, operation));
+    if (!task || task.status !== "queued" || Number(task.workflowVersion || 1) !== Number(workflowVersion)) throw new Error("Historical hold target changed or is not queued");
+    if (queue.tasks.some((item) => item.batchId === batchId && item.status === "leased")) throw new Error("Cannot hold a Batch with a live lease");
+    task.status = "manual";
+    task.executionState = "manual";
+    task.reason = reason;
+    task.manualAt = now();
+    task.notBefore = undefined;
+    task.lease = undefined;
+    return structuredClone(task);
+  });
+}
+
 export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fairMultiBatch, allowedBatchIds }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   return mutate(root, (queue) => {

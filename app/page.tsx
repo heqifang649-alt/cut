@@ -163,6 +163,7 @@ function lifecycleCurrent(batch: Batch) {
   if (batch.status === "canceled") return { label: "已取消", detail: "任务已取消。" };
   if (batch.status === "reference_ready") return { label: "等待确认", detail: batch.renderingLabel || "产品分组与样片母版等待确认。" };
   if (batch.execution?.state === "review_ready") return { label: "等待审核", detail: "成片与 manifest 已就绪，等待人工确认。" };
+  if (batch.execution?.state === "manual_hold") return { label: "人工暂停", detail: batch.renderingLabel || "此历史任务已隔离，须明确恢复后才会再次领取。" };
   if (batch.execution?.state === "backpressured") return { label: "资源退避中", detail: batch.renderingLabel || "全局资源暂不可用，任务已保留并会自动继续。" };
   if (batch.execution?.state === "waiting_continuation") return { label: "等待分片续跑", detail: batch.renderingLabel || "当前 quantum 已保存，Batch 已回到队列环尾。" };
   if (batch.execution?.state === "retry_wait") return { label: "等待重试", detail: batch.renderingLabel || "当前阶段正在等待自动恢复窗口。" };

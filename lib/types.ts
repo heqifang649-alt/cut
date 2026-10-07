@@ -136,7 +136,7 @@ export type StableTransitionType = (typeof STABLE_TRANSITION_TYPES)[number];
 
 export const COVERAGE_POLICIES = ["all_products_required", "best_products_allowed"] as const;
 export type CoveragePolicy = (typeof COVERAGE_POLICIES)[number];
-export type BatchExecutionState = "queued" | "running" | "backpressured" | "waiting_continuation" | "retry_wait" | "review_ready";
+export type BatchExecutionState = "queued" | "running" | "backpressured" | "waiting_continuation" | "retry_wait" | "manual_hold" | "review_ready";
 
 export type SampleTemplate = {
   id: string;
