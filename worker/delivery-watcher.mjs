@@ -5,8 +5,9 @@ import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { preflightRuntime } from "./runtime-preflight.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
-import { batchWorkspacePath, tenantDeliveryRoot } from "../lib/tenant-paths.mjs";
+import { tenantDeliveryRoot } from "../lib/tenant-paths.mjs";
 import { resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
+import { selectDeliveryBatch } from "../lib/delivery-selection.mjs";
 
 const ROOT = process.cwd();
 const RUNTIME = await loadRuntimeConfig(ROOT);
@@ -16,6 +17,10 @@ const DELIVERY_STORE = path.join(ROOT, "data", "deliveries.json");
 const HEARTBEAT = path.join(ROOT, "data", "delivery-worker-heartbeat.json");
 const DELIVERY_ROOT = RUNTIME.deliveryRoot;
 const once = process.argv.includes("--once");
+const selectedBatchArgs = process.argv.filter((argument) => argument.startsWith("--batch="));
+if (selectedBatchArgs.length > 1 || (selectedBatchArgs.length && !once)) throw new Error("A scoped delivery requires --once and exactly one --batch=<id>");
+const selectedBatchId = selectedBatchArgs[0]?.slice("--batch=".length) || null;
+if (selectedBatchArgs.length && !/^[a-f0-9-]{36}$/i.test(selectedBatchId)) throw new Error("Scoped delivery Batch id is invalid");
 const WORKER_INSTANCE = process.env.CUTFLOW_DELIVERY_INSTANCE || `Delivery-${process.pid}`;
 
 async function writeHeartbeat() {
@@ -44,7 +49,7 @@ function sourcePath(batch, file) {
   return resolveBatchArtifactRecord(ROOT, batch, file.storagePath);
 }
 
-async function deliverBatch(batch, deliveries) {
+async function deliverBatch(batch) {
   const outputFiles = (batch.files || []).filter((file) => file.kind === "output" && /\.mp4$/i.test(file.name));
   if (!outputFiles.length) return false;
   const deliveryBase = batch.storageVersion === 2 ? tenantDeliveryRoot(DELIVERY_ROOT, batch.ownerId) : DELIVERY_ROOT;
@@ -72,14 +77,14 @@ async function deliverBatch(batch, deliveries) {
 }
 
 async function tick() {
-  await writeHeartbeat();
+  if (!selectedBatchId) await writeHeartbeat();
   if (!claimsEnabled()) return false;
   await mkdir(DELIVERY_ROOT, { recursive: true });
   const [batches, deliveries] = await Promise.all([readJson(BATCH_STORE), readJson(DELIVERY_STORE)]);
   const deliveredIds = new Set(deliveries.filter((item) => item.status === "completed").map((item) => item.batchId));
-  const batch = batches.find((item) => item.status === "completed" && !deliveredIds.has(item.id));
+  const batch = selectDeliveryBatch(batches, deliveredIds, selectedBatchId);
   if (!batch) return false;
-  try { return await deliverBatch(batch, deliveries); }
+  try { return await deliverBatch(batch); }
   catch (error) {
     await recordBatchFailure({
       root: ROOT,
