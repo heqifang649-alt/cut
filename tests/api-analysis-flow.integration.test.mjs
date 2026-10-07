@@ -74,3 +74,49 @@ test("real worker completes sample analysis and visual grouping while Codex auth
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("guarded visual auto-confirm queues only a fully evidenced referenced Product", { skip: !existsSync(ffmpeg), timeout: 60000 }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "api-product-auto-confirm-"));
+  const profile = { summary: "fixture", duration_seconds: 3, aspect_ratio: "9:16", pace: "sampled", color: "red", hook_style: "none", caption_safe_zone: "bottom 8%", cvr_style: "none", hook_text: "", cvr_text: "", audio_style: "unknown", fixed_rules: ["original speed"], structure: [{ timeline: "0-3", purpose: "hook", shot_type: "overall", weight: 1 }], transition_plan: { enabled: false, reason: "local", placements: [] }, confidence: 0.98 };
+  const server = createServer(async (request, response) => {
+    let raw = ""; for await (const chunk of request) raw += chunk;
+    const schema = JSON.parse(raw).text.format.schema;
+    const result = schema.properties.features
+      ? { features: "red shirt with white logo", visible_side: "front", exact_text: "", uncertainty: "none", confidence: 0.98 }
+      : schema.properties.groups
+        ? { summary: "one referenced shirt", groups: [{ id: "P001", label: "red shirt", signature: "red shirt with white logo", confidence: 0.98, files: ["clip.mp4"], productReferenceFiles: ["shirt.jpg"], notes: "matches shirt.jpg" }], unassigned: [], confidence: 0.98 }
+        : profile;
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ output_text: JSON.stringify(result) }));
+  });
+  try {
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    const id = "11111111-2222-4333-8444-666666666666";
+    const directory = path.join(root, "storage", "batches", id);
+    await mkdir(directory, { recursive: true }); await mkdir(path.join(root, "data"));
+    await writeRuntimeFixture(root);
+    const video = path.join(directory, "clip.mp4");
+    const image = path.join(directory, "shirt.jpg");
+    await execute(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=180x320:r=24:d=3", "-c:v", "mpeg4", video], { windowsHide: true });
+    await execute(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=180x320", "-frames:v", "1", image], { windowsHide: true });
+    const files = [
+      { id: "source", kind: "products", name: "clip.mp4", relativePath: "clip.mp4", storagePath: path.relative(root, video), sourceType: "upload" },
+      { id: "ref", kind: "product_refs", name: "shirt.jpg", relativePath: "shirt.jpg", storagePath: path.relative(root, image), sourceType: "upload" },
+      { id: "template", kind: "reference", name: "template.mp4", relativePath: "template.mp4", storagePath: path.relative(root, video), sourceType: "upload" },
+    ];
+    await writeFile(path.join(root, "data", "batches.json"), JSON.stringify([{ id, status: "reference_queued", workflowVersion: 1, progress: 10, transitionMode: "hard_cut", requirements: "fixture", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), files }]));
+    await enqueueStage({ root, batchId: id, stage: "analyze", operation: "reference", workflowVersion: 1 });
+    await execute(process.execPath, [runner, "--service=analyze", "--once"], { cwd: root, windowsHide: true, timeout: 45000, env: { ...process.env,
+      CUT_WORK_ROOT: root, CUTFLOW_MIN_FREE_BYTES: "0", ENABLE_HYBRID_PILOT: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_GUARDED_PRODUCT_AUTO_CONFIRM: "true",
+      AI_PROVIDER_BASE_URL: `http://127.0.0.1:${server.address().port}/v1`, AI_PROVIDER_API_KEY: "test-only", MODEL_FAST: "fixture", MODEL_STRONG: "fixture", CODEX_CLI_PATH: path.join(root, "missing.exe"),
+    } });
+    const stored = JSON.parse(await readFile(path.join(root, "data", "batches.json"), "utf8"))[0];
+    assert.equal(stored.status, "batch_queued", stored.error);
+    assert.equal(stored.productDetection.autoApproved, true);
+    assert.equal(stored.productDetection.autoConfirmation.policyVersion, "visual-reference-v1");
+    assert.deepEqual(stored.productDetection.groups[0].productReferenceFiles, ["shirt.jpg"]);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -22,6 +22,7 @@ import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveBatchFile, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { resolveProductGroupsForConsumption } from "../lib/product-confirmation.mjs";
+import { assessVisualProductAutoConfirmation } from "../lib/product-auto-confirmation.mjs";
 import { alignTargetWithDetectedProducts } from "../lib/output-allocation.mjs";
 import { createCodexClient, isCodexReconnectNotice } from "../lib/codex-client.mjs";
 import { productReferenceForGroup } from "../lib/product-reference-match.mjs";
@@ -691,6 +692,12 @@ export const productDetectionSchema = {
   additionalProperties: false,
 };
 
+export const guardedProductDetectionSchema = structuredClone(productDetectionSchema);
+guardedProductDetectionSchema.properties.groups.items.properties.productReferenceFiles = { type: "array", items: { type: "string" } };
+guardedProductDetectionSchema.properties.groups.items.required.push("productReferenceFiles");
+
+const guardedProductAutoConfirmEnabled = () => process.env.ENABLE_GUARDED_PRODUCT_AUTO_CONFIRM === "true";
+
 async function readBatches() {
   return readJson(STORE, []);
 }
@@ -1064,14 +1071,22 @@ async function detectProducts(batch, activeThread = null, correction = "") {
   const savedDetection = await readJson(path.join(batchDir, "product-groups.json"), null);
   const shouldReapplyGroupingRules = batch.status === "regroup_queued" || Boolean(correction);
   if (Array.isArray(savedDetection?.groups) && !shouldReapplyGroupingRules) {
-    const autoApproved = savedDetection.autoApproved === true && savedDetection.groupingMethod === "product_directory";
+    const productFiles = batch.files.filter((file) => file.kind === "products");
+    const productReferenceFiles = batch.files.filter((file) => file.kind === "product_refs");
+    const guarded = savedDetection.groupingMethod === "visual"
+      ? assessVisualProductAutoConfirmation(savedDetection, productFiles, productReferenceFiles)
+      : null;
+    const autoApproved = savedDetection.autoApproved === true && (
+      savedDetection.groupingMethod === "product_directory"
+      || (savedDetection.autoConfirmation?.policyVersion === guarded?.policyVersion && guarded?.eligible === true)
+    );
     await update(batch.id, (item) => {
       item.status = autoApproved ? "batch_queued" : "reference_ready";
       item.progress = autoApproved ? 35 : 38;
       if (!autoApproved) item.execution = undefined;
       persistDetectedProductTarget(item, savedDetection);
       item.recoveryAttempts = 0;
-      item.renderingLabel = autoApproved ? "已恢复产品文件夹分组，已进入后续队列" : "已恢复产品识别结果，等待确认";
+      item.renderingLabel = autoApproved ? "已恢复已验证的产品分组，已进入后续队列" : "已恢复产品识别结果，等待确认";
       item.lastWorkerActivityAt = new Date().toISOString();
     });
     return;
@@ -1118,22 +1133,32 @@ async function detectProducts(batch, activeThread = null, correction = "") {
   if (isApiAnalysisEnabled() && filenameDetection.unassigned.length) {
     const analyzer = await visualAnalyzerForBatch(batch);
     const visualFiles = productFiles.filter((file) => filenameDetection.unassigned.includes(file.relativePath));
-    const visualDetection = await groupVisualProducts({ analyzer, schema: productDetectionSchema, correction, prior: batch.productDetection,
+    const guardedSchema = guardedProductAutoConfirmEnabled() && !filenameDetection.groups.length && productReferenceFiles.length > 0;
+    const visualDetection = await groupVisualProducts({ analyzer, schema: guardedSchema ? guardedProductDetectionSchema : productDetectionSchema, correction, prior: batch.productDetection,
       files: visualFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file) })),
       references: productReferenceFiles.map(file => ({ name: file.relativePath, path: resolveFilePath(batch, file), reference: true })),
     });
     const detection = filenameDetection.groups.length
       ? { ...mergeFilenameAndVisualDetection(filenameDetection, visualDetection, productFiles.map(file => file.relativePath)), groupingMethod: "filename_then_visual", autoApproved: false }
       : { ...visualDetection, groupingMethod: "visual", autoApproved: false };
+    const autoDecision = guardedSchema ? assessVisualProductAutoConfirmation(detection, productFiles, productReferenceFiles) : null;
+    if (autoDecision?.eligible) {
+      detection.autoApproved = true;
+      detection.autoConfirmation = { ...autoDecision, confirmedAt: new Date().toISOString() };
+    }
     await analyzer.check();
     await writeJsonAtomic(path.join(batchDir, "product-groups.json"), detection);
     await cacheManualGroupingEvidence(batch, batchDir, detection.groups, productFiles, productReferenceFiles).catch(() => undefined);
     await update(batch.id, item => {
-      item.status = "reference_ready"; item.progress = 38; item.execution = undefined; persistDetectedProductTarget(item, detection);
+      item.status = detection.autoApproved ? "batch_queued" : "reference_ready";
+      item.progress = detection.autoApproved ? 35 : 38;
+      item.execution = undefined; persistDetectedProductTarget(item, detection);
       item.recoveryAttempts = 0; item.error = undefined;
-      item.renderingLabel = filenameDetection.groups.length
+      item.renderingLabel = detection.autoApproved
+        ? `视觉证据与产品图完整匹配，已自动确认 ${detection.groups.length} 款并进入后续队列`
+        : filenameDetection.groups.length
         ? `已优先使用文件名分组 ${filenameDetection.groups.length} 款，视觉 API 仅处理 ${visualFiles.length} 条未命名素材；请确认`
-        : `视觉 API 已完成 ${detection.groups.length} 款分组，${detection.unassigned.length} 条待核对，请确认`;
+        : `视觉 API 已完成 ${detection.groups.length} 款分组，待核对：${autoDecision?.reason || `${detection.unassigned.length} 条未归组素材`}`;
       item.lastWorkerActivityAt = new Date().toISOString();
     });
     return;
