@@ -359,11 +359,15 @@ async function handleFailure(task, error) {
     codexCircuit = await tripCodexConcurrencyCircuit({ root: ROOT, message, task, service: SERVICE, workerId: WORKER_ID, kind: classification.kind }).catch(() => null);
   }
 
-  if (classification.kind === "provider_backpressure") {
+  // A transient visual API outage is a Provider-level wait, not a failed
+  // Batch attempt. Per-file observations are cached and resume on re-claim.
+  if (classification.kind === "provider_backpressure" || (classification.kind === "visual_api_provider" && classification.recoverable)) {
     const retryAt = new Date(Date.now() + Math.max(60_000, Math.min(300_000, Number(error?.retryAfterMs) || 90_000))).toISOString();
     await update(task.batchId, (item) => {
       item.error = undefined;
-      item.renderingLabel = "Provider 全局容量受限，已保存进度，等待自动续跑";
+      item.renderingLabel = classification.kind === "visual_api_provider"
+        ? "视觉 Provider 暂时不可用，已保存识别进度，等待自动续跑"
+        : "Provider 全局容量受限，已保存进度，等待自动续跑";
       item.lastWorkerActivityAt = new Date().toISOString();
       item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_GLOBAL_BACKPRESSURE", retryAt, updatedAt: new Date().toISOString() };
     });

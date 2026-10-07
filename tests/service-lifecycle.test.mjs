@@ -20,6 +20,8 @@ test("service runner isolates task and failure-handler exceptions", async () => 
   assert.match(source, /Codex authentication requires reconnect/);
   assert.match(source, /Codex 认证未连接；任务已保留/);
   assert.match(source, /classification\.kind === "codex_rate_limit"/);
+  assert.match(source, /classification\.kind === "visual_api_provider" && classification\.recoverable/);
+  assert.match(source, /return deferStage\(\{ root: ROOT, task, reason: "PROVIDER_GLOBAL_BACKPRESSURE"/);
   assert.match(source, /\["PROVIDER_BACKPRESSURE", "PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED"\]\.includes\(error\?\.code\)/);
   assert.match(source, /deferStage\(\{ root: ROOT, task, reason, notBefore: retryAt \}\)/);
   assert.match(source, /batch\.status === "detecting_products" && marker\?\.operation === "regroup" \? "regroup" : "reference"/);
