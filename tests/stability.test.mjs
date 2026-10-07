@@ -191,6 +191,17 @@ test("approval is blocked unless every quality gate passed", async () => {
   assert.match(source, /existing\.status !== "review"/);
   assert.match(source, /stat\(outputPath\)/);
   assert.match(source, /info\.size > 500_000/);
+  assert.match(source, /item\.files\.some\(\(file\) => file\.kind === "output" && file\.qualityStatus !== "passed"\)/);
+});
+
+test("a human review report quarantines only the selected output and records why", async () => {
+  const source = await readFile(new URL("app/api/batches/[id]/outputs/[fileId]/report/route.ts", root), "utf8");
+  assert.match(source, /getBatchForOwners\(id, ownerIds\)/);
+  assert.match(source, /ownerIds\.includes\(item\.ownerId\)/);
+  assert.match(source, /item\.status !== "review"/);
+  assert.match(source, /candidate\.id === fileId && candidate\.kind === "output"/);
+  assert.match(source, /file\.qualityStatus = "failed"/);
+  assert.match(source, /source: "human_review"/);
 });
 
 test("renderer enforces product, speed, music, decode and cancel gates", async () => {

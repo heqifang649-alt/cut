@@ -30,6 +30,7 @@ export type BatchFile = {
   musicName?: string;
   beatOffsetSeconds?: number;
   qualityStatus?: "passed" | "failed";
+  qualityIssue?: { reason: string; reportedAt: string; source: "human_review" };
   productId?: string;
   displayName?: string;
   variantIndex?: number;

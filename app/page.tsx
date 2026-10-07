@@ -2,7 +2,7 @@
 
 import { ChangeEvent, DragEvent, FormEvent, KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import type { Batch, BatchStatus, CoveragePolicy, NasScan, ProductDetection, ReferenceProfile, SampleTemplate, TransitionMode, TransitionProfile } from "@/lib/types";
+import type { Batch, BatchFile, BatchStatus, CoveragePolicy, NasScan, ProductDetection, ReferenceProfile, SampleTemplate, TransitionMode, TransitionProfile } from "@/lib/types";
 import { batchNamePrefix, nextBatchSequence } from "@/lib/batch-name.mjs";
 import DashboardOverview, { type DashboardSnapshot } from "./dashboard-overview";
 
@@ -1281,6 +1281,24 @@ export default function Home() {
     }
   }
 
+  async function reportOutputIssue(batchId: string, file: BatchFile) {
+    const reason = window.prompt(`标记 ${file.name} 的问题（提交后将阻止整批交付，原片保留）`, file.qualityIssue?.reason || "肢体变形或穿帮镜头");
+    if (reason === null) return;
+    setError("");
+    try {
+      const response = await fetch(`/api/batches/${batchId}/outputs/${file.id}/report`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "标记问题失败");
+      await loadBatches();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "标记问题失败");
+    }
+  }
+
   async function decideArtifactReview(batchId: string, sourceKey: string, decision: "accept" | "reject") {
     setError("");
     setArtifactReviewPending(`${batchId}:${sourceKey}`);
@@ -1877,7 +1895,7 @@ export default function Home() {
             </section> : null}
             <TransitionSummary batch={selected} />
             {selected.revisionHistory?.length ? <section className="revision-history"><div><span>REVISION HISTORY</span><strong>成片修改记录</strong></div>{[...selected.revisionHistory].reverse().map((revision) => <article key={revision.id}><b>v{revision.version}</b><p>{revision.command}</p><small>{formatTime(revision.submittedAt)} · {revision.status === "queued" ? "等待处理" : revision.status === "processing" ? "处理中" : revision.status === "review" ? "已生成新成片，等待审核" : `失败：${revision.error || "请查看诊断"}`}</small>{revision.previousOutputs?.length ? <small>保留上一版 {revision.previousOutputs.length} 条成片</small> : null}</article>)}</section> : null}
-            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedOutputs ?? selected.renderSummary.renderedProducts} 条{selected.renderSummary.renderedProductCount ? ` · 覆盖 ${selected.renderSummary.renderedProductCount} 款` : ""} · 质量门禁全部通过</strong>{selected.renderSummary.productVisualReview?.status === "passed" && <p>画面审查通过：已逐段核对成片镜头与对应产品图，未发现混款。</p>}{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
+            {selected.renderSummary && <div className="quality-summary"><strong>本轮成片：{selected.renderSummary.renderedOutputs ?? selected.renderSummary.renderedProducts} 条{selected.renderSummary.renderedProductCount ? ` · 覆盖 ${selected.renderSummary.renderedProductCount} 款` : ""} · {selected.files.some((file) => file.kind === "output" && file.qualityStatus === "failed") ? "有成片被人工退回，禁止交付" : "自动门禁通过，待人工审核"}</strong>{selected.renderSummary.productVisualReview?.status === "passed" && <p>产品一致性审查通过；这不等于肢体与穿帮镜头审查通过。</p>}{selected.renderSummary.excludedProducts.length > 0 && <p>主动排除 {selected.renderSummary.excludedProducts.length} 款：{selected.renderSummary.excludedProducts.map((item) => `${item.product_id}（${item.reason}）`).join("；")}</p>}</div>}
             <div className="detail-actions">
               {cancelableStatuses.includes(selected.status) && selected.status !== "cancel_requested" && <button className="cancel-button" onClick={() => cancelBatch(selected)}>取消当前任务</button>}
               {selected.status === "reference_ready" && selected.productDetection && (
@@ -1943,6 +1961,7 @@ export default function Home() {
                   {group.batches.map((batch) => {
                   const outputs = batch.files.filter((file) => file.kind === "output");
                   const isExpanded = expandedBatches[batch.id] ?? false;
+                  const rejectedOutputs = outputs.filter((file) => file.qualityStatus === "failed");
                   const canCancel = ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising", "reference_ready", "reference_queued", "regroup_queued", "batch_queued", "uploading"].includes(batch.status);
                   const canDelete = ["review", "completed", "canceled", "failed"].includes(batch.status);
                   const toggle = () => setExpandedBatches((prev) => ({ ...prev, [batch.id]: !isExpanded }));
@@ -1952,7 +1971,7 @@ export default function Home() {
                         <span className="review-batch-arrow">{isExpanded ? "▾" : "▸"}</span>
                         <div className="review-batch-meta">
                           <strong>{batch.name}</strong>
-                          <small>{outputs.length} 条成片 · 创建于 {formatTime(batch.createdAt)} · {batch.durationMax}秒以内 · 动作1.00× · 色彩：{colorStrategyLabel(batch.colorStrategy)} · {batch.renderSummary ? "质量门禁已通过" : "等待质检摘要"}</small>
+                          <small>{outputs.length} 条成片 · 创建于 {formatTime(batch.createdAt)} · {batch.durationMax}秒以内 · 动作1.00× · 色彩：{colorStrategyLabel(batch.colorStrategy)} · {rejectedOutputs.length ? `${rejectedOutputs.length} 条人工退回，禁止交付` : batch.renderSummary ? "自动门禁通过，待人工审核" : "等待质检摘要"}</small>
                           {batch.status === "completed" && batch.delivery && <small className="delivery-note">交付：{batch.delivery.status === "delivered" ? "已复制到成片目录" : batch.delivery.status === "copying" ? "正在复制" : batch.delivery.status === "failed" ? `失败：${batch.delivery.error || "请重试"}` : "等待交付 Worker"}</small>}
                         </div>
                       </button>
@@ -1968,10 +1987,10 @@ export default function Home() {
                       <div className="review-videos">
                         {outputs.map((file) => <div className="review-video" key={file.id}>
                           <video controls playsInline preload="metadata" src={`/api/batches/${batch.id}/media/${file.id}`}>当前浏览器不支持视频预览</video>
-                          <div className="review-video-copy"><span title={file.name}>{file.name}</span><small>{file.qualityStatus === "passed" ? `质检通过 · ${file.musicName || "独立音乐"}` : formatSize(file.size)}</small><div className="review-video-links"><button className="save-output-button" onClick={() => saveOutput(batch.id, file)}>选择保存位置</button><a href={`/api/batches/${batch.id}/media/${file.id}?download=1`}>下载 MP4</a>{file.chatcut?.manifestPath && <a href={`/api/batches/${batch.id}/chatcut/${file.id}/manifest`}>剪辑清单</a>}{file.chatcut?.status === "ready" && file.chatcut.editorUrl && <a href={file.chatcut.editorUrl} target="_blank" rel="noreferrer">打开 ChatCut</a>}{file.chatcut?.status && file.chatcut.status !== "ready" && <span className={`chatcut-status ${file.chatcut.status}`}>{file.chatcut.status === "pending" ? "等待同步 ChatCut" : file.chatcut.status === "syncing" ? `正在创建 ChatCut 项目${file.chatcut.lastActivityAt ? ` · 活动 ${timeAgo(file.chatcut.lastActivityAt)}` : ""}` : file.chatcut.status === "needs_auth" ? "需要登录 ChatCut" : "ChatCut 同步失败"}</span>}{["needs_auth", "failed"].includes(file.chatcut?.status || "") && <button className="chatcut-retry" onClick={() => retryChatCut(batch.id, file.id)}>重新同步</button>}</div>{file.chatcut?.error && <small className="chatcut-error" title={file.chatcut.error}>{file.chatcut.error}</small>}</div>
+                          <div className="review-video-copy"><span title={file.name}>{file.name}</span><small>{file.qualityStatus === "failed" ? "人工审核退回 · 禁止交付" : file.qualityStatus === "passed" ? `自动质检通过，待人工审核 · ${file.musicName || "独立音乐"}` : formatSize(file.size)}</small>{file.qualityIssue && <small className="review-quality-issue">问题：{file.qualityIssue.reason}</small>}<div className="review-video-links"><button className="save-output-button" onClick={() => saveOutput(batch.id, file)}>选择保存位置</button><a href={`/api/batches/${batch.id}/media/${file.id}?download=1`}>下载 MP4</a>{batch.status === "review" && <button className="danger-button" onClick={() => reportOutputIssue(batch.id, file)}>标记问题</button>}{file.chatcut?.manifestPath && <a href={`/api/batches/${batch.id}/chatcut/${file.id}/manifest`}>剪辑清单</a>}{file.chatcut?.status === "ready" && file.chatcut.editorUrl && <a href={file.chatcut.editorUrl} target="_blank" rel="noreferrer">打开 ChatCut</a>}{file.chatcut?.status && file.chatcut.status !== "ready" && <span className={`chatcut-status ${file.chatcut.status}`}>{file.chatcut.status === "pending" ? "等待同步 ChatCut" : file.chatcut.status === "syncing" ? `正在创建 ChatCut 项目${file.chatcut.lastActivityAt ? ` · 活动 ${timeAgo(file.chatcut.lastActivityAt)}` : ""}` : file.chatcut.status === "needs_auth" ? "需要登录 ChatCut" : "ChatCut 同步失败"}</span>}{["needs_auth", "failed"].includes(file.chatcut?.status || "") && <button className="chatcut-retry" onClick={() => retryChatCut(batch.id, file.id)}>重新同步</button>}</div>{file.chatcut?.error && <small className="chatcut-error" title={file.chatcut.error}>{file.chatcut.error}</small>}</div>
                         </div>)}
                       </div>
-                      <div className="review-actions"><button className="secondary-button" onClick={() => openBatchWorkspace(batch.id)}>查看任务详情</button>{batch.status === "review" && <button className="primary-button" onClick={() => approveBatch(batch)}>确认通过并交付</button>}</div>
+                      <div className="review-actions"><button className="secondary-button" onClick={() => openBatchWorkspace(batch.id)}>查看任务详情</button>{batch.status === "review" && <button className="primary-button" disabled={rejectedOutputs.length > 0} title={rejectedOutputs.length ? "有成片被人工退回，须返修复核" : undefined} onClick={() => approveBatch(batch)}>确认通过并交付</button>}</div>
                     </>}
                   </article>;
                   })}

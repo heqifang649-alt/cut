@@ -126,6 +126,7 @@ test("HTTP API isolates private resources while exposing shared sample templates
   }
   for (const pathname of [
     `/api/batches/${aBatch.id}/approve`,
+    `/api/batches/${aBatch.id}/outputs/${outputId}/report`,
     `/api/batches/${aBatch.id}/cancel`,
     `/api/batches/${aBatch.id}/delete`,
     `/api/batches/${aBatch.id}/queue-reference`,

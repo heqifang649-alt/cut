@@ -30,6 +30,9 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     if (Object.values(existing.renderSummary.qualityGates).some((value) => value !== "passed")) throw new Error("仍有质量门禁未通过，禁止交付");
     await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {
+      if (item.status !== "review" || item.files.some((file) => file.kind === "output" && file.qualityStatus !== "passed")) {
+        throw new Error("审核状态已变化或有成片被退回，请刷新后重试");
+      }
       item.status = "completed";
       item.progress = 100;
       item.error = undefined;
