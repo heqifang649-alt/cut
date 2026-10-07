@@ -399,8 +399,10 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
         const normalized = error instanceof ProviderAdapterError
           ? new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]), { code: error.code, status: error.status, retryable: error.retryable })
           : new ProviderAdapterError(safeProviderError(error, [resolved.config.apiKey]));
-        if (fairMultiBatch && (normalized.code === "PROVIDER_BACKPRESSURE" || normalized.status === 429
-          || (normalized.code === "SEMANTIC_SHOT_BUDGET_EXCEEDED" && !requestStarted))) {
+        // Admission backpressure consumed no Shot evaluation. Keep it out of
+        // the bounded Shot-failure counter in both scheduler modes.
+        if (normalized.code === "PROVIDER_BACKPRESSURE" || (fairMultiBatch && (normalized.status === 429
+          || (normalized.code === "SEMANTIC_SHOT_BUDGET_EXCEEDED" && !requestStarted)))) {
           stopReason = "PROVIDER_BACKPRESSURE";
           providerRetryAt = error?.retryAt || new Date(Date.now() + Math.max(30_000, Number(error?.retryAfterMs) || 0)).toISOString();
           performance = evaluation.metric("backpressured", normalized.code);

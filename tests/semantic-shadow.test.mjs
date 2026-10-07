@@ -10,6 +10,33 @@ import { semanticShotJsonSchema } from "../lib/semantic-shot.mjs";
 
 const validResult = { schema_version: "semantic-shot.v1", shot_id: "shot-1", shot_type: "front_full_body", product_match: 0.9, clothing_visibility: 0.9, visual_quality: 0.8, hook_value: 0.7, usable: true, confidence: 0.91 };
 
+test("non-fair Provider admission backpressure defers without consuming a Shot attempt", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-admission-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const frame = path.join(root, "frame.jpg");
+  await writeFile(frame, "fixture");
+  let calls = 0;
+  const options = {
+    root, batchDir: root, concurrency: 1,
+    batch: { id: "admission", files: [], workflowVersion: 1 },
+    shotPool: { shots: [{ id: "shot-1", path: frame, source: "fixture", start: 0, end: 1 }] },
+    adapter: { guard: { snapshot: async () => ({}) }, scoreShot: async () => {
+      calls++;
+      if (calls === 1) throw new ProviderAdapterError("provider busy", { code: "PROVIDER_BACKPRESSURE", retryable: true });
+      return { result: validResult, telemetry: {} };
+    } },
+    config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
+    env: { ENABLE_NEW_SHOTPOOL: "true", ENABLE_API_SEMANTIC_SCORER: "true", ENABLE_HYBRID_PILOT: "true", CUT_WORK_ROOT: root },
+    stageBudgetMs: 60_000, shotBudgetMs: 5_000,
+  };
+  const first = await runSemanticShadow(options);
+  assert.equal(first.continuation.reason, "PROVIDER_BACKPRESSURE");
+  assert.equal(first.evidence.records.filter(record => record.status === "error").length, 0);
+  const final = await runSemanticShadow(options);
+  assert.equal(final.evidence.complete, true);
+  assert.equal(calls, 2);
+});
+
 test("semantic budgets cancel stalled scoring, checkpoint successes, and resume without rescoring", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-budget-"));
   t.after(() => rm(root, { recursive: true, force: true }));
