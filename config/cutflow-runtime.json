@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "runtimeProfile": "cutflow-hybrid-pilot",
-  "runtimeRevision": "2026-10-06.1",
+  "runtimeRevision": "2026-10-07.1",
   "pythonExecutable": "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
   "nodeExecutable": "C:\\Users\\尔尔\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
   "ffmpegExecutable": "D:\\自动剪辑网站\\.chatcut-media-import-cache\\8.1\\win32-x64\\ffmpeg.exe",
@@ -9,7 +9,7 @@
   "workRoot": "E:\\cutflow批量",
   "deliveryRoot": "E:\\尔尔本地\\素材\\基督\\自动剪辑\\成片剪完的视频",
   "codexHome": "D:\\codex\\.codex",
-  "codexCliExecutable": "C:\\Users\\尔尔\\AppData\\Local\\OpenAI\\Codex\\bin\\f544b3844e0f14e9\\codex.exe",
+  "codexCliExecutable": "C:\\Users\\尔尔\\AppData\\Local\\OpenAI\\Codex\\bin\\2ffcf3015ebd52b4\\codex.exe",
   "artifactAnalyzerExecutable": null,
   "runtimeTempRoot": "E:\\cutflow批量\\worker-scratch",
   "runtimeCacheRoot": "E:\\cutflow批量\\cache",
