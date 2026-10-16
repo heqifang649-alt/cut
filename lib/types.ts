@@ -68,7 +68,7 @@ export type ProductGroup = {
   label: string;
   productKey?: string;
   signature: string;
-  confidence: number;
+  confidence: number | null;
   files: string[];
   notes: string;
   // Present only for deterministic product-directory grouping. Existing AI and
@@ -83,7 +83,16 @@ export type ProductDetection = {
   summary: string;
   groups: ProductGroup[];
   unassigned: string[];
-  confidence: number;
+  confidence: number | null;
+  normalization?: {
+    mode: "flexible_product_groups_v1";
+    version: number;
+    rawResponseHash: string | null;
+    originalFieldNames: Array<{ path: string; fields: string[] }>;
+    actions: Array<Record<string, string | number>>;
+    manualConfirmationRequired: boolean;
+    normalizedAt: string;
+  };
   groupingMethod?: ProductGroupingMethod;
   autoApproved?: boolean;
   reasons?: string[];
@@ -97,6 +106,8 @@ export type ProductDetection = {
     sourceVersion: number;
     assignments: Array<{ file: string; groupId: string | null }>;
   };
+  sourcePolicy?: { version: string; confirmation: "source_policy"; requestedBy: string; handoffId: string;
+    manifestSha256: string; sourceVersion: number; previousWorkflowVersion: number | null; at: string };
 };
 
 export type ProductGroupEvidence = {
@@ -173,6 +184,7 @@ export type Batch = {
   workflowVersion?: number;
   revisionVersion?: number;
   name: string;
+  demoMode?: { enabled: boolean; createdAt: string; log?: Array<{ at: string; action: string }> };
   requirements: string;
   durationMax: number;
   outputCount: number;
@@ -205,6 +217,19 @@ export type Batch = {
   groupCommands: Array<{ text: string; createdAt: string }>;
   error?: string;
   renderingLabel?: string;
+  semanticProgress?: {
+    processed?: number;
+    completed?: number;
+    total?: number;
+    succeeded?: number;
+    failed?: number;
+    unavailable?: number;
+    autoReady?: boolean;
+    decision?: "partial_degraded" | "blocked";
+    state?: string;
+    stopReason?: string | null;
+    updatedAt?: string;
+  };
   execution?: {
     state: BatchExecutionState;
     stage?: "analyze" | "clip" | "render";
@@ -359,6 +384,11 @@ export type RenderPlan = {
   slots: Array<{ slot: Slot; shot: Shot }>;
   createdAt: string;
   transitionProfile?: TransitionProfile;
+  shortShotCount?: number;
+  consecutiveShortShots?: number;
+  shortestShotDuration?: number;
+  beatCompressionCreatedShortShot?: boolean;
+  shortShotReviewWarning?: boolean;
 };
 
 export type ScheduleResult =
@@ -446,9 +476,14 @@ export function isMetadataSidecar(value: unknown): value is MetadataSidecar {
 }
 
 export function isRenderPlan(value: unknown): value is RenderPlan {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile", "shortShotCount", "consecutiveShortShots", "shortestShotDuration", "beatCompressionCreatedShortShot", "shortShotReviewWarning"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
   if (value.transitionProfile !== undefined && !isTransitionProfile(value.transitionProfile)) return false;
-  return value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
+  return (value.shortShotCount === undefined || (typeof value.shortShotCount === "number" && Number.isInteger(value.shortShotCount) && value.shortShotCount >= 0))
+    && (value.consecutiveShortShots === undefined || (typeof value.consecutiveShortShots === "number" && Number.isInteger(value.consecutiveShortShots) && value.consecutiveShortShots >= 0))
+    && (value.shortestShotDuration === undefined || isNonNegativeNumber(value.shortestShotDuration))
+    && (value.beatCompressionCreatedShortShot === undefined || typeof value.beatCompressionCreatedShortShot === "boolean")
+    && (value.shortShotReviewWarning === undefined || typeof value.shortShotReviewWarning === "boolean")
+    && value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
 }
 
 export function isScheduleResult(value: unknown): value is ScheduleResult {

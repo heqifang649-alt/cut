@@ -69,6 +69,7 @@ async function writeLog(message) {
 }
 
 async function releaseCrashedLeases(reason) {
+  if (!claimsEnabled()) return;
   const message = `Service worker crashed: ${truncate(reason)}`;
   const classification = { category: "recoverable", kind: "worker_crash", recoverable: true, label: "服务异常重启" };
   const released = await releaseWorkerLeases({

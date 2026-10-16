@@ -7,6 +7,7 @@ import { assertWorkRootReady, workPaths, workerInstancePaths } from "../lib/work
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { preflightRuntime } from "./runtime-preflight.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
+import { canaryBatchIds, sameClaimScope } from "./batch-scope.mjs";
 
 // The fleet can be launched directly by recovery or scheduled-task tooling,
 // bypassing the PowerShell launcher that normally injects this setting. Keep
@@ -92,8 +93,9 @@ async function writeHeartbeat() {
 
 async function loadCanaryEnvironment() {
   const canary = await readJson(canaryFile, null);
-  const batchIds = Array.isArray(canary?.batchIds) ? canary.batchIds.filter((value) => typeof value === "string" && value) : [];
-  if (canary?.status !== "running" || canary?.fairSchedulerEnabled !== true || batchIds.length < 3 || batchIds.length > 5) return {};
+  if (canary?.status !== "running" || canary?.fairSchedulerEnabled !== true) return {};
+  let batchIds;
+  try { batchIds = canaryBatchIds(canary.batchIds); } catch { return {}; }
   const batches = await readJson(path.join(ROOT, "data", "batches.json"), []);
   const canceledBatchIds = Array.isArray(batches)
     ? batches.filter((batch) => batchIds.includes(batch?.id) && batch?.status === "canceled").map((batch) => batch.id)
@@ -134,6 +136,10 @@ async function adoptLiveMembers() {
   const prior = await readJson(runtimeFile, null);
   if (!fleetRuntimeIsRecent(prior)) return;
   const priorMembers = new Map((Array.isArray(prior?.members) ? prior.members : []).map((member) => [member.name, member]));
+  const hasLiveMembers = [...priorMembers.values()].some((member) => processIsAlive(Number(member.pid)));
+  if (hasLiveMembers && !sameClaimScope(prior, claimsEnabled(), canaryEnvironment.CUTFLOW_CANARY_BATCH_IDS?.split(",") || [])) {
+    throw new Error("Live fleet members have a different claim scope; stop the existing fleet before switching scope");
+  }
   for (const member of FLEET_MEMBERS) {
     const existing = priorMembers.get(member.name);
     if (processIsAlive(Number(existing?.pid))) {

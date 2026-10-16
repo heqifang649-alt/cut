@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { isRenderPlan } from "../lib/types.ts";
+import { renderPlanShortShotQuality } from "../lib/short-shot-quality.mjs";
 import { SCHEDULER_V2, LEVELS, eligibleShots, creativePreferences, pairConflict } from "../lib/scheduler-policy-v2.mjs";
 
 // Shadow entry only: not imported by the production worker or legacy scheduler.
@@ -27,9 +28,7 @@ export function scheduleProductViewV2({ batchId, productView, semanticEvidence, 
     function search(selected, score, duration) {
       const index = selected.length;
       if (index === roles.length) {
-        // Existing minimum useful cut (4s), now measured from actual edit intervals.
         duration = Math.min(duration, desiredDuration);
-        if (duration + 1e-9 < 4) return;
         const key = selected.map((c) => c.shot.id).join("|");
         if (!best || score > best.score + 1e-9 || (Math.abs(score - best.score) <= 1e-9 && (duration > best.duration + 1e-9 || (Math.abs(duration - best.duration) <= 1e-9 && key < best.key)))) best = { selected: [...selected], score, duration, key };
         return;
@@ -55,7 +54,7 @@ export function scheduleProductViewV2({ batchId, productView, semanticEvidence, 
     }
     const slots = best.selected.map((c, i) => ({ slot: { id: roles[i], label: roles[i] === "opening" && level === "C" ? "Strong Opening" : roles[i], requireTags: [], targetDuration: durations[i] }, shot: c.shot }));
     const id = createHash("sha256").update(JSON.stringify({ policy: SCHEDULER_V2, batchId, productId: productView.product.id, level, slots })).digest("hex").slice(0, 32);
-    const renderPlan = { id, batchId, slots, createdAt };
+    const renderPlan = { id, batchId, slots, createdAt, ...renderPlanShortShotQuality(slots) };
     if (!isRenderPlan(renderPlan)) throw new Error("Invalid V2 RenderPlan");
     return { ...base, status: "success", level, renderPlan, actualCutDuration: best.duration, shotCount: slots.length,
       skippedRoles: LEVELS.A.filter((r) => !roles.includes(r)),

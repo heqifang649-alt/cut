@@ -49,7 +49,7 @@ import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { resolveProviderConfig } from "../lib/ai-provider-config.mjs";
 import { readProviderHealth } from "../lib/provider-incident.mjs";
 import { recordBatchFailure } from "./failure-diagnostics.mjs";
-import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
+import { batchWorkspacePath, batchWorkspacePathForId } from "../lib/tenant-paths.mjs";
 import { taskMayFinalize, taskMayOperate, workflowVersionOf } from "./task-fence.mjs";
 import { taskNumberForBatch } from "../lib/task-number.mjs";
 import { assertWorkRootReady } from "../lib/work-paths.mjs";
@@ -57,6 +57,8 @@ import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from 
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { preflightRuntime } from "./runtime-preflight.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
+import { environmentBatchScope, batchInScope } from "./batch-scope.mjs";
+import { QUALITY_EVIDENCE_V2_PROMPT_VERSION } from '../lib/quality-evidence-v2.mjs';
 
 const ROOT = process.cwd();
 const RUNTIME = await loadRuntimeConfig(ROOT);
@@ -72,7 +74,7 @@ const ONCE = process.argv.includes("--once");
 const IDLE_MS = Math.max(500, Number(process.env.CUTFLOW_SERVICE_POLL_MS) || 1500);
 const LEASE_MS = Math.max(30_000, Number(process.env.CUTFLOW_SERVICE_LEASE_MS) || 120_000);
 const HEARTBEAT_MS = Math.min(30_000, Math.max(5_000, Math.floor(LEASE_MS / 3)));
-const CANARY_BATCH_IDS = new Set(String(process.env.CUTFLOW_CANARY_BATCH_IDS || "").split(",").map((value) => value.trim()).filter(Boolean));
+const CANARY_BATCH_IDS = environmentBatchScope();
 const DERIVED_ACTIVE_BATCH_STATUSES = new Set([
   "reference_queued", "analyzing_reference", "creating_proxies", "detecting_products",
   "regroup_queued", "batch_queued", "editing", "revision_queued", "revising",
@@ -92,7 +94,7 @@ async function fileExists(file) {
 
 async function writeServiceHeartbeat() {
   await mkdir(path.dirname(heartbeatFile), { recursive: true });
-  await writeFile(heartbeatFile, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID, claimsEnabled: claimsEnabled(), ...runtimeIdentity(RUNTIME) }), "utf8");
+  await writeFile(heartbeatFile, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID, claimsEnabled: claimsEnabled(), canaryBatchIds: CANARY_BATCH_IDS ? [...CANARY_BATCH_IDS] : null, qualityPromptVersion: QUALITY_EVIDENCE_V2_PROMPT_VERSION, ...runtimeIdentity(RUNTIME) }), "utf8");
 }
 
 async function markStage(root, batch, next, operation) {
@@ -118,13 +120,14 @@ async function taskCanFinalize(task) {
 }
 
 async function syncDerivedTasks() {
+  if (!claimsEnabled() || CANARY_BATCH_IDS?.size === 0) return;
   const [batches, queue] = await Promise.all([readBatches(), readQueue(ROOT)]);
   const manualTasks = new Map();
   for (const task of queue.tasks || []) {
     if (task.status === "manual") manualTasks.set(`${task.batchId}:${workflowVersionOf(task)}`, task);
   }
   for (const batch of batches) {
-    if (CANARY_BATCH_IDS.size && !CANARY_BATCH_IDS.has(batch.id)) continue;
+    if (!batchInScope(CANARY_BATCH_IDS, batch.id)) continue;
     if (await fileExists(cancelFile(batch))) {
       if (batch.status === "cancel_requested") {
         await cancelBatchStages({ root: ROOT, batchId: batch.id });
@@ -261,7 +264,7 @@ async function runTask(task) {
     if (outcome?.skipped) return { completed: true, skipped: true };
     // Artifact analysis failure is a manual-quality state, not a worker failure.
     // Do not advance it to clip/render or send it into recovery retries.
-    if (outcome?.artifactReviewRequired) return { completed: true, artifactReviewRequired: true };
+    if (outcome?.artifactReviewRequired || outcome?.qualityReviewRequired) return { completed: true, artifactReviewRequired: true };
     if (task.stage === "analyze" && task.operation === "quality") {
       await markStage(ROOT, batch, "clip", "edit");
       await enqueueStage({ root: ROOT, batchId: batch.id, stage: "clip", operation: "edit", priority: task.priority, workflowVersion: workflowVersionOf(batch), taskNumber: taskNumberForBatch(batch) });
@@ -290,22 +293,21 @@ async function runTask(task) {
 
 async function handleFailure(task, error) {
   const message = error instanceof Error ? error.message : String(error);
-  // The Incident may open while a quality stage is scoring Shots. A partial
-  // semantic result is then Provider backpressure, not a terminal Batch fault.
-  if (task.operation === "quality" && error?.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(message)) {
-    const { config } = await resolveProviderConfig(ROOT);
-    const model = config.fastModel;
-    const health = model ? await readProviderHealth(config, model, { root: ROOT }) : null;
-    if (["OPEN_WAITING_PROVIDER", "PENDING_RECOVERY"].includes(health?.status)) {
-      const retryAt = new Date(Date.now() + 60_000).toISOString();
+  const automaticBatch = await loadBatch(task.batchId);
+  if (automaticBatch?.libtvSource?.editPolicyReceipt?.state === "accepted") {
+    const code = ["SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY"].includes(error?.code) ? error.code
+      : /Schedule Failed:.*(?:schedule:hook|no_matching_shot.*hook)/i.test(message) ? "NO_MATCHING_HOOK"
+      : /Schedule Failed:/.test(message) ? "SOURCE_INSUFFICIENT" : null;
+    if (code) {
+      if (!(await taskCanFinalize(task))) return { state: "lost", lost: true };
       await update(task.batchId, (item) => {
-        item.status = "editing";
-        item.error = undefined;
-        item.renderingLabel = "Provider Incident 已隔离，等待 A–D 恢复检查；已完成评分保留";
-        item.lastWorkerActivityAt = new Date().toISOString();
-        item.execution = { state: "backpressured", stage: task.stage, reason: "PROVIDER_INCIDENT_OPEN", retryAt, updatedAt: new Date().toISOString() };
+        item.status = "failed"; item.bridgeErrorCode = code;
+        item.error = { NO_MATCHING_HOOK: "合格素材中没有符合母版的开头镜头。", SOURCE_INSUFFICIENT: "自动检查后合格素材或必要证据不足。",
+          QUALITY_REJECTED: "自动质量检查拒绝使用相关素材。", TEMPLATE_NOT_READY: "指定母版不可用或归属已变化。" }[code];
+        item.renderingLabel = item.error;
+        item.execution = { state: "failed", stage: task.stage, reason: code, updatedAt: new Date().toISOString() };
       });
-      return deferStage({ root: ROOT, task, reason: "PROVIDER_INCIDENT_OPEN", notBefore: retryAt, fairMultiBatch: true });
+      return retryStage({ root: ROOT, task, reason: code, maxAttempts: 0 });
     }
   }
   // Older workers may have emitted a plain Schedule Failed error before the
@@ -313,7 +315,7 @@ async function handleFailure(task, error) {
   // an explicit requeue receives the same bounded two-attempt policy.
   let providerFailures = error?.providerFailures;
   if (!Array.isArray(providerFailures) && /schedule failed|排片失败/i.test(message)) {
-    const evidence = await readJson(path.join(batchWorkspacePath(ROOT, task.batchId), "semantic-evidence.v1.json"), null).catch(() => null);
+    const evidence = await readJson(path.join(await batchWorkspacePathForId(ROOT, task.batchId), "semantic-evidence.v1.json"), null).catch(() => null);
     providerFailures = (Array.isArray(evidence?.records) ? evidence.records : [])
       .filter((record) => {
         const code = String(record?.error?.code || "").toUpperCase();
@@ -540,10 +542,11 @@ async function processOnce() {
       runtimePreflightPassed = true;
     }
     if (!claimsEnabled()) return false;
+    if (CANARY_BATCH_IDS?.size === 0) return false;
     await assertWorkRootReady({ maxAgeMs: 10_000 });
-    await promoteRetries({ root: ROOT, stage: STAGE });
+    await promoteRetries({ root: ROOT, stage: STAGE, allowedBatchIds: CANARY_BATCH_IDS });
     await syncDerivedTasks();
-    task = await claimStage({ root: ROOT, stage: STAGE, workerId: WORKER_ID, leaseMs: LEASE_MS, allowedBatchIds: CANARY_BATCH_IDS.size ? CANARY_BATCH_IDS : undefined });
+    task = await claimStage({ root: ROOT, stage: STAGE, workerId: WORKER_ID, leaseMs: LEASE_MS, allowedBatchIds: CANARY_BATCH_IDS });
   } catch (error) {
     if (error?.code === "RUNTIME_DEPENDENCY_UNAVAILABLE") {
       await writeJsonAtomic(path.join(ROOT, "data", "runtime-health", `${SERVICE}.json`), { status: error.code, capability: SERVICE, unavailable: error.unavailable || [], failureStage: error.failureStage || "preflight", detectedAt: error.detectedAt || new Date().toISOString(), ...runtimeIdentity(RUNTIME) }).catch(() => undefined);
@@ -610,7 +613,7 @@ async function processOnce() {
         item.error = undefined;
         item.renderingLabel = reason === "PROVIDER_BACKPRESSURE"
           ? `Provider 全局退避中，将在 ${new Date(retryAt).toLocaleTimeString("zh-CN", { hour12: false })} 后自动继续`
-          : "Provider Incident 已隔离，等待 A–D 恢复检查；任务与已完成证据已保留";
+          : "Provider Incident 历史记录已保留；当前请求由实时 circuit 状态控制";
         item.lastWorkerActivityAt = new Date().toISOString();
         item.execution = { state: "backpressured", stage: task.stage, reason, retryAt, updatedAt: new Date().toISOString() };
       }).catch(() => undefined);
@@ -652,4 +655,4 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
-export { main, processOnce, syncDerivedTasks };
+export { main, processOnce, syncDerivedTasks, handleFailure };

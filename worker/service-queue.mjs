@@ -1,6 +1,7 @@
 import path from "node:path";
 import { mkdir, readdir, readFile, stat } from "node:fs/promises";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { batchInScope, effectiveBatchScope } from "./batch-scope.mjs";
 
 export const SERVICE_STAGES = ["analyze", "clip", "render"];
 export const QUEUE_PRIORITIES = ["HIGH", "NORMAL", "LOW"];
@@ -72,11 +73,15 @@ function fairEnabled(value) {
   return process.env.ENABLE_FAIR_MULTI_BATCH_SCHEDULER === "true";
 }
 
-function normalizeQueueMetadata(queue) {
+function normalizeQueueMetadata(queue, scope) {
   queue.schemaVersion = Math.max(2, Number(queue.schemaVersion) || 1);
   queue.scheduler = queue.scheduler && typeof queue.scheduler === "object" ? queue.scheduler : {};
   let sequence = Math.max(0, Number(queue.nextReadySequence) || 0);
   for (const task of queue.tasks || []) {
+    sequence = Math.max(sequence, Number(task.readySequence) || 0);
+  }
+  for (const task of queue.tasks || []) {
+    if (!batchInScope(scope, task.batchId)) continue;
     if (!Number.isSafeInteger(Number(task.readySequence)) || Number(task.readySequence) <= 0) task.readySequence = ++sequence;
     else sequence = Math.max(sequence, Number(task.readySequence));
     task.executionState ||= task.status === "leased" ? "running" : task.status === "retry" ? "retry_wait" : task.status;
@@ -141,15 +146,19 @@ function fairTask(queue, tasks, stage, currentTime) {
   return selected || ordered(eligible)[0];
 }
 
-async function mutate(root, change) {
+async function mutate(root, change, allowedBatchIds) {
+  const scope = effectiveBatchScope(allowedBatchIds);
   const file = queuePath(root);
   await mkdir(path.dirname(file), { recursive: true });
   return withFileLock(file, async () => {
     const queue = await readQueue(root);
     queue.tasks ??= [];
-    normalizeQueueMetadata(queue);
+    const peers = () => JSON.stringify(queue.tasks.filter((task) => !batchInScope(scope, task.batchId)));
+    const beforePeers = peers();
+    normalizeQueueMetadata(queue, scope);
     const result = await change(queue);
     if (result && result[NO_CHANGE]) return result.value;
+    if (peers() !== beforePeers) throw new Error("Queue mutation outside the authorized Batch scope");
     queue.updatedAt = now();
     await writeJsonAtomic(file, queue);
     return result;
@@ -184,9 +193,9 @@ function canReuseEnqueuedTask(task, { priority, reason, notBefore, workflowVersi
 }
 
 /**
- * @param {{ root: any, batchId: any, stage: any, operation?: string, priority?: string, reason?: any, notBefore?: any, workflowVersion?: any, taskNumber?: any, reopenCompletedAfterMs?: number }} options
+ * @param {{ root: any, batchId: any, stage: any, operation?: string, priority?: string, reason?: any, notBefore?: any, workflowVersion?: any, taskNumber?: any, reopenCompletedAfterMs?: number, allowedBatchIds?: string[] }} options
  */
-export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber, reopenCompletedAfterMs }) {
+export async function enqueueStage({ root, batchId, stage, operation = "default", priority = "NORMAL", reason, notBefore, workflowVersion, taskNumber, reopenCompletedAfterMs, allowedBatchIds }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
   const key = taskKey(batchId, stage, operation);
   // Dedup is decided authoritatively under the file lock below. A pre-lock
@@ -242,7 +251,7 @@ export async function enqueueStage({ root, batchId, stage, operation = "default"
     };
     queue.tasks.push(task);
     return { ...task };
-  });
+  }, allowedBatchIds);
 }
 
 export async function cancelBatchStages({ root, batchId }) {
@@ -261,7 +270,8 @@ export async function cancelBatchStages({ root, batchId }) {
 // A user may explicitly restart a task that reached a terminal manual state
 // after correcting its prerequisites. This is deliberately separate from
 // enqueueStage: periodic discovery must never reopen a manual task on its own.
-export async function resetBatchStagesForExplicitRetry({ root, batchId, reason = "explicit_manual_retry" }) {
+/** @param {{ root: any, batchId: any, reason?: string, allowedBatchIds?: string[] }} options */
+export async function resetBatchStagesForExplicitRetry({ root, batchId, reason = "explicit_manual_retry", allowedBatchIds }) {
   return mutate(root, (queue) => {
     const changed = [];
     for (const task of queue.tasks.filter((item) => item.batchId === batchId && !["completed", "canceled"].includes(item.status))) {
@@ -273,7 +283,7 @@ export async function resetBatchStagesForExplicitRetry({ root, batchId, reason =
       changed.push({ ...task });
     }
     return changed.length ? changed : noChange(changed);
-  });
+  }, allowedBatchIds);
 }
 
 export async function cancelStage({ root, batchId, stage, operation }) {
@@ -315,10 +325,13 @@ export async function holdQueuedStageForBatch({ root, batchId, stage, operation,
 
 export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fairMultiBatch, allowedBatchIds }) {
   if (!SERVICE_STAGES.includes(stage)) throw new TypeError(`Unsupported service stage: ${stage}`);
+  const allowed = effectiveBatchScope(allowedBatchIds);
+  if (allowed?.size === 0) return null;
   return mutate(root, (queue) => {
     const currentTime = Date.now();
     let changed = false;
     for (const task of queue.tasks) {
+      if (!batchInScope(allowed, task.batchId)) continue;
       if (task.status === "leased" && task.lease && new Date(task.lease.expiresAt).getTime() <= currentTime) {
         // Never hand an expired lease straight to another worker. The first
         // worker may still be alive but partitioned; an immediate re-claim can
@@ -355,15 +368,15 @@ export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fair
     const busyBatchIds = new Set(queue.tasks
       .filter((item) => item.status === "leased" && item.lease && new Date(item.lease.expiresAt).getTime() > currentTime)
       .map((item) => item.batchId));
-    const allowed = allowedBatchIds ? new Set(allowedBatchIds) : null;
     const candidates = queue.tasks.filter((item) =>
       item.stage === stage &&
       item.status === "queued" &&
-      (!allowed || allowed.has(item.batchId)) &&
+      batchInScope(allowed, item.batchId) &&
       !busyBatchIds.has(item.batchId) &&
       (!item.notBefore || new Date(item.notBefore).getTime() <= currentTime),
     );
-    const task = fairEnabled(fairMultiBatch) ? fairTask(queue, candidates, stage, currentTime) : ordered(candidates)[0];
+    const schedulerKey = allowed ? `canary:${[...allowed].sort().join(",")}:${stage}` : stage;
+    const task = fairEnabled(fairMultiBatch) ? fairTask(queue, candidates, schedulerKey, currentTime) : ordered(candidates)[0];
     if (!task) return changed ? null : noChange(null);
     const version = Number(task.leaseVersion || 0) + 1;
     task.leaseVersion = version;
@@ -379,7 +392,7 @@ export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fair
       expiresAt: new Date(currentTime + leaseMs).toISOString(),
     };
     return structuredClone(task);
-  });
+  }, allowed);
 }
 
 export async function heartbeatLease({ root, task, leaseMs = 90_000 }) {
@@ -462,11 +475,13 @@ export async function deferStage({ root, task, reason, notBefore, fairMultiBatch
 // A process can disappear before its task-level error handler runs. Do not
 // leave that lease to be reclaimed forever: convert the abandoned work into
 // the same bounded retry/manual state used for ordinary task failures.
-export async function releaseWorkerLeases({ root, workerId, reason, maxAttempts = DEFAULT_MAX_ATTEMPTS }) {
+export async function releaseWorkerLeases({ root, workerId, reason, maxAttempts = DEFAULT_MAX_ATTEMPTS, allowedBatchIds }) {
   if (typeof workerId !== "string" || !workerId) throw new TypeError("workerId is required");
+  const allowed = effectiveBatchScope(allowedBatchIds);
+  if (allowed?.size === 0) return [];
   return mutate(root, (queue) => {
     const released = [];
-    for (const task of queue.tasks.filter((item) => item.status === "leased" && item.lease?.workerId === workerId)) {
+    for (const task of queue.tasks.filter((item) => batchInScope(allowed, item.batchId) && item.status === "leased" && item.lease?.workerId === workerId)) {
       const attempt = Number(task.attempt || 0) + 1;
       task.attempt = attempt;
       task.reason = reason;
@@ -485,22 +500,24 @@ export async function releaseWorkerLeases({ root, workerId, reason, maxAttempts 
       released.push({ task: structuredClone(task), state: "retry", attempt, notBefore: task.notBefore });
     }
     return released.length ? released : noChange(released);
-  });
+  }, allowed);
 }
 
-export async function promoteRetries({ root, stage }) {
+export async function promoteRetries({ root, stage, allowedBatchIds }) {
+  const allowed = effectiveBatchScope(allowedBatchIds);
+  if (allowed?.size === 0) return 0;
   return mutate(root, (queue) => {
     const currentTime = Date.now();
     let promoted = 0;
     for (const task of queue.tasks) {
-      if (task.stage === stage && task.status === "retry" && (!task.notBefore || new Date(task.notBefore).getTime() <= currentTime)) {
+      if (batchInScope(allowed, task.batchId) && task.stage === stage && task.status === "retry" && (!task.notBefore || new Date(task.notBefore).getTime() <= currentTime)) {
         task.status = "queued";
         task.executionState = "queued";
         promoted += 1;
       }
     }
     return promoted || noChange(promoted);
-  });
+  }, allowed);
 }
 
 export async function queueOverview(root, allowedBatchIds) {

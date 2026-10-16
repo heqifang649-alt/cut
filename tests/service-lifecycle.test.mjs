@@ -2,8 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadRenderRuntimeConfig } from "../worker/runtime-config.mjs";
+import { hybridRenderHarness, goodEvidence } from "./helpers/hybrid-render-evidence.mjs";
 
 const root = new URL("../", import.meta.url);
+
+test("maintenance restart can skip account/provider probes without changing normal defaults", async () => {
+  const source = await readFile(new URL("scripts/restart-cutflow.ps1", root), "utf8");
+  assert.match(source, /\$skipAccountCheck = \$args -contains '-SkipAccountCheck'/);
+  assert.match(source, /-SkipAccountCheck:\$skipAccountCheck/);
+});
 
 test("service runner isolates task and failure-handler exceptions", async () => {
   const source = await readFile(new URL("worker/service-runner.mjs", root), "utf8");
@@ -31,9 +38,14 @@ test("service runner isolates task and failure-handler exceptions", async () => 
 });
 
 test("Hybrid render forwards complete semantic evidence to the Product visual gate", async () => {
-  const source = await readFile(new URL("worker/processor.mjs", root), "utf8");
-  assert.match(source, /semanticEvidence\?\.complete !== true \|\| !Array\.isArray\(semanticEvidence\.records\)/);
-  assert.match(source, /renderBatchFromRenderPlans\(\{[\s\S]*?semanticEvidence,/);
+  const evidence = goodEvidence();
+  const h = await hybridRenderHarness(evidence);
+  await h.run();
+  assert.equal(h.calls.gate.length, 1);
+  assert.equal(h.calls.gate[0].semanticEvidence, evidence);
+  assert.equal(h.calls.encoder.length, 1);
+  assert.equal(h.calls.encoder[0].productVisualReview.status, "passed");
+  assert.equal(h.batch.status, "review");
 });
 
 test("supervisor bounds recovery after a child worker crash", async () => {
@@ -82,7 +94,10 @@ test("the production launcher enables normal queue claims by default", async () 
   assert.match(source, /Get-CutflowSetting 'CUTFLOW_CLAIM_ENABLED' \$null/);
   assert.match(source, /if \(\$NoClaim\) \{ \$claimSetting = 'false' \}/);
   assert.match(restart, /-NoClaim:\$noClaim/);
-  assert.match(await readFile(new URL("../.env.local", import.meta.url), "utf8"), /(?:^|\r?\n)CUTFLOW_CLAIM_ENABLED=true(?:\r?\n|$)/);
+  // Assert the launcher policy, independently of a host's private maintenance setting.
+  assert.match(source, /if \(-not \$claimSetting\) \{ \$claimSetting = 'true' \}/);
+  assert.match(source, /\$env:CUTFLOW_CLAIM_ENABLED = if \(\$claimSetting -eq 'false'\) \{ 'false' \} else \{ 'true' \}/);
+  assert.ok(source.indexOf("if ($NoClaim)") < source.indexOf("if (-not $claimSetting) { $claimSetting = 'true' }"));
 });
 
 test("every task-producing route checks the fleet and directly queues service stages", async () => {

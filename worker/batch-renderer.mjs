@@ -4,6 +4,7 @@ import { createHash, randomInt } from "node:crypto";
 import path from "node:path";
 import { storedArtifactPath } from "../lib/work-paths.mjs";
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
+import { renderPlanShortShotQuality } from "../lib/short-shot-quality.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertLegacyEditPlanReady } from "./edit-plan-readiness.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
@@ -375,6 +376,9 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
         transition_out: "hard_cut",
       };
     });
+    const computedShortShotQuality = renderPlanShortShotQuality(scheduleResult.renderPlan.slots, {
+      beatCompressionCreatedShortShot: scheduleResult.renderPlan.beatCompressionCreatedShortShot ?? false,
+    });
     const productProfile = resolvedTransitionProfile(transitionProfile || scheduleResult.renderPlan.transitionProfile || selectedProfile);
     const timeline = materializeProductTimeline(rawSegments, master, { transitionProfile: productProfile, featureEnabled });
     return {
@@ -383,6 +387,13 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       display_name: product.label,
       duration_seconds: timeline.durationSeconds,
       visual_consistency_verified: true,
+      short_shot_quality: {
+        shortShotCount: computedShortShotQuality.shortShotCount,
+        consecutiveShortShots: computedShortShotQuality.consecutiveShortShots,
+        shortestShotDuration: computedShortShotQuality.shortestShotDuration,
+        beatCompressionCreatedShortShot: computedShortShotQuality.beatCompressionCreatedShortShot,
+        reviewWarning: computedShortShotQuality.shortShotReviewWarning,
+      },
       transition_profile: timeline.transitionProfile,
       applied_transition_profile: timeline.appliedTransitionProfile,
       ...(timeline.ending_transition ? { ending_transition: timeline.ending_transition } : {}),
@@ -1043,6 +1054,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   }
 
   const transitionSummary = summarizeTransitions(renderedTimelines, transitionProfile);
+  const shortShotProducts = edl.products.filter((product) => product.short_shot_quality?.shortShotCount > 0);
+  const shortShotReviewWarnings = edl.products.filter((product) => product.short_shot_quality?.reviewWarning).map((product) => product.product_id);
   const summary = {
     // Keep the historical field compatible: approval previously interpreted
     // renderedProducts as the number of output files, despite its name.
@@ -1051,7 +1064,11 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     requestedOutputs: totalOutputs,
     renderedOutputs: results.length,
     excludedProducts: Array.isArray(edl.excluded_products) ? edl.excluded_products : [],
-    qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed" },
+    qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed", shortShotReview: shortShotReviewWarnings.length ? "warning" : "passed" },
+    shortShotQuality: {
+      products: shortShotProducts.map((product) => ({ product_id: product.product_id, ...product.short_shot_quality })),
+      reviewWarnings: shortShotReviewWarnings,
+    },
     ...(productVisualReview ? { productVisualReview } : {}),
     ...transitionSummary,
   };

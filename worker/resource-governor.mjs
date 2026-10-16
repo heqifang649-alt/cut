@@ -1,5 +1,6 @@
 import path from "node:path";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { environmentBatchScope, batchInScope } from "./batch-scope.mjs";
 
 const DEFAULT_RENDER_LIMIT = 2;
 const DEFAULT_LEASE_MS = 120_000;
@@ -35,7 +36,9 @@ function account(render, currentTime) {
 }
 
 function cleanExpired(render, currentTime, isPidLive) {
+  const scope = environmentBatchScope();
   for (const [token, lease] of Object.entries(render.active)) {
+    if (!batchInScope(scope, lease.batchId)) continue;
     if (Number(lease.expiresAt) <= currentTime || !isPidLive(Number(lease.pid))) delete render.active[token];
   }
 }

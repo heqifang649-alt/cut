@@ -28,7 +28,7 @@ type ArtifactEvidenceSource = { sourceKey: string; source?: { fileId?: string; n
 type ArtifactEvidenceSnapshot = { generatedAt?: string; sources?: ArtifactEvidenceSource[] };
 type ProductGroupEvidence = { groupId: string; label: string; videoThumbnailUrl: string | null; productImageThumbnailUrl: string | null };
 type ProductGroupEvidenceSnapshot = { groups?: ProductGroupEvidence[] };
-type AppView = "dashboard" | "batches" | "new-batch" | "batch-detail" | "templates" | "reviews" | "users" | "ai-provider";
+type AppView = "dashboard" | "batches" | "new-batch" | "batch-detail" | "templates" | "reviews" | "demo" | "users" | "ai-provider";
 type AuthUser = { id: string; username: string; displayName: string; role: "admin" | "member" };
 type ManagedUser = AuthUser & { status: "active" | "disabled"; createdAt: string; updatedAt: string };
 type NewUserDraft = { username: string; role: "admin" | "member" };
@@ -510,7 +510,7 @@ function ProductDetectionPanel({ detection, evidence = [], status, targetOutputs
     <div className="detection-panel">
       <div className="profile-head">
         <div><span className="eyebrow">产品识别</span><h3>自动识别到 {detectedProductCount} 款产品</h3></div>
-        <div className="confidence">{Math.round(detection.confidence * 100)}% 总体置信度</div>
+        <div className="confidence">{detection.confidence == null ? "总体置信度未知" : `${Math.round(detection.confidence * 100)}% 总体置信度`}</div>
       </div>
       <p className="profile-summary">{detection.summary}</p>
       {detection.targetOutputAdjustment && <div className="notice-banner" role="status">已识别 {detection.targetOutputAdjustment.to} 款可产出产品，本批目标已自动调整为 {detection.targetOutputAdjustment.to} 条（原目标 {detection.targetOutputAdjustment.from} 条）。每款至少 1 条，质量门禁仍会逐款检查。</div>}
@@ -521,7 +521,7 @@ function ProductDetectionPanel({ detection, evidence = [], status, targetOutputs
           return <div className={`product-group ${groupEvidence && (groupEvidence.videoThumbnailUrl || groupEvidence.productImageThumbnailUrl) ? "has-evidence" : ""}`} key={group.id}>
             <div className="group-number">{String(index + 1).padStart(2, "0")}</div>
             <div className="group-copy"><strong>{group.label}</strong><span>{group.signature}</span><small>{group.files.slice(0, 3).join(" · ")}{group.files.length > 3 ? ` 等${group.files.length}个视频` : ""}</small></div>
-            <div className="group-score">{Math.round(group.confidence * 100)}%</div>
+            <div className="group-score">{group.confidence == null ? "未知" : `${Math.round(group.confidence * 100)}%`}</div>
             {groupEvidence && (groupEvidence.videoThumbnailUrl || groupEvidence.productImageThumbnailUrl) && <div className="group-evidence" aria-label={`${group.label} 的分组证据`}>
               <div>{groupEvidence.videoThumbnailUrl ? <Image src={groupEvidence.videoThumbnailUrl} alt={`${group.label} 视频证据帧`} width={160} height={72} unoptimized /> : <span>暂无视频帧</span>}<small>视频帧</small></div>
               <div>{groupEvidence.productImageThumbnailUrl ? <Image src={groupEvidence.productImageThumbnailUrl} alt={`${group.label} 产品图`} width={160} height={72} unoptimized /> : <span>暂无产品图</span>}<small>产品图</small></div>
@@ -545,7 +545,7 @@ function ProductDetectionPanel({ detection, evidence = [], status, targetOutputs
                   >
                     <option value="">请选择目标产品</option>
                     {detection.groups.map((group) => (
-                      <option key={group.id} value={group.id}>{group.label}（{group.files.length} 个视频 / {Math.round(group.confidence * 100)}%）</option>
+                      <option key={group.id} value={group.id}>{group.label}（{group.files.length} 个视频 / {group.confidence == null ? "置信度未知" : `${Math.round(group.confidence * 100)}%`}）</option>
                     ))}
                     <option value="EXCLUDE">本次不使用（排除）</option>
                   </select>
@@ -623,6 +623,7 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadState, setUploadState] = useState("");
   const [error, setError] = useState("");
+  const [reviewLoadError, setReviewLoadError] = useState("");
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userCreatePending, setUserCreatePending] = useState(false);
@@ -730,6 +731,7 @@ export default function Home() {
   const [artifactEvidenceByBatch, setArtifactEvidenceByBatch] = useState<Record<string, ArtifactEvidenceSnapshot | null>>({});
   const [productGroupEvidenceByBatch, setProductGroupEvidenceByBatch] = useState<Record<string, ProductGroupEvidence[]>>({});
   const [artifactReviewPending, setArtifactReviewPending] = useState<string | null>(null);
+  const [demoEnabled, setDemoEnabled] = useState(false);
 
   const handleUnauthenticated = useCallback(() => {
     // Clear the previous workspace snapshot before returning to sign-in. This
@@ -751,34 +753,40 @@ export default function Home() {
       return;
     }
     try {
-      const [batchResponse, healthResponse, templateResponse, dashboardResponse] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchWithTimeout("/api/batches", { cache: "no-store" }),
         fetchWithTimeout("/api/health", { cache: "no-store" }),
         fetchWithTimeout("/api/templates", { cache: "no-store" }),
         fetchWithTimeout("/api/dashboard", { cache: "no-store" }),
       ]);
-      if ([batchResponse, healthResponse, templateResponse, dashboardResponse].some((response) => response.status === 401)) {
+      const responses = results.map((result) => result.status === "fulfilled" ? result.value : null);
+      if (responses.some((response) => response?.status === 401)) {
         handleUnauthenticated();
         return;
       }
-      if (batchResponse.ok) {
+      const [batchResponse, healthResponse, templateResponse, dashboardResponse] = responses;
+      if (batchResponse?.ok) {
         const data = (await batchResponse.json()) as { batches: Batch[] };
         setBatches(data.batches);
+        setReviewLoadError("");
         // 工作台不自动打开某个任务；只有用户明确点击任务或新建批次后才进入批次工作区。
+      } else {
+        const failure = results[0].status === "rejected" ? results[0].reason : null;
+        setReviewLoadError(`成片列表加载失败：${failure instanceof Error ? failure.message : "服务暂时不可用，请重试"}`);
       }
-      if (healthResponse.ok) {
+      if (healthResponse?.ok) {
         const health = (await healthResponse.json()) as { workerOnline: boolean; codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } };
         setWorkerOnline(health.workerOnline);
         setAccountState({ codex: health.codex, chatcut: health.chatcut });
       }
-      if (templateResponse.ok) {
+      if (templateResponse?.ok) {
         const data = (await templateResponse.json()) as { templates: SampleTemplate[] };
         setTemplates(data.templates);
         setSelectedTemplateId((current) => current || data.templates.find((item) => item.status === "ready")?.id || "");
       }
-      if (dashboardResponse.ok) setDashboard((await dashboardResponse.json()) as DashboardSnapshot);
+      if (dashboardResponse?.ok) setDashboard((await dashboardResponse.json()) as DashboardSnapshot);
     } catch (caught) {
-      setError(caught instanceof Error ? `工作区加载失败：${caught.message}` : "工作区加载失败，请重试。");
+      setReviewLoadError(`成片列表加载失败：${caught instanceof Error ? caught.message : "响应数据无法读取"}`);
     } finally {
       setLoading(false);
     }
@@ -1268,6 +1276,14 @@ export default function Home() {
     setView("new-batch");
   }
 
+  async function openDemoReview() {
+    const batch = batches.find((item) => item.demoMode && ["review", "completed"].includes(item.status) && item.files.some((file) => file.kind === "output"));
+    if (!batch) return;
+    setSelectedId(batch.id);
+    setView("reviews");
+    setExpandedBatches((current) => ({ ...current, [batch.id]: true }));
+  }
+
   async function approveBatch(batch: Batch) {
     setError("");
     try {
@@ -1404,7 +1420,7 @@ export default function Home() {
       const response = await fetch("/api/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ batchName, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText: cvrOverrideEnabled ? cvrText : undefined, hookText: hookOverrideEnabled ? hookText : undefined, colorStrategy, musicSource, transitionMode, speed: 1, sourceMode, nasPath: sourceMode === "nas" ? nasPath : undefined, templateId: selectedTemplateId || undefined }),
+        body: JSON.stringify({ batchName, requirements, durationMax, outputCount, targetOutputsPerBatch, coveragePolicy, cvrText: cvrOverrideEnabled ? cvrText : undefined, hookText: hookOverrideEnabled ? hookText : undefined, colorStrategy, musicSource, transitionMode, speed: 1, sourceMode, nasPath: sourceMode === "nas" ? nasPath : undefined, templateId: selectedTemplateId || undefined, demoMode: demoEnabled }),
       });
       const payload = (await response.json()) as { batch?: Batch; error?: string };
       if (!response.ok || !payload.batch) throw new Error(payload.error || "创建批次失败");
@@ -1657,6 +1673,7 @@ export default function Home() {
           <button className={`nav-item ${taskNavigationActive ? "active" : ""}`} onClick={() => openBatchWorkspace()}><span>▦</span>批次<i>{batches.length}</i></button>
           <button className={`nav-item ${view === "templates" ? "active" : ""}`} onClick={() => navigateTo("templates")}><span>◫</span>样片母版<i>{templates.filter((item) => item.status === "ready").length}</i></button>
           <button className={`nav-item ${view === "reviews" ? "active" : ""}`} onClick={() => navigateTo("reviews")}><span>✓</span>成片审核<i>{completedCount}</i></button>
+          <button className={`nav-item ${view === "demo" ? "active" : ""}`} onClick={() => navigateTo("demo")}><span>▶</span>演示模式 / Demo Mode<i>{batches.filter((batch) => batch.demoMode?.enabled).length}</i></button>
         </nav>
         {authUser.role === "admin" && <div className="admin-navigation">
           <button className={`admin-user-management ${view === "users" ? "active" : ""}`} onClick={openUserManagement}><span>⚙</span>用户管理</button>
@@ -1772,7 +1789,9 @@ export default function Home() {
               </section>
             </div>
           </section>
-        ) : view === "dashboard" ? <DashboardOverview data={dashboard} loading={loading} onRefresh={loadBatches} onOpenBatch={openBatchWorkspace} onCreateBatch={openNewBatch} /> : view === "batches" ? (
+        ) : view === "demo" ? (
+          <section className="task-list-page"><div className="task-list-card"><div className="section-head task-list-head"><div><span className="eyebrow">REAL PRODUCTION PIPELINE</span><h2>演示模式 / Demo Mode</h2></div></div><p>演示批次仍使用真实识别、Semantic、Scheduler 和 Renderer。Wrong SKU、安全风险、严重损坏与实时 Provider 不可用仍会阻止流程。</p><label className="demo-mode-toggle"><input type="checkbox" checked={demoEnabled} onChange={(event) => setDemoEnabled(event.target.checked)} /> 新建批次时启用 Demo Mode（可随时关闭）</label><button className="primary-button" onClick={openNewBatch}>创建真实 Demo Batch →</button><div className="task-list-table" role="table"><div className="task-list-row header" role="row"><span>Demo Batch</span><span>状态</span><span>阶段</span><span>标记</span><span>更新</span><span>操作</span></div>{batches.filter((batch) => batch.demoMode).map((batch) => <div className="task-list-row" role="row" key={batch.id}><strong>{batch.name}<small className="task-number">{batch.taskNumber}</small></strong><span>{statusMeta[batch.status].label}</span><span>{lifecycleCurrent(batch).label}</span><span>{batch.demoMode?.enabled ? "Demo ON" : "Demo OFF"}</span><time>{timeAgo(batch.updatedAt)}</time><span className="demo-row-actions"><button onClick={() => openBatchWorkspace(batch.id)}>打开</button><button onClick={() => fetch(`/api/batches/${batch.id}/demo-mode`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !batch.demoMode?.enabled }) }).then(async (response) => { if (!response.ok) throw new Error((await response.json()).error); await loadBatches(); }).catch((caught) => setError(caught instanceof Error ? caught.message : "Demo Mode 更新失败"))}>{batch.demoMode?.enabled ? "关闭" : "开启"}</button></span></div>)}</div><button className="secondary-button" disabled={!batches.some((batch) => batch.demoMode && ["review", "completed"].includes(batch.status) && batch.files.some((file) => file.kind === "output"))} onClick={() => void openDemoReview()}>一键打开已完成 Demo Review 备用</button></div></section>
+        ) : view === "dashboard" ? <DashboardOverview data={dashboard} loading={loading} onRefresh={loadBatches} onOpenBatch={openBatchWorkspace} /> : view === "batches" ? (
           <section className="task-list-page">
             <div className="task-list-card">
               <div className="section-head task-list-head"><div><span className="eyebrow">全部批次</span><h2>批次列表</h2></div><button className="icon-button" onClick={loadBatches} aria-label="刷新批次">↻</button></div>
@@ -1874,6 +1893,11 @@ export default function Home() {
               <div><span className="eyebrow">任务详情</span><h2>{selected.name}</h2><p><b className="task-number">{selected.taskNumber}</b> · {selected.files.length}个文件 · {selected.sourceMode === "nas" ? "NAS原片直读" : "本机素材"} · 最长{selected.durationMax}秒 · 原速</p></div>
               <div className="detail-head-actions"><button className="back-button" onClick={() => openBatchWorkspace()}>← 任务列表</button><span className={`large-status ${statusMeta[selected.status].tone}`}>{lifecycleCurrent(selected).label}</span></div>
             </div>
+            {selected.semanticProgress && (selected.semanticProgress.succeeded !== undefined || selected.semanticProgress.unavailable !== undefined) && <div className={`semantic-progress-note ${selected.semanticProgress.autoReady ? "partial-ready" : ""}`} role="status">
+              <strong>Semantic：{selected.semanticProgress.succeeded ?? selected.semanticProgress.completed ?? 0} success / {selected.semanticProgress.unavailable ?? 0} unavailable</strong>
+              {selected.semanticProgress.autoReady && <span>Batch：可继续 / 部分降级</span>}
+              {!selected.semanticProgress.autoReady && selected.semanticProgress.state !== "completed" && <span>Batch：处理中</span>}
+            </div>}
             <details className="task-lifecycle-detail" open><summary><span>任务执行详情</span><small>查看当前阶段与已知记录</small></summary><BatchLifecycle batch={selected} /><BatchActivityTimeline batch={selected} recoveryEvents={recoveryByBatch[selected.id]?.events} /><FailureDiagnosticsPanel diagnostics={diagnosticsByBatch[selected.id]} /></details>
             {selected.referenceProfile ? <ProfilePanel profile={selected.referenceProfile} /> : (
               <div className={`analysis-placeholder ${activeStatuses.includes(selected.status) && selected.status !== "failed" ? "is-working" : ""}`}><div className="radar"><i/><i/><span>AI</span></div><div><strong>{selected.status === "failed" ? "任务失败" : "等待样片识别结果"}{activeStatuses.includes(selected.status) && selected.status !== "failed" ? <span className="live-dots" /> : null}</strong><p>{selected.error || "剪辑工作机会读取样片，提取镜头时长、转场、字幕安全区、色彩和CVR样式。"}{selected.lastWorkerActivityAt && activeStatuses.includes(selected.status) && selected.status !== "failed" ? <> <span className={activityClass(activityAgeSec(selected.lastWorkerActivityAt))}>已分析 {activityAgeSec(selected.lastWorkerActivityAt)} 秒</span></> : null}</p></div></div>
@@ -1951,8 +1975,14 @@ export default function Home() {
         ) : (
           <section className="review-library">
             <div className="section-head review-heading"><div><span className="eyebrow">FINAL VIDEO QC</span><h2>待审核与已通过成片</h2></div><button className="icon-button" onClick={loadBatches} aria-label="刷新成片">↻</button></div>
-            {error && <div className="error-banner">{error}</div>}
-            {!reviewBatches.length ? (
+            {selected?.demoMode && <div className="notice-banner" role="status">演示备用 Review：{selected.name} · 已展开真实生成视频，可直接播放。</div>}
+            {error && <div className="error-banner" role="alert">{error}</div>}
+            {reviewLoadError && <div className="error-banner" role="alert">{reviewLoadError} 已保留当前列表，请稍后刷新。</div>}
+            {!reviewBatches.length ? reviewLoadError ? (
+              <div className="review-empty"><strong>暂时无法读取成片</strong><span>列表请求失败，刷新后会重新尝试加载。</span><button className="secondary-button" onClick={loadBatches}>重试加载</button></div>
+            ) : loading ? (
+              <div className="review-empty"><strong>正在加载审核列表</strong><span>正在读取待审核与已通过的成片。</span></div>
+            ) : (
               <div className="review-empty"><strong>目前没有可审核的成片</strong><span>只有实际生成 MP4 的任务才会出现在这里。当前批次尚未完成渲染，请到任务列表查看任务状态。</span><button className="secondary-button" onClick={() => openBatchWorkspace()}>返回任务列表</button></div>
             ) : (
               <div className="review-batches">

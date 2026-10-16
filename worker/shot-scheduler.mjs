@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.ts";
+import { renderPlanShortShotQuality, shortShotPenalty } from "../lib/short-shot-quality.mjs";
 
 const EPSILON = 1e-9;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
 const MIN_PARTIAL_SLOTS = 2;
-const MIN_PARTIAL_DURATION_SECONDS = 4;
 
 function isAcceptShot(shot) {
   return isShot(shot) && shot.reject === false && shot.rejectReason === undefined;
@@ -72,7 +72,8 @@ function validateProductView(productView) {
 
 function matchesSlot(shot, slot) {
   if (!slot.requireTags.every((tag) => shot.tags.includes(tag))) return false;
-  if (slot.minDuration !== undefined && shot.duration + EPSILON < slot.minDuration) return false;
+  // minDuration is a ranking preference, not an eligibility gate. Source
+  // footage can be shorter than the template ideal and remains renderable.
   if (slot.maxDuration !== undefined && shot.duration - EPSILON > slot.maxDuration) return false;
   if (slot.minProductVisibility !== undefined && shot.productVisibility + EPSILON < slot.minProductVisibility) return false;
   if (slot.requireProductCentered === true && shot.productCentered !== true) return false;
@@ -83,14 +84,16 @@ function matchesSlot(shot, slot) {
 function rankCandidate(shot, slot) {
   const preferredTags = slot.preferTags?.reduce((count, tag) => count + (shot.tags.includes(tag) ? 1 : 0), 0) || 0;
   const targetDistance = Math.abs(shot.duration - slot.targetDuration);
-  return { shot, preferredTags, targetDistance };
+  return { shot, preferredTags, targetDistance, shortShotPenalty: shortShotPenalty(shot, slot) };
 }
 
 function semanticRecordMap(semanticEvidence) {
   if (semanticEvidence === undefined) return null;
   if (!semanticEvidence || typeof semanticEvidence !== "object" || !Array.isArray(semanticEvidence.records)) throw new TypeError("semanticEvidence.records is required");
   return new Map(semanticEvidence.records
-    .filter((record) => record && typeof record.shotId === "string" && record.result && typeof record.result === "object")
+    .filter((record) => record && typeof record.shotId === "string"
+      && !["review", "reject", "evidence_insufficient", "wrong_sku", "unavailable_for_auto"].includes(String(record.status || "").toLowerCase())
+      && record.autoUse !== false && record.wrongSku !== true && record.result && typeof record.result === "object")
     .map((record) => [record.shotId, record.result]));
 }
 
@@ -123,6 +126,7 @@ function semanticScore(semantic) {
 }
 
 function compareCandidates(left, right) {
+  if (left.shortShotPenalty !== right.shortShotPenalty) return left.shortShotPenalty - right.shortShotPenalty;
   if (left.preferredTags !== right.preferredTags) return right.preferredTags - left.preferredTags;
   if (Math.abs(left.semanticScore - right.semanticScore) > EPSILON) return right.semanticScore - left.semanticScore;
   if (Math.abs(left.targetDistance - right.targetDistance) > EPSILON) return left.targetDistance - right.targetDistance;
@@ -157,8 +161,7 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
     usedShotIds.add(best.id);
     selected.push({ slot, shot: best });
   }
-  const plannedDuration = selected.reduce((sum, entry) => sum + Number(entry.slot.targetDuration || 0), 0);
-  if (!selected.length || (firstMissingSlotId && (selected.length < MIN_PARTIAL_SLOTS || plannedDuration + EPSILON < MIN_PARTIAL_DURATION_SECONDS))) {
+  if (!selected.length || (firstMissingSlotId && selected.length < MIN_PARTIAL_SLOTS)) {
     return { status: "failed", reason: "no_matching_shot", slotId: firstMissingSlotId || scriptTemplate.slots[0]?.id || "unknown" };
   }
   const renderPlan = {
@@ -166,6 +169,7 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
     batchId,
     slots: selected,
     createdAt,
+    ...renderPlanShortShotQuality(selected),
     ...(transitionProfile ? { transitionProfile } : {}),
   };
   if (!isRenderPlan(renderPlan)) throw new Error("Scheduler produced an invalid RenderPlan");

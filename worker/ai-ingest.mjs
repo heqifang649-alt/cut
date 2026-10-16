@@ -280,8 +280,9 @@ export function validateTechnicalCandidate(technical) {
   return failure || { verdict: "accept", artifacts: [] };
 }
 
-export async function importBatchToShotPool({ batch, batchDir, validate, budget, origin = "real", admissionPolicy = "full_validator" }) {
-  if (!new Set(["full_validator", "technical_metadata_shadow"]).has(admissionPolicy)) throw new TypeError("ShotPool admissionPolicy is invalid");
+export async function importBatchToShotPool({ batch, batchDir, validate, validateSegment, budget, origin = "real", admissionPolicy = "full_validator" }) {
+  if (!new Set(["full_validator", "technical_metadata_shadow", "source_policy_segment_quality"]).has(admissionPolicy)) throw new TypeError("ShotPool admissionPolicy is invalid");
+  if (admissionPolicy === "source_policy_segment_quality" && typeof validateSegment !== "function") throw new TypeError("Source policy requires segment quality evidence");
   if (admissionPolicy === "full_validator" && typeof validate !== "function") throw new TypeError("ShotPool full_validator admission requires validate");
   const records = [];
   const shots = [];
@@ -292,10 +293,10 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
     try {
       const prepared = inputByPath.get(videoPath);
       const sidecar = await readMetadataSidecar(videoPath, { sidecarPath: prepared?.sidecarPath });
-      if (admissionPolicy === "technical_metadata_shadow" && (!prepared?.technical || !Array.isArray(prepared?.segments) || !prepared.segments.length)) {
+      if (admissionPolicy !== "full_validator" && (!prepared?.technical || !Array.isArray(prepared?.segments) || !prepared.segments.length)) {
         throw new Error("Technical shadow admission requires prepared deterministic evidence");
       }
-      const validationResult = admissionPolicy === "technical_metadata_shadow"
+      const validationResult = admissionPolicy !== "full_validator"
         ? validateTechnicalCandidate(prepared.technical)
         : await validate(videoPath, { sidecar });
       if (!isValidationResult(validationResult)) throw new TypeError("Validator 返回了无效 ValidationResult");
@@ -307,6 +308,15 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
       for (const segment of segments) {
         const metadataBudget = await computeMetadataBudget(videoPath, { budget: segment?.budget || prepared?.budget, analyze: budget });
         const shot = createShotFromMetadata({ videoPath, sidecar, validationResult, budget: metadataBudget, origin, segment });
+        if (admissionPolicy === "source_policy_segment_quality") {
+          const quality = await validateSegment({ shot, file, segment });
+          if (!isValidationResult(quality)) throw new TypeError("Invalid segment quality result");
+          if (quality.verdict !== "accept") {
+            records.push({ videoPath, shotId: shot.id, segmentId: segment?.id, start: shot.start, end: shot.end,
+              status: quality.verdict, rejectReason: quality.rejectReason, admissionPolicy });
+            continue;
+          }
+        }
         shots.push(shot);
         records.push({ videoPath, status: "imported", shotId: shot.id, segmentId: segment?.id, admissionPolicy });
       }
@@ -314,7 +324,11 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
       records.push({ videoPath, status: "skipped", reason: error?.code || error?.message || String(error) });
     }
   }
-  const pool = shots.length ? await mergeShotsIntoPool(batch.id, batchDir, shots) : await loadShotPool(batch.id, batchDir);
+  let pool;
+  if (admissionPolicy === "source_policy_segment_quality") {
+    pool = { ...emptyPool(batch.id), shots };
+    await withFileLock(poolPathFor(batchDir), () => writeJsonAtomic(poolPathFor(batchDir), pool));
+  } else pool = shots.length ? await mergeShotsIntoPool(batch.id, batchDir, shots) : await loadShotPool(batch.id, batchDir);
   const report = { isolated: true, batchId: batch.id, admissionPolicy, imported: shots.length, records, updatedAt: new Date().toISOString() };
   await mkdir(batchDir, { recursive: true });
   await writeFile(reportPathFor(batchDir), JSON.stringify(report, null, 2), "utf8");

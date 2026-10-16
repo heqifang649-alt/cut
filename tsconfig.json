@@ -36,7 +36,9 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     ".next-runtime/types/**/*.ts",
-    ".next-runtime/dev/types/**/*.ts"
+    ".next-runtime/dev/types/**/*.ts",
+    ".next-bridge-build-20261015/types/**/*.ts",
+    ".next-bridge-build-20261015/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

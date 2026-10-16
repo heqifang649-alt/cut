@@ -239,6 +239,20 @@ test("durable guard reopens when its bounded half-open probe fails", async (t) =
   assert.ok(Date.parse(reopened.nextProbeAt) > currentTime);
 });
 
+test("2xx schema-invalid output completes the bounded transport probe", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-schema-probe-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  let currentTime = Date.UTC(2026, 7, 14, 0, 0, 0);
+  const guard = new DurableProviderRequestGuard({ root, baseUrl: "https://provider.test", apiKey: "credential", requestCap: 20, retryLimit: 0, clock: () => currentTime, sleepFn: async () => {} });
+  await openCircuit(guard);
+  currentTime = Date.parse((await guard.snapshot()).nextProbeAt);
+  const invalid = new ProviderAdapterError("invalid semantic schema", { code: "SEMANTIC_SCHEMA_INVALID", providerResponseReceived: true });
+  await assert.rejects(() => guard.run(async () => { throw invalid; }), { code: "SEMANTIC_SCHEMA_INVALID" });
+  const recovered = await guard.snapshot();
+  assert.equal(recovered.circuit, "CLOSED");
+  assert.equal(recovered.running, 0);
+});
+
 test("fair provider scopes are isolated by provider, URL, credential and actual model", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-scope-v1-"));
   t.after(() => rm(root, { recursive: true, force: true }));

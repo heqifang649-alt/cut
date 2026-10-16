@@ -94,6 +94,7 @@ export async function POST(request: Request) {
     templateName: template?.name,
     referenceProfile: template?.profile,
     transitionMode,
+    demoMode: input.demoMode === true ? { enabled: true, createdAt: new Date().toISOString(), log: [{ at: new Date().toISOString(), action: "created" }] } : undefined,
     // Legacy renderer configuration remains internal. New standard batches
     // must never inherit an effectful legacy profile.
     transitionProfile: transitionMode === "standard" ? "hard_cut" : "template",

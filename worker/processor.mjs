@@ -22,6 +22,8 @@ import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { analyzeTemplateTransitions, writeFallbackTransitionPlan } from "./template-transition-analysis.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId, resolveBatchFile, resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 import { resolveProductGroupsForConsumption } from "../lib/product-confirmation.mjs";
+import { isAutoOotdBatch } from "../lib/libtv-auto-policy.mjs";
+import { runAutoOotdQuality, assertAutoOotdQuality } from "./libtv-auto-quality.mjs";
 import { assessVisualProductAutoConfirmation } from "../lib/product-auto-confirmation.mjs";
 import { alignTargetWithDetectedProducts } from "../lib/output-allocation.mjs";
 import { createCodexClient, isCodexReconnectNotice } from "../lib/codex-client.mjs";
@@ -1057,6 +1059,7 @@ function mergeFilenameAndVisualDetection(filenameDetection, visualDetection, pro
     groups,
     unassigned: visualDetection.unassigned || [],
     confidence: groups.length ? Math.min(...groups.map((group) => Number(group.confidence) || 0)) : 0,
+    ...(visualDetection.normalization ? { normalization: visualDetection.normalization } : {}),
     groupingMethod: "filename_then_visual",
     autoApproved: false,
     deterministicGroups: filenameDetection.groups.length,
@@ -1143,7 +1146,11 @@ async function detectProducts(batch, activeThread = null, correction = "") {
     const detection = filenameDetection.groups.length
       ? { ...mergeFilenameAndVisualDetection(filenameDetection, visualDetection, productFiles.map(file => file.relativePath)), groupingMethod: "filename_then_visual", autoApproved: false }
       : { ...visualDetection, groupingMethod: "visual", autoApproved: false };
-    const autoDecision = guardedSchema && guardedProductAutoConfirmEnabled() ? assessVisualProductAutoConfirmation(detection, productFiles, productReferenceFiles) : null;
+    const autoDecision = guardedSchema && guardedProductAutoConfirmEnabled()
+      ? detection.normalization?.manualConfirmationRequired
+        ? { eligible: false, reason: "分组结构经归一化或置信信息不足，需人工确认" }
+        : assessVisualProductAutoConfirmation(detection, productFiles, productReferenceFiles)
+      : null;
     if (autoDecision?.eligible) {
       detection.autoApproved = true;
       detection.autoConfirmation = { ...autoDecision, confirmedAt: new Date().toISOString() };
@@ -1227,7 +1234,9 @@ function persistDetectedProductTarget(batch, detection) {
 async function semanticProgress(batch, progress) {
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => {
-    item.renderingLabel = `语义分析：已完成 ${progress.completed ?? progress.succeeded}/${progress.total} · 第 ${progress.segment || 1} 段${progress.waitingForContinuation ? " · 等待自动续跑" : " · 处理中"}（失败 ${progress.failed}）`;
+    item.renderingLabel = progress.autoReady
+      ? `Semantic：${progress.succeeded} success / ${progress.unavailable} unavailable · Batch：可继续 / 部分降级`
+      : `语义分析：已完成 ${progress.completed ?? progress.succeeded}/${progress.total} · 第 ${progress.segment || 1} 段${progress.waitingForContinuation ? " · 等待自动续跑" : " · 处理中"}（失败 ${progress.failed}）`;
     item.lastWorkerActivityAt = progress.updatedAt;
     item.semanticProgress = progress;
   });
@@ -1236,6 +1245,12 @@ async function semanticProgress(batch, progress) {
 async function runAnalyzeQuality(batch) {
   await throwIfCanceled(batch.id);
   const batchDir = batchDirFor(batch);
+  if (batch.libtvSource?.editPolicyReceipt) {
+    await update(batch.id, (item) => { item.status = "editing"; item.progress = 40; item.error = undefined;
+      item.renderingLabel = "自动检查：商品参考对照、穿帮、时序与技术质量（无需源人审）"; });
+    await runAutoOotdQuality({ root: ROOT, batch, batchDir, artifactDir: batchArtifactWritePath(batch, "qualityEvidence"), ffmpeg: FFMPEG });
+    return await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
+  }
   let validationResults = [];
   await update(batch.id, (item) => { item.status = "editing"; item.progress = 40; item.renderingLabel = "分析服务：质量门禁与 ShotPool"; item.error = undefined; });
   if (isNewValidatorEnabled()) {
@@ -1259,7 +1274,7 @@ async function runAnalyzeQuality(batch) {
       admissionPolicy: isQualityGateV2Enabled() ? "full_validator" : (isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator"),
     });
   }
-  if (isSemanticShadowEnabled()) {
+  if (isSemanticShadowEnabled() || batch.demoMode?.enabled === true) {
     return await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
   }
 }
@@ -1307,6 +1322,11 @@ function recordedTextOrManualOverride(batch, profile, batchField, profileField, 
 
 async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}) {
   await throwIfCanceled(batch.id);
+  if (batch.libtvSource?.editPolicyReceipt) {
+    if (!isAutoOotdBatch(batch) || !isNewSchedulerEnabled() || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD requires validated source policy and deterministic scheduler/renderer"), { code: "SOURCE_INSUFFICIENT" });
+    if (includeAnalyze) throw Object.assign(new Error("Automatic OOTD must use the isolated quality → clip → render service stages"), { code: "SOURCE_INSUFFICIENT" });
+    await assertAutoOotdQuality({ root: ROOT, batch, batchDir: batchDirFor(batch) });
+  }
   await update(batch.id, (item) => { item.status = "editing"; item.progress = 45; item.error = undefined; });
   const batchDir = batchDirFor(batch);
   const outputDir = batchArtifactWritePath(batch, "renders");
@@ -1344,7 +1364,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
       admissionPolicy: isQualityGateV2Enabled() ? "full_validator" : (isSemanticShadowEnabled() ? "technical_metadata_shadow" : "full_validator"),
     });
   }
-  if (includeAnalyze && isSemanticShadowEnabled()) {
+  if (includeAnalyze && (isSemanticShadowEnabled() || batch.demoMode?.enabled === true)) {
     const semantic = await runSemanticShadow({ batch, batchDir, shotPool: await loadShotPool(batch.id, batchDir), ffmpeg: FFMPEG, onProgress: (progress) => semanticProgress(batch, progress) });
     if (semantic.continuation) return semantic;
   }
@@ -1357,14 +1377,14 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     // Prefer the batch's human-confirmed productDetection (single source of
     // truth) when present; otherwise fall back to the on-disk artifact. This
     // keeps consumption consistent even if the artifact write lags.
-    const productGroups = { groups: resolveProductGroupsForConsumption(batch.productDetection, fileProductGroups) };
-    semanticEvidence = isSemanticShadowEnabled()
+    const productGroups = { groups: resolveProductGroupsForConsumption(batch.productDetection, fileProductGroups, { allowSourcePolicy: isAutoOotdBatch(batch) }) };
+    semanticEvidence = (isSemanticShadowEnabled() || batch.demoMode?.enabled === true)
       ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
       : undefined;
     if (!scriptTemplate) throw new Error("New Scheduler requires script-template.json");
     if (!Array.isArray(productGroups?.groups) || productGroups.groups.length === 0) throw new Error("New Scheduler requires confirmed product-groups.json");
-    if (isSemanticShadowEnabled() && !Array.isArray(semanticEvidence?.records)) throw new Error("New Scheduler requires semantic-evidence.v1.json");
-    if (isSemanticShadowEnabled() && semanticEvidence?.complete === false) throw new Error("语义分析未完成，请先重试分析阶段。");
+    if ((isSemanticShadowEnabled() || batch.demoMode?.enabled === true) && !Array.isArray(semanticEvidence?.records)) throw new Error("New Scheduler requires semantic-evidence.v1.json");
+    if ((isSemanticShadowEnabled() || batch.demoMode?.enabled === true) && semanticEvidence?.complete === false && semanticEvidence?.autoReady !== true) throw new Error("语义分析未完成且不满足部分续跑条件。");
     const productViews = createProductViews({
       shotPool: await loadShotPool(batch.id, batchDir),
       productGroups: productGroups.groups,
@@ -1400,6 +1420,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     if (!isNewSchedulerEnabled()) throw new Error("New Renderer requires ENABLE_NEW_SCHEDULER=true");
     if (!scheduledProducts.length) throw new Error("New Renderer requires at least one Product View");
     const { renderable, excludedProducts } = partitionScheduledProducts(scheduledProducts);
+    if (batch.libtvSource?.editPolicyReceipt && renderable.length) await assertAutoOotdQuality({ root: ROOT, batch, batchDir, scheduledProducts: renderable });
     if (!renderable.length) {
       const message = `Schedule Failed: ${excludedProducts.map((item) => `${item.product_id}:${item.reason}`).join(", ")}`;
       const providerFailures = transientSemanticProviderFailures(semanticEvidence);
@@ -1563,11 +1584,15 @@ async function runRenderBatch(batch) {
   const partitioned = isNewRendererEnabled()
     ? partitionScheduledProducts(scheduleArtifact?.products || [])
     : null;
-  const semanticEvidence = isNewRendererEnabled() && isSemanticShadowEnabled()
+  if (batch.libtvSource?.editPolicyReceipt) {
+    if (!isAutoOotdBatch(batch) || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD policy/render prerequisites invalid"), { code: "SOURCE_INSUFFICIENT" });
+    await assertAutoOotdQuality({ root: ROOT, batch: refreshed, batchDir, scheduledProducts: partitioned.renderable });
+  }
+  const semanticEvidence = isNewRendererEnabled() && (isSemanticShadowEnabled() || batch.demoMode?.enabled === true)
     ? await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null)
     : undefined;
-  if (isNewRendererEnabled() && isSemanticShadowEnabled() && (semanticEvidence?.complete !== true || !Array.isArray(semanticEvidence.records))) {
-    throw new Error("Render requires complete semantic evidence for Product visual review");
+  if (isNewRendererEnabled() && (isSemanticShadowEnabled() || batch.demoMode?.enabled === true) && ((!semanticEvidence?.complete && semanticEvidence?.autoReady !== true) || !Array.isArray(semanticEvidence.records))) {
+    throw new Error("Render requires complete or partial-ready semantic evidence for Product visual review");
   }
   const editDir = await resolveBatchArtifactPath(ROOT, refreshed, "edit");
   const outputDir = batchArtifactWritePath(refreshed, "renders");

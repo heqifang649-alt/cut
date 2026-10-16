@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { ownerProcessMatchesLock, readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { isMetadataSidecar, isRejectBin, isRenderPlan, isScheduleResult, isShot, isSlot, isValidationResult } from "../lib/types.ts";
 
 const root = new URL("../", import.meta.url);
@@ -131,7 +131,7 @@ test("token locks recover an abandoned dead-owner lock without stealing a live o
     }, { staleMs: 1, timeoutMs: 5_000 });
     assert.deepEqual(await readJson(file, null), { count: 1 });
     assert.ok((await readdir(directory)).some((name) => name.includes("abandoned-token")));
-    await writeFile(lockFile, JSON.stringify({ token: "live-token", pid: process.pid, createdAt: "2000-01-01T00:00:00.000Z" }));
+    await writeFile(lockFile, JSON.stringify({ token: "live-token", pid: process.pid, createdAt: new Date().toISOString() }));
     await utimes(lockFile, new Date(0), new Date(0));
     await assert.rejects(
       withFileLock(file, async () => undefined, { staleMs: 1, timeoutMs: 100 }),
@@ -141,6 +141,14 @@ test("token locks recover an abandoned dead-owner lock without stealing a live o
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("lock ownership rejects a reused Windows PID and stays conservative without process identity", () => {
+  const createdAt = Date.now() - 60_000;
+  const owner = { createdAt: new Date(createdAt).toISOString() };
+  assert.equal(ownerProcessMatchesLock(owner, createdAt - 60_000), true, "a process started before its lock can still own it");
+  assert.equal(ownerProcessMatchesLock(owner, createdAt + 60_000), false, "a process started after a stale lock is a reused PID");
+  assert.equal(ownerProcessMatchesLock({ createdAt: "invalid" }, createdAt + 60_000), true, "unknown identity must fail closed");
 });
 
 test("an incomplete new lock observes grace before safe recovery", async (t) => {

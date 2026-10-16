@@ -23,7 +23,7 @@ function formatDate(value: string) { const date = new Date(value); return Number
 function isManualBatch(batch: DashboardSnapshot["recentBatches"][number]) { return ["review", "reference_ready", "failed"].includes(batch.status); }
 function sortHistogram(histogram: Record<string, number>) { return Object.entries(histogram).sort(([, a], [, b]) => b - a); }
 
-export default function DashboardOverview({ data, loading, onOpenBatch, onCreateBatch, onRefresh }: { data: DashboardSnapshot | null; loading: boolean; onOpenBatch: (id: string) => void; onCreateBatch: () => void; onRefresh: () => void }) {
+export default function DashboardOverview({ data, loading, onOpenBatch, onRefresh }: { data: DashboardSnapshot | null; loading: boolean; onOpenBatch: (id: string) => void; onRefresh: () => void }) {
   if (loading && !data) return <section className="dashboard-loading">正在整理今天的任务…</section>;
   if (!data) return <section className="dashboard-loading">暂时无法读取任务概览，请刷新后重试。</section>;
 
@@ -37,7 +37,7 @@ export default function DashboardOverview({ data, loading, onOpenBatch, onCreate
   const renderRow = (batch: DashboardSnapshot["recentBatches"][number]) => <button className="batch-work-row" key={batch.id} onClick={() => onOpenBatch(batch.id)}><span className={`batch-status-dot ${batch.status}`} /><span className="batch-work-main"><strong>{batch.name}</strong><small>{batch.error || batch.stage || displayStatus(batch)}</small></span><span className={`batch-state ${batch.status}`}>{displayStatus(batch)}</span><span className="batch-count">{batch.productCount ? `${batch.productCount} 款` : "—"}</span><time>{formatDate(batch.updatedAt || batch.createdAt)}</time></button>;
 
   return <section className="home-dashboard">
-    <header className="workspace-intro"><div><span className="eyebrow">BATCH PRODUCTION WORKSPACE</span><h2>今天要处理什么</h2><p>按优先级处理批次，所有生产任务都从这里继续。</p></div><button className="primary-button dashboard-create" onClick={onCreateBatch}>＋ 新建批次</button></header>
+    <header className="workspace-intro"><div><span className="eyebrow">BATCH PRODUCTION WORKSPACE</span><h2>今天要处理什么</h2><p>按优先级处理批次，所有生产任务都从这里继续。</p></div></header>
     <section className="work-queue" aria-label="批次工作队列">
       <div className="queue-group queue-manual"><div className="queue-group-head"><div><span className="queue-kicker">优先级 01</span><h3>待人工处理</h3></div><strong>{manualCount}</strong></div><p className="queue-hint">审核、确认或异常任务需要你的决定。</p>{manual.length ? manual.map(renderRow) : <div className="queue-empty">暂无待人工处理批次</div>}</div>
       <div className="queue-group queue-processing"><div className="queue-group-head"><div><span className="queue-kicker">优先级 02</span><h3>生产中</h3></div><strong>{processingCount}</strong></div><p className="queue-hint">正在分析、排片、渲染或等待 Worker。</p>{processing.length ? processing.map(renderRow) : <div className="queue-empty">暂无进行中的批次</div>}</div>

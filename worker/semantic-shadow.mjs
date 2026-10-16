@@ -6,8 +6,9 @@ import path from "node:path";
 import { AiProviderAdapter, ProviderAdapterError } from "../lib/ai-provider-adapter.mjs";
 import { DurableProviderRequestGuard } from "../lib/ai-provider-guard.mjs";
 import { resolveProviderConfig, safeProviderError } from "../lib/ai-provider-config.mjs";
-import { SEMANTIC_SHOT_SCHEMA_VERSION } from "../lib/semantic-shot.mjs";
+import { SEMANTIC_SHOT_SCHEMA_VERSION, validateSemanticShot } from "../lib/semantic-shot.mjs";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { createProductViews, scheduleProductView } from "./shot-scheduler.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
 import { batchArtifactWritePath, resolveBatchArtifactRecord } from "../lib/work-paths.mjs";
 import { productReferencesForGroup } from "../lib/product-reference-match.mjs";
@@ -17,7 +18,71 @@ export const SEMANTIC_EVIDENCE_FILE = "semantic-evidence.v1.json";
 export const SEMANTIC_CACHE_FILE = "semantic-cache.v1.json";
 export const SEMANTIC_PROMPT_VERSION = "semantic-shot-prompt.v1";
 const MAX_TRANSIENT_SHOT_EVALUATIONS = 3;
-const TRANSIENT_SHOT_ERRORS = new Set(["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_MALFORMED_RESPONSE"]);
+const TRANSIENT_SHOT_ERRORS = new Set(["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT"]);
+
+export async function reusePersistedPartialSemantic({ batch, batchDir, shotPool, onProgress }) {
+  const attempts = await readJson(path.join(batchDir, "semantic-attempts.v1.json"), null);
+  if (attempts?.batchId !== batch.id || !Array.isArray(attempts.records)) return null;
+  const evidencePath = path.join(batchDir, SEMANTIC_EVIDENCE_FILE);
+  const previous = await readJson(evidencePath, null);
+  const committedDir = path.join(batchDir, "semantic-history", "shots");
+  const committedNames = await readdir(committedDir).catch((error) => error.code === "ENOENT" ? [] : Promise.reject(error));
+  const committed = await Promise.all(committedNames.filter((name) => name.endsWith(".json")).map(async (name) => (await readJson(path.join(committedDir, name), null))?.record));
+  const byId = new Map();
+  for (const record of [...(previous?.records || []), ...attempts.records, ...committed.filter(Boolean)]) {
+    if (!record?.shotId) continue;
+    let validResult = false;
+    try { validateSemanticShot(record.result, { expectedShotId: record.shotId }); validResult = true; } catch { /* retain as unavailable evidence below */ }
+    const existing = byId.get(record.shotId);
+    if (validResult || !existing) byId.set(record.shotId, record);
+  }
+  if (!shotPool.shots.every((shot) => byId.has(shot.id))) return null;
+  const records = shotPool.shots.map((shot) => {
+    const record = { ...byId.get(shot.id), shotId: shot.id };
+    try { record.result = validateSemanticShot(record.result, { expectedShotId: shot.id }); }
+    catch {
+      record.failureStatus = record.failureStatus || record.status || "incomplete";
+      record.status = "unavailable_for_auto";
+      record.autoUse = false;
+      delete record.result;
+    }
+    return record;
+  });
+  const unavailable = records.filter((record) => record.status === "unavailable_for_auto").length;
+  if (!unavailable) return null;
+  const scriptTemplate = await readJson(path.join(batchDir, "script-template.json"), null);
+  const groups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
+  if (!scriptTemplate || !groups.length) return null;
+  const productViews = createProductViews({ shotPool, productGroups: groups });
+  const semanticEvidence = { batchId: batch.id, records, complete: false, autoReady: true };
+  const productReadiness = productViews.map((productView) => {
+    const result = scheduleProductView({ batchId: batch.id, productView, scriptTemplate, semanticEvidence, allowPartial: true });
+    return { productId: productView.product.id, availableShots: records.filter((record) => record.result && productView.shots.some((shot) => shot.id === record.shotId)).length, schedulable: result.status === "success", minimumFailure: result.status === "success" ? undefined : result.slotId || result.reason };
+  });
+  if (!productReadiness.some((product) => product.schedulable)) return null;
+  const evidence = {
+    schemaVersion: 1, artifact: "semantic-evidence.v1", isolated: true, shadowOnly: true,
+    batchId: batch.id, generatedAt: new Date().toISOString(),
+    provider: previous?.provider || { source: "persisted_semantic_evidence", model: "historical" },
+    promptVersion: previous?.promptVersion || SEMANTIC_PROMPT_VERSION,
+    semanticSchemaVersion: SEMANTIC_SHOT_SCHEMA_VERSION,
+    templateVersion: previous?.templateVersion || templateVersion(batch),
+    records, complete: false, autoReady: true, status: "partial_ready", unavailable,
+    stopReason: "SEMANTIC_PARTIAL_UNAVAILABLE", productReadiness,
+  };
+  await preserveSemanticSnapshot(batchDir, evidence);
+  await writeJsonAtomic(evidencePath, evidence);
+  const progress = {
+    processed: shotPool.shots.length, completed: records.filter((record) => record.result).length,
+    succeeded: records.filter((record) => record.result).length, total: shotPool.shots.length,
+    failed: 0, unavailable, autoReady: true, decision: "partial_degraded", productReadiness,
+    state: "partial_ready", waitingForContinuation: false, stopReason: evidence.stopReason,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeJsonAtomic(path.join(batchDir, "semantic-progress.v1.json"), progress);
+  await onProgress?.(progress);
+  return { ran: true, complete: false, partial: true, evidence, productReadiness };
+}
 
 export const isApiSemanticScorerEnabled = (env = process.env) => env.ENABLE_API_SEMANTIC_SCORER === "true";
 export const isHybridPilotEnabled = (env = process.env) => env.ENABLE_HYBRID_PILOT === "true";
@@ -181,6 +246,8 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   if (!isSemanticShadowEnabled(env)) return { ran: false, reason: "feature_flag_off" };
   if (!batch || !batchDir || !shotPool?.shots) throw new TypeError("Semantic shadow requires batch, batchDir, and ShotPool.");
   const resolved = config ? { config, source: configSource } : await resolveProviderConfig(root, env);
+  const persistedPartial = await reusePersistedPartialSemantic({ batch, batchDir, shotPool, onProgress });
+  if (persistedPartial) return persistedPartial;
   if (!resolved.config.baseUrl || !resolved.config.apiKey) {
     return { ran: false, reason: "provider_not_configured", source: resolved.source };
   }
@@ -248,11 +315,13 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   let quantumAdmissions = 0;
   let consecutiveErrors = 0;
   let observation;
+  let partialReady = false;
   const publish = async () => {
     records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
     const completed = Math.max(previousCompleted, records.filter((r) => r.result).length);
     const waitingForContinuation = ["SEMANTIC_STAGE_BUDGET_EXCEEDED", "SEMANTIC_QUANTUM_EXHAUSTED", "SEMANTIC_PENDING_SHOTS", "PROVIDER_BACKPRESSURE"].includes(stopReason);
-    const progress = { processed: records.length, completed, total: shotPool.shots.length, succeeded: completed, failed: records.filter((r) => r.status === "error").length, segment, concurrency, waitingForContinuation, state: waitingForContinuation ? "waiting" : completed === shotPool.shots.length ? "completed" : "running", elapsedMs: Date.now() - startedAt, stopReason, updatedAt: new Date().toISOString() };
+    const unavailable = records.filter((r) => r.status === "unavailable_for_auto").length;
+    const progress = { processed: records.length, completed, total: shotPool.shots.length, succeeded: completed, failed: records.filter((r) => r.status === "error").length, unavailable, autoReady: unavailable > 0 && records.length === shotPool.shots.length && records.every((r) => r.result || r.status === "unavailable_for_auto"), decision: unavailable ? "partial_degraded" : undefined, segment, concurrency, waitingForContinuation, state: waitingForContinuation ? "waiting" : completed === shotPool.shots.length ? "completed" : "running", elapsedMs: Date.now() - startedAt, stopReason, updatedAt: new Date().toISOString() };
     await writeJsonAtomic(path.join(batchDir, "semantic-progress.v1.json"), progress);
     await onProgress?.(progress);
   };
@@ -421,12 +490,12 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
           consecutiveErrors += 1;
           const providerPaused = ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED", "PROVIDER_CIRCUIT_OPEN", "PROVIDER_CIRCUIT_HALF_OPEN"].includes(normalized.code);
           const transientProviderFailure = normalized.status === 429 || normalized.status >= 500
-            || ["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_REQUEST_FAILED", "PROVIDER_MALFORMED_RESPONSE"].includes(normalized.code);
+            || ["SEMANTIC_SHOT_BUDGET_EXCEEDED", "PROVIDER_TIMEOUT", "PROVIDER_REQUEST_FAILED"].includes(normalized.code);
           if (providerPaused || (consecutiveErrors >= 3 && transientProviderFailure)) {
             stopReason = "PROVIDER_BACKPRESSURE";
             providerRetryAt ||= new Date(Date.now() + 60_000).toISOString();
           } else if ([401, 403].includes(normalized.status) || normalized.code === "PILOT_REQUEST_CAP_REACHED") stopReason = normalized.code;
-          else if (consecutiveErrors >= 3) stopReason = "SEMANTIC_REPEATED_FAILURES";
+          else if (consecutiveErrors >= 3 && !["SEMANTIC_SCHEMA_INVALID", "MODEL_OUTPUT_INVALID"].includes(normalized.code)) stopReason = "SEMANTIC_REPEATED_FAILURES";
         }
       } finally {
         if (degradationOwner === shot.id) degradationOwner = null;
@@ -478,6 +547,20 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
     }
     if (!stopReason && records.some((record) => record.status === "skipped_no_shot_frame")) stopReason = "SEMANTIC_MISSING_SHOT_FRAME";
     records.sort((a, b) => shotOrder.get(a.shotId) - shotOrder.get(b.shotId));
+    const recordIds = new Set(records.map((record) => record.shotId));
+    partialReady = stopReason === "SEMANTIC_INCOMPLETE"
+      && records.length === shotPool.shots.length
+      && recordIds.size === shotPool.shots.length
+      && shotPool.shots.every((shot) => recordIds.has(shot.id))
+      && records.every((record) => record.result || ["error", "skipped_no_shot_frame"].includes(record.status));
+    if (partialReady) {
+      for (const record of records) {
+        if (record.result) continue;
+        record.failureStatus = record.status;
+        record.status = "unavailable_for_auto";
+        record.autoUse = false;
+      }
+    }
     cache.updatedAt = new Date().toISOString();
     await writeJsonAtomic(cacheFile, cache);
   }, { staleMs: 0 });
@@ -494,6 +577,9 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
     templateVersion: version,
     records,
     complete: !stopReason,
+    autoReady: partialReady,
+    status: partialReady ? "partial_ready" : stopReason ? "incomplete" : "complete",
+    unavailable: records.filter((record) => record.status === "unavailable_for_auto").length,
     stopReason,
     cacheReset,
     guard: await runner.guard.snapshot(),
@@ -502,7 +588,7 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   await preserveSemanticSnapshot(batchDir, evidence);
   // Historical Evidence is immutable. This file is only the scheduler's latest
   // complete projection; a paused run must not replace a previous result.
-  if (!stopReason) {
+  if (!stopReason || partialReady) {
     const previous = await readJson(evidenceFile, null);
     const sameScores = previous?.complete !== false && previous?.templateVersion === version && previous?.provider?.model === model
       && previous?.records?.length === records.length && records.every((record, index) => record.cacheKey === previous.records[index].cacheKey && JSON.stringify(record.result) === JSON.stringify(previous.records[index].result));
@@ -513,10 +599,10 @@ export async function runSemanticShadow({ root = process.cwd(), batch, batchDir,
   const waitingForContinuation = ["SEMANTIC_STAGE_BUDGET_EXCEEDED", "SEMANTIC_QUANTUM_EXHAUSTED", "SEMANTIC_PENDING_SHOTS", "PROVIDER_BACKPRESSURE"].includes(stopReason);
   await writeJsonAtomic(segmentFile, { identity, segment, completed: records.filter((r) => r.result).length, waitingForContinuation, updatedAt: new Date().toISOString() });
   if (waitingForContinuation) return { ran: true, complete: false, evidence, continuation: { reason: stopReason, segment, completed: records.filter((r) => r.result).length, total: shotPool.shots.length, remaining: shotPool.shots.length - records.filter((r) => r.result).length, nextRunAt: providerRetryAt || new Date(Date.now() + 1000).toISOString() } };
-  if (stopReason) {
+  if (stopReason && !partialReady) {
     const error = new Error(`语义分析已暂停：${stopReason}；已处理 ${records.length}/${shotPool.shots.length}，成功评分已保存，可重试接续。`);
     error.code = "SEMANTIC_ANALYSIS_PAUSED";
     throw error;
   }
-  return { ran: true, evidence };
+  return { ran: true, complete: !stopReason, partial: partialReady, evidence };
 }

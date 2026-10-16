@@ -17,6 +17,22 @@ function jsonResponse(payload, status = 200, headers = {}) {
 
 const config = { baseUrl: "https://provider.test/v1", apiKey: "secret", requestTimeoutMs: 1_000, maxConcurrency: 2, pilotRequestCap: 10, retryLimit: 1, protocolMode: "auto" };
 
+test('image role labels stay immediately before their image in both wire protocols', async()=>{
+ for(const protocolMode of ['responses','chat_completions']){
+  let captured;
+  const adapter=new AiProviderAdapter(config,{fetchImpl:async(_url,init)=>{
+   captured=JSON.parse(init.body);
+   return jsonResponse(protocolMode==='responses'?{output_text:'READY'}:{choices:[{message:{content:'READY'}}]});
+  }});
+  await adapter.complete({model:'provider-model',prompt:'evidence',images:['data:image/jpeg;base64,AA==','data:image/jpeg;base64,BB=='],imageLabels:['PRODUCT_REFERENCE R0 NOT VIDEO','VIDEO_FRAME V0 timestamp 1.333'],protocolMode});
+  const content=protocolMode==='responses'?captured.input[0].content:captured.messages[0].content;
+  assert.equal(content[1].text,'PRODUCT_REFERENCE R0 NOT VIDEO');
+  assert.equal(content[3].text,'VIDEO_FRAME V0 timestamp 1.333');
+  assert.equal(content[2].type,protocolMode==='responses'?'input_image':'image_url');
+  assert.equal(content[4].type,content[2].type);
+ }
+});
+
 test("adapter falls back from unsupported Responses API to Chat Completions without exposing credentials", async () => {
   const requests = [];
   const adapter = new AiProviderAdapter(config, { fetchImpl: async (url, init) => {
@@ -434,7 +450,7 @@ test("durable guard makes another worker wait until a cross-worker lease is rele
   assert.deepEqual(await Promise.all([firstRun, secondRun]), ["first", "second"]);
 });
 
-test("adapter aborts a timed-out request and retries malformed semantic output before opening the circuit", async () => {
+test("adapter aborts a timed-out request, bounds schema repair, and does not open the Provider circuit", async () => {
   const timeoutAdapter = new AiProviderAdapter({ ...config, requestTimeoutMs: 20, retryLimit: 0 }, {
     fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
       init.signal.addEventListener("abort", () => {
@@ -458,10 +474,9 @@ test("adapter aborts a timed-out request and retries malformed semantic output b
   assert.equal(scored.result.shot_id, "shot-1");
 
   const alwaysMalformed = new AiProviderAdapter({ ...config, protocolMode: "responses", retryLimit: 0 }, { fetchImpl: async () => jsonResponse({ output_text: "not-json" }) });
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_MALFORMED_RESPONSE");
-  }
-  await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "PROVIDER_INCIDENT_OPEN");
+  await assert.rejects(() => alwaysMalformed.scoreShot({ model: "m", prompt: "x", shotId: "shot-1" }), (error) => error.code === "SEMANTIC_SCHEMA_INVALID");
+  assert.equal(alwaysMalformed.guard.snapshot().circuit, "CLOSED");
+  assert.equal(alwaysMalformed.guard.snapshot().started, 2, "one format repair request is allowed");
 });
 
 test("capability probe propagates an overall deadline and cancels the active upstream request", async () => {
@@ -514,21 +529,21 @@ test("capability probe fails the reliability requirement after its guard opens",
 test("bounded discovery puts the configured model first and never selects an unverified model", async () => {
   const dispatched = [];
   const guard = new ProviderRequestGuard({ requestCap: 32, retryLimit: 0, failureThreshold: 100 });
-  const adapter = new AiProviderAdapter({ ...config, fastModel: "gpt-6-astra", retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
-    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "gpt-6-astra" }, { id: "gpt-5.6" }, { id: "gpt-5.6-sol" }, { id: "gpt-5.5" }, { id: "gpt-image-2" }] });
+  const adapter = new AiProviderAdapter({ ...config, fastModel: "configured-fast-model", retryLimit: 0 }, { guard, fetchImpl: async (url, init) => {
+    if (url.endsWith("/models")) return jsonResponse({ data: [{ id: "configured-fast-model" }, { id: "gpt-5.6" }, { id: "gpt-5.6-sol" }, { id: "gpt-5.5" }, { id: "gpt-image-2" }] });
     const body = JSON.parse(init.body);
     dispatched.push(body.model);
     return jsonResponse({ error: { message: "temporary provider route" } }, 503);
   } });
   const probe = await adapter.probeCapabilities({ imageDataUrls: ["data:image/png;base64,AA==", "data:image/png;base64,BB=="] });
-  assert.equal(dispatched[0], "gpt-6-astra");
+  assert.equal(dispatched[0], "configured-fast-model");
   assert.equal(probe.selectedModel, null);
   assert.equal(probe.selectedModels.fastModel, null);
   assert.equal(probe.selectedModels.strongModel, null);
   assert.equal(probe.lastAttemptedModel, "gpt-5.6");
-  assert.deepEqual(probe.attemptedModels, ["gpt-6-astra", "gpt-5.6"]);
+  assert.deepEqual(probe.attemptedModels, ["configured-fast-model", "gpt-5.6"]);
   assert.ok(probe.unattemptedModels.includes("gpt-5.6-sol"));
-  assert.ok(!probe.unattemptedModels.includes("gpt-6-astra"));
+  assert.ok(!probe.unattemptedModels.includes("configured-fast-model"));
 });
 
 test("a candidate that fails both text protocols does not prevent the next candidate from dispatching", async () => {

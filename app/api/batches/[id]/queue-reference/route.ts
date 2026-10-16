@@ -1,5 +1,3 @@
-import { assertProviderAvailable } from '@/lib/provider-incident.mjs';
-import { resolveProviderConfig } from '@/lib/ai-provider-config.mjs';
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -46,8 +44,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   try {
     const root = process.cwd();
-    const { config } = await resolveProviderConfig(root);
-    await assertProviderAvailable(config, config.fastModel, { root });
+    // Queue admission does not dispatch a Provider request. Let the existing
+    // worker checkpoint continue; live Provider backpressure and retry policy
+    // are enforced at request time by the adapter and durable request guard.
     await ensureFleetAvailable({ root });
     const batchDir = batchWorkspacePath(root, existing);
     await unlink(path.join(batchDir, "cancel.request")).catch(() => undefined);
@@ -57,6 +56,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       manualStageForBatch({ root, batchId: id, workflowVersion: existing.workflowVersion }),
     ]);
     const explicitRetry = ["failed", "canceled"].includes(existing.status);
+    if (existing.status === "canceled") return NextResponse.json({ error: "已取消批次不能通过演示入口重新领取。" }, { status: 409 });
+    if (existing.execution?.state === "manual_hold" || manualTask || recovery.state === "manual_required" || recovery.state === "failed") return NextResponse.json({ error: "历史人工暂停批次需要从原有恢复流程处理，不能作为 Demo Batch 领取。" }, { status: 409 });
     const planned = explicitRetry ? restartPlan(existing, manualTask, marker, recovery) : null;
 
     // Explicit retries are the only path that clears terminal manual queue work.
@@ -91,9 +92,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await enqueueStage({ root, batchId: batch.id, stage: plan.stage, operation: plan.operation, priority: batch.priority, workflowVersion: batch.workflowVersion, reason: explicitRetry ? "explicit_user_requeue" : undefined, taskNumber: taskNumberForBatch(batch) });
     return NextResponse.json({ batch });
   } catch (error) {
-    if (error && typeof error === "object" && "code" in error && ["PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED"].includes(String(error.code))) {
-      return NextResponse.json({ code: error.code, error: "当前 Provider 尚未通过 A–D Recovery Check，暂不能恢复 Batch。" }, { status: 409 });
-    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to queue batch." }, { status: 400 });
   }
 }

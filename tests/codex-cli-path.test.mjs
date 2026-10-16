@@ -8,7 +8,7 @@ import { classifyRecoveryError } from "../worker/recovery.mjs";
 import { Codex } from "@openai/codex-sdk";
 import { createCodexClient } from "../lib/codex-client.mjs";
 
-test("Codex executable resolution uses only the configured Runtime Contract path", () => {
+test("Codex executable resolution follows managed desktop updates and pins custom paths", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "cutflow-cli-"));
   try {
     const bin = path.join(root, "OpenAI", "Codex", "bin");
@@ -22,8 +22,6 @@ test("Codex executable resolution uses only the configured Runtime Contract path
     assert.equal(resolve(), old);
     const next = install("bbbb");
     rmSync(old);
-    assert.throws(resolve, { code: "CODEX_EXECUTOR_UNAVAILABLE" });
-    env.CODEX_CLI_PATH = next;
     assert.equal(resolve(), next);
     rmSync(next);
     assert.throws(resolve, { code: "CODEX_EXECUTOR_UNAVAILABLE" });
@@ -49,7 +47,7 @@ test("a restarted client uses the updated Contract executable and resumes the sa
     const bin = path.join(root, "OpenAI", "Codex", "bin");
     const old = path.join(bin, "aaaa", "codex.exe");
     const next = path.join(bin, "bbbb", "codex.exe");
-    for (const file of [old, next]) { mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, "fixture"); }
+    mkdirSync(path.dirname(old), { recursive: true }); writeFileSync(old, "fixture");
     process.env.LOCALAPPDATA = root; process.env.CODEX_CLI_PATH = old; process.env.CODEX_HOME = root;
     let starts = 0; let resumes = 0;
     const fake = () => ({ id: "session-1", run: async () => "ok", runStreamed: async () => "stream" });
@@ -60,6 +58,7 @@ test("a restarted client uses the updated Contract executable and resumes the sa
     rmSync(old);
     process.env.CODEX_CLI_PATH = next;
     assert.throws(() => thread.runStreamed("old process must fail closed"), { code: "CODEX_EXECUTOR_UNAVAILABLE" });
+    mkdirSync(path.dirname(next), { recursive: true }); writeFileSync(next, "fixture");
     const restartedThread = createCodexClient().resumeThread("session-1");
     assert.equal(await restartedThread.runStreamed("second"), "stream");
     assert.equal(restartedThread.id, "session-1");

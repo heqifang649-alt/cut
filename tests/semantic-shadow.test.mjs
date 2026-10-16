@@ -229,11 +229,13 @@ test("late transient retries stop after three cache-keyed evaluations", async (t
   for (let segment = 1; segment <= 3; segment++) assert.ok((await runSemanticShadow(options)).continuation);
   assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
   assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
-  await assert.rejects(runSemanticShadow(options), (error) => error.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(error.message));
+  const exhausted = await runSemanticShadow(options);
+  assert.equal(exhausted.partial, true);
+  assert.equal(exhausted.evidence.records.find((record) => record.shotId === "cap-4").status, "unavailable_for_auto");
   assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 3]);
 });
 
-test("a late malformed Provider response pauses for bounded retry rather than failing the Batch", async (t) => {
+test("a late schema-invalid model response stays local and allows partial continuation", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-semantic-malformed-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const frame = path.join(root, "frame.jpg");
@@ -246,7 +248,7 @@ test("a late malformed Provider response pauses for bounded retry rather than fa
       const count = (calls.get(shotId) || 0) + 1;
       calls.set(shotId, count);
       await onRequestEvent?.({ requestId: randomUUID(), phase: "start" });
-      if (shotId === "malformed-4" && count === 1) throw new ProviderAdapterError("invalid response", { code: "PROVIDER_MALFORMED_RESPONSE", retryable: false });
+      if (shotId === "malformed-4" && count === 1) throw new ProviderAdapterError("invalid response", { code: "SEMANTIC_SCHEMA_INVALID", retryable: false });
       return { result: { ...validResult, shot_id: shotId }, telemetry: {} };
     } },
     config: { baseUrl: "https://provider.test/v1", apiKey: "secret", fastModel: "fixture" },
@@ -254,9 +256,12 @@ test("a late malformed Provider response pauses for bounded retry rather than fa
     stageBudgetMs: 60_000, shotBudgetMs: 5_000, quantumShotLimit: 1, concurrency: 1,
   };
   for (let segment = 1; segment <= 3; segment++) assert.ok((await runSemanticShadow(options)).continuation);
-  assert.equal((await runSemanticShadow(options)).continuation.reason, "SEMANTIC_PENDING_SHOTS");
-  assert.equal((await runSemanticShadow(options)).evidence.complete, true);
-  assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 2]);
+  const partial = await runSemanticShadow(options);
+  assert.equal(partial.partial, true);
+  assert.equal(partial.evidence.autoReady, true);
+  assert.equal(partial.evidence.records.find((record) => record.shotId === "malformed-4").status, "unavailable_for_auto");
+  assert.equal(partial.evidence.records.filter((record) => record.result).length, 3);
+  assert.deepEqual(shots.map((shot) => calls.get(shot.id)), [1, 1, 1, 1]);
 });
 
 test("new video requests extract only sent slots and keep cached input identity", async (t) => {
@@ -286,15 +291,16 @@ test("75-shot permanent failure preserves 74 scores and ends fail-closed", async
   const second = await runSemanticShadow(options);
   assert.equal(first.continuation.reason, "SEMANTIC_PENDING_SHOTS");
   assert.equal(second.continuation.reason, "SEMANTIC_PENDING_SHOTS");
-  await assert.rejects(runSemanticShadow(options), (error) => error.code === "SEMANTIC_ANALYSIS_PAUSED" && /SEMANTIC_INCOMPLETE/.test(error.message));
+  const partial = await runSemanticShadow(options);
   const snapshots = await Promise.all((await readdir(path.join(root, "semantic-history/snapshots"))).map(async (name) => JSON.parse(await readFile(path.join(root, "semantic-history/snapshots", name), "utf8"))));
   const incomplete = snapshots.find((snapshot) => snapshot.stopReason === "SEMANTIC_INCOMPLETE");
   assert.equal(incomplete?.complete, false);
+  assert.equal(partial.partial, true);
   assert.equal(incomplete?.records.filter((record) => record.result).length, 74);
-  assert.equal(incomplete?.records.filter((record) => record.status === "error").length, 1);
+  assert.equal(incomplete?.records.filter((record) => record.status === "unavailable_for_auto").length, 1);
   assert.equal([...calls.entries()].filter(([shotId, count]) => shotId !== "fault-75" && count !== 1).length, 0, "completed shots must never be requested twice");
   assert.equal(calls.get("fault-75"), 3, "only the unfinished shot is retried across bounded segments");
-  await assert.rejects(readFile(path.join(root, "semantic-evidence.v1.json"), "utf8"), { code: "ENOENT" });
+  assert.ok(await readFile(path.join(root, "semantic-evidence.v1.json"), "utf8"));
 });
 
 test("first 429 degrades two lanes to one, drains the peer, and persists across restart", async (t) => {

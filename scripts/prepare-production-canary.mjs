@@ -2,7 +2,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
 import { getBatch, mutateBatch } from "../lib/store.ts";
-import { writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { canaryBatchIds, effectiveBatchScope, batchInScope } from "../worker/batch-scope.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { enqueueStage, resetBatchStagesForExplicitRetry } from "../worker/service-queue.mjs";
 import { taskNumberForBatch } from "../lib/task-number.mjs";
@@ -10,9 +11,11 @@ import { taskNumberForBatch } from "../lib/task-number.mjs";
 const ROOT = process.cwd();
 
 export async function prepareProductionCanary({ batchIds } = {}) {
-  if (!Array.isArray(batchIds) || batchIds.length < 3 || batchIds.length > 5) throw new Error("Canary requires 3-5 explicit Batch ids");
-  const uniqueIds = [...new Set(batchIds)];
-  if (uniqueIds.length !== batchIds.length) throw new Error("Canary Batch ids must be unique");
+  const uniqueIds = canaryBatchIds(batchIds);
+  const scope = effectiveBatchScope(uniqueIds);
+  if (uniqueIds.some((id) => !batchInScope(scope, id))) throw new Error("Requested Canary is outside the process Batch scope");
+  const existing = await readJson(path.join(ROOT, "data", "multi-batch-canary.json"), null);
+  if (["running", "aborted"].includes(existing?.status)) throw new Error("Existing Canary scope must be explicitly closed before preparing another run");
   const batches = await Promise.all(uniqueIds.map((id) => getBatch(id)));
   if (batches.some((batch) => !batch)) throw new Error("One or more Canary Batches do not exist");
   for (const batch of batches) {
@@ -28,7 +31,7 @@ export async function prepareProductionCanary({ batchIds } = {}) {
   const prepared = [];
   for (const original of batches) {
     const batchDir = batchWorkspacePath(ROOT, original);
-    await resetBatchStagesForExplicitRetry({ root: ROOT, batchId: original.id, reason: `production_canary:${runId}` });
+    await resetBatchStagesForExplicitRetry({ root: ROOT, batchId: original.id, reason: `production_canary:${runId}`, allowedBatchIds: uniqueIds });
     const batch = await mutateBatch(original.id, (item) => {
       item.workflowVersion = Math.max(1, Number(item.workflowVersion) || 1) + 1;
       item.coveragePolicy = "all_products_required";
@@ -37,11 +40,11 @@ export async function prepareProductionCanary({ batchIds } = {}) {
       item.error = undefined;
       item.renderingLabel = "生产 Canary：等待样片与产品识别";
       item.execution = { state: "queued", stage: "analyze", reason: `production_canary:${runId}`, updatedAt: new Date().toISOString() };
-    });
+    }, { allowedBatchIds: uniqueIds });
     await mkdir(batchDir, { recursive: true });
     await writeJsonAtomic(path.join(batchDir, "reference-profile.json"), batch.referenceProfile);
     await writeJsonAtomic(path.join(batchDir, "service-stage.json"), { schemaVersion: 1, next: "analyze", operation: "reference", workflowVersion: batch.workflowVersion, queuedAt: new Date().toISOString(), canaryRunId: runId });
-    await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: batch.workflowVersion, reason: `production_canary:${runId}`, taskNumber: taskNumberForBatch(batch) });
+    await enqueueStage({ root: ROOT, batchId: batch.id, stage: "analyze", operation: "reference", priority: batch.priority, workflowVersion: batch.workflowVersion, reason: `production_canary:${runId}`, taskNumber: taskNumberForBatch(batch), allowedBatchIds: uniqueIds });
     prepared.push({ id: batch.id, taskNumber: taskNumberForBatch(batch), name: batch.name, workflowVersion: batch.workflowVersion, targetOutputsPerBatch: batch.targetOutputsPerBatch, coveragePolicy: batch.coveragePolicy });
   }
   const state = { schemaVersion: 1, runId, status: "running", startedAt: new Date().toISOString(), featureFlagDefaultChanged: false, fairSchedulerEnabled: true, batchIds: uniqueIds, targetPolicy: "detected_products", coveragePolicy: "all_products_required", evidenceDir, prepared };

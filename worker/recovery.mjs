@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath, batchWorkspacePathForId } from "../lib/tenant-paths.mjs";
 import { readQueue } from "./service-queue.mjs";
+import { environmentBatchScope, batchInScope } from "./batch-scope.mjs";
 
 export const MAX_RECOVERY_ATTEMPTS = 3;
 export const MAX_CODEX_INACTIVITY_ATTEMPTS = 2;
@@ -81,7 +82,9 @@ function initialCodexControl() {
 }
 
 function pruneExpiredSlots(control, currentTime = Date.now()) {
-  control.slots = (Array.isArray(control.slots) ? control.slots : []).filter((slot) => parseTime(slot.expiresAt) > currentTime);
+  const scope = environmentBatchScope();
+  control.slots = (Array.isArray(control.slots) ? control.slots : []).filter((slot) =>
+    !batchInScope(scope, String(slot.taskKey || "").split(":")[0]) || parseTime(slot.expiresAt) > currentTime);
 }
 
 async function mutateCodexControl(root, change) {
@@ -436,6 +439,7 @@ export function classifyRecoveryError(error, context = {}) {
   const errorCode = String(error && typeof error === "object" ? error.code || "" : "").toLowerCase();
   const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;
   if (context.canceled) return { category: "fatal", kind: "canceled", recoverable: false, label: "任务已取消" };
+  if (errorCode === "product_group_normalization_failed") return { category: "business", kind: "product_group_normalization_failed", recoverable: false, label: "产品分组结构或素材归属有歧义，等待人工处理" };
   if (errorCode === "visual_analysis_invalid") return { category: "business", kind: "visual_analysis_invalid", recoverable: false, label: "视觉 API 返回无效结果，等待核对" };
   if (errorCode.startsWith("provider_") && (error?.status === 429 || /concurrency limit exceeded|too many concurrent|too many requests|rate limit/.test(message))) {
     return { category: "recoverable", kind: "provider_backpressure", recoverable: true, label: "Provider 全局容量受限，等待自动续跑" };
