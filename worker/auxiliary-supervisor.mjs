@@ -16,6 +16,11 @@ if (RUNTIME.codexCliExecutable) process.env.CODEX_CLI_PATH = RUNTIME.codexCliExe
 else delete process.env.CODEX_CLI_PATH;
 const workerName = process.argv.find((arg) => arg.startsWith("--worker="))?.slice("--worker=".length);
 const WORKERS = {
+  bridge: {
+    script: "libtv-bridge-worker.mjs",
+    heartbeat: "libtv-bridge-heartbeat.json",
+    guardedLock: "libtv-transfer-worker.lock",
+  },
   template: {
     script: "template-processor.mjs",
     heartbeat: "template-worker-heartbeat.json",

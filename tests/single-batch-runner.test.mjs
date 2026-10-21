@@ -13,6 +13,8 @@ import * as taskNumber from "../lib/task-number.mjs";
 import * as recovery from "../worker/recovery.mjs";
 import * as governor from "../worker/resource-governor.mjs";
 import * as qualityEvidence from "../lib/quality-evidence-v2.mjs";
+import * as classicIntegration from "../lib/classic-integration.mjs";
+import { GUIDED_POLICY } from "../lib/libtv-guided-policy.mjs";
 
 // Run the unchanged module body against isolated files and fake media/provider
 // executors. No network, provider generation, production paths or real media.
@@ -79,6 +81,7 @@ async function harness(t, { enabled = "true", ids = "target", service = "analyze
     "./runtime-config.mjs": { loadRuntimeConfig: async () => ({}), runtimeIdentity: () => ({}) },
     "./runtime-preflight.mjs": { preflightRuntime: async () => ({}) },
     "./claim-control.mjs": { claimsEnabled: () => enabled !== "false" },
+    "../lib/classic-integration.mjs": classicIntegration,
     "./batch-scope.mjs": scopeModule,
     "../lib/quality-evidence-v2.mjs": qualityEvidence,
   };
@@ -156,6 +159,33 @@ test("source_policy batch resumes quality → clip → render without a human co
   assert.equal((await h.readBatches())[0].productDetection.humanConfirmation, undefined);
   assert.deepEqual((await h.readBatches())[1], peer);
   assert.deepEqual((await queue.readQueue(h.root)).tasks.filter((task) => task.batchId === "peer"), [peerTask]);
+});
+
+test("durable classic grant alone runs all stages under NoClaim across runner restarts and preserves historical queue", async (t) => {
+  const h = await harness(t, { enabled: "false", ids: "" });
+  delete process.env.CUTFLOW_CANARY_BATCH_IDS;
+  delete h.processMock.env.CUTFLOW_CANARY_BATCH_IDS;
+  const config = { schemaVersion: 1, enabled: true, nasRoot: h.root, scanSince: "2026-10-21T00:00:00Z" };
+  const receipt = { contractVersion: "libtv-cut-lan/1", status: "ready", handoffId: "handoff-fixture", manifestSha256: "a".repeat(64), batchId: "target", ownerId: "owner", userId: "user",
+    editPolicyReceipt: { state: "accepted", policyVersion: "yiying-ootd/2", strategy: "guided_auto", manifestSha256: "a".repeat(64), policy: GUIDED_POLICY } };
+  receipt.executionGrant = classicIntegration.classicGrant({ ...config, integrationEnabled: true }, receipt);
+  await atomic.writeJsonAtomic(nodePath.join(h.root, "data/classic-integration-runtime.json"), config);
+  await atomic.writeJsonAtomic(nodePath.join(h.root, "data/libtv-receipts.json"), [receipt]);
+  const peer = { id: "historical", status: "batch_queued" };
+  await atomic.writeJsonAtomic(h.batchesFile, [{ id: "target", ownerId: "owner", status: "batch_queued", workflowVersion: 1,
+    libtvSource: { transport: "lan", handoffId: receipt.handoffId, manifestSha256: receipt.manifestSha256, source: { user_id: "user" }, editPolicyReceipt: receipt.editPolicyReceipt } }, peer]);
+  const peerTask = { key: "historical:analyze:quality", batchId: "historical", stage: "analyze", operation: "quality", status: "retry", enqueuedAt: "2020-01-01T00:00:00Z" };
+  await atomic.writeJsonAtomic(nodePath.join(h.root, "data/service-queue.json"), { tasks: [peerTask] });
+  for (const service of ["analyze", "clip", "render"]) {
+    h.processMock.argv[2] = `--service=${service}`;
+    const runner = await loadSource("worker/service-runner.mjs", h.mocks, h.processMock);
+    assert.equal(await runner.processOnce(), true);
+    assert.equal(await runner.processOnce(), false);
+  }
+  assert.deepEqual(h.calls, ["target:quality", "target:edit", "target:render"]);
+  assert.equal((await h.readBatches())[0].status, "review");
+  assert.deepEqual((await h.readBatches())[1], peer);
+  assert.deepEqual((await queue.readQueue(h.root)).tasks.filter(task => task.batchId === "historical"), [peerTask]);
 });
 
 test("automatic quality refusal becomes a structured terminal failure without retrying paid stages", async (t) => {

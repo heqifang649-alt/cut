@@ -1,5 +1,5 @@
 import path from "node:path";
-import { access, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   assertLease,
@@ -57,6 +57,7 @@ import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from 
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { preflightRuntime } from "./runtime-preflight.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
+import { classicExecutionScope } from "../lib/classic-integration.mjs";
 import { environmentBatchScope, batchInScope } from "./batch-scope.mjs";
 import { QUALITY_EVIDENCE_V2_PROMPT_VERSION } from '../lib/quality-evidence-v2.mjs';
 
@@ -74,7 +75,11 @@ const ONCE = process.argv.includes("--once");
 const IDLE_MS = Math.max(500, Number(process.env.CUTFLOW_SERVICE_POLL_MS) || 1500);
 const LEASE_MS = Math.max(30_000, Number(process.env.CUTFLOW_SERVICE_LEASE_MS) || 120_000);
 const HEARTBEAT_MS = Math.min(30_000, Math.max(5_000, Math.floor(LEASE_MS / 3)));
-const CANARY_BATCH_IDS = environmentBatchScope();
+let CANARY_BATCH_IDS = environmentBatchScope();
+async function refreshExecutionScope() {
+  if (!claimsEnabled()) CANARY_BATCH_IDS = await classicExecutionScope(ROOT);
+}
+function mayClaim() { return claimsEnabled() || Boolean(CANARY_BATCH_IDS?.size); }
 const DERIVED_ACTIVE_BATCH_STATUSES = new Set([
   "reference_queued", "analyzing_reference", "creating_proxies", "detecting_products",
   "regroup_queued", "batch_queued", "editing", "revision_queued", "revising",
@@ -94,7 +99,7 @@ async function fileExists(file) {
 
 async function writeServiceHeartbeat() {
   await mkdir(path.dirname(heartbeatFile), { recursive: true });
-  await writeFile(heartbeatFile, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID, claimsEnabled: claimsEnabled(), canaryBatchIds: CANARY_BATCH_IDS ? [...CANARY_BATCH_IDS] : null, qualityPromptVersion: QUALITY_EVIDENCE_V2_PROMPT_VERSION, ...runtimeIdentity(RUNTIME) }), "utf8");
+  await writeJsonAtomic(heartbeatFile, { at: new Date().toISOString(), pid: process.pid, service: SERVICE, workerId: WORKER_ID, claimsEnabled: claimsEnabled(), integrationBatchIds: !claimsEnabled() ? [...(CANARY_BATCH_IDS || [])] : [], canaryBatchIds: CANARY_BATCH_IDS ? [...CANARY_BATCH_IDS] : null, qualityPromptVersion: QUALITY_EVIDENCE_V2_PROMPT_VERSION, ...runtimeIdentity(RUNTIME) });
 }
 
 async function markStage(root, batch, next, operation) {
@@ -106,6 +111,7 @@ function enqueueDerivedStage(options) {
 }
 
 async function taskStillCurrent(task) {
+  if (!claimsEnabled() && !(await classicExecutionScope(ROOT)).has(task.batchId)) return false;
   const batch = await loadBatch(task.batchId);
   if (!batch) return false;
   const marker = await readJson(stageFile(batch), null);
@@ -113,6 +119,7 @@ async function taskStillCurrent(task) {
 }
 
 async function taskCanFinalize(task) {
+  if (!claimsEnabled() && !(await classicExecutionScope(ROOT)).has(task.batchId)) return false;
   const batch = await loadBatch(task.batchId);
   if (!batch) return false;
   const marker = await readJson(stageFile(batch), null);
@@ -120,7 +127,8 @@ async function taskCanFinalize(task) {
 }
 
 async function syncDerivedTasks() {
-  if (!claimsEnabled() || CANARY_BATCH_IDS?.size === 0) return;
+  await refreshExecutionScope();
+  if (!mayClaim() || CANARY_BATCH_IDS?.size === 0) return;
   const [batches, queue] = await Promise.all([readBatches(), readQueue(ROOT)]);
   const manualTasks = new Map();
   for (const task of queue.tasks || []) {
@@ -542,7 +550,8 @@ async function processOnce() {
       await rm(path.join(ROOT, "data", "runtime-health", `${SERVICE}.json`), { force: true }).catch(() => undefined);
       runtimePreflightPassed = true;
     }
-    if (!claimsEnabled()) return false;
+    await refreshExecutionScope();
+    if (!mayClaim()) return false;
     if (CANARY_BATCH_IDS?.size === 0) return false;
     await assertWorkRootReady({ maxAgeMs: 10_000 });
     await promoteRetries({ root: ROOT, stage: STAGE, allowedBatchIds: CANARY_BATCH_IDS });

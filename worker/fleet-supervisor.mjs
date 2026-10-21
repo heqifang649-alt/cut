@@ -8,6 +8,7 @@ import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 import { preflightRuntime } from "./runtime-preflight.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
 import { canaryBatchIds, sameClaimScope } from "./batch-scope.mjs";
+import { classicIntegrationConfig } from "../lib/classic-integration.mjs";
 
 // The fleet can be launched directly by recovery or scheduled-task tooling,
 // bypassing the PowerShell launcher that normally injects this setting. Keep
@@ -16,7 +17,7 @@ import { canaryBatchIds, sameClaimScope } from "./batch-scope.mjs";
 process.loadEnvFile(".env.local");
 // An explicit maintenance launch must win even if the child process did not
 // inherit the launcher's environment and .env.local enables normal claims.
-const FORCE_NO_CLAIM = process.argv.includes("--no-claim");
+const FORCE_NO_CLAIM = process.argv.includes("--no-claim") || Boolean(classicIntegrationConfig());
 if (FORCE_NO_CLAIM) process.env.CUTFLOW_CLAIM_ENABLED = "false";
 
 const ROOT = process.cwd();
@@ -53,6 +54,7 @@ export const FLEET_MEMBERS = [
     script: "auxiliary-supervisor.mjs",
     args: [`--worker=${worker}`],
   })),
+  ...(classicIntegrationConfig(ROOT) ? [{ name: "bridge", script: "auxiliary-supervisor.mjs", args: ["--worker=bridge"] }] : []),
 ];
 
 const children = new Map();

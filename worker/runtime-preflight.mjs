@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 
 export const RUNTIME_CAPABILITIES = Object.freeze({
+  bridge: ["node", "ffmpeg", "ffprobe", "workRoot", "scripts"],
   analyze: ["node", "ffmpeg", "workRoot", "scripts"],
   clip: ["node", "ffmpeg", "workRoot", "scripts"],
   render: ["node", "python", "ffmpeg", "ffprobe", "workRoot", "deliveryRoot", "scripts"],
@@ -17,6 +18,7 @@ export const RUNTIME_CAPABILITIES = Object.freeze({
 });
 
 const SCRIPT_REQUIREMENTS = {
+  bridge: ["worker/libtv-bridge-worker.mjs"],
   analyze: ["worker/service-runner.mjs", "worker/processor.mjs"],
   clip: ["worker/service-runner.mjs", "worker/processor.mjs", "worker/batch-renderer.mjs", "worker/render-overlays.py"],
   render: ["worker/service-runner.mjs", "worker/processor.mjs", "worker/batch-renderer.mjs", "worker/render-overlays.py"],

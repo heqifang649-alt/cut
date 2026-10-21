@@ -57,7 +57,9 @@ test("production runtime consumers and queue recovery never use executable field
     assert.doesNotMatch(source, /process\.env\.(?:FFMPEG|PYTHON)_PATH\s*\|\|\s*["'][A-Za-z]:\\/);
   }
   const runner = await readFile(new URL("../worker/service-runner.mjs", import.meta.url), "utf8");
-  assert.ok(runner.indexOf("preflightRuntime({ root: ROOT, capability: SERVICE })") < runner.indexOf("promoteRetries({ root: ROOT, stage: STAGE })"));
+  const preflight = runner.indexOf("await preflightRuntime(");
+  const retries = runner.indexOf("await promoteRetries(");
+  assert.ok(preflight >= 0 && retries > preflight, "runtime preflight precedes queue retry mutations");
   assert.doesNotMatch(runner, /batch\.(?:pythonExecutable|ffmpegExecutable|ffprobeExecutable)/);
 });
 

@@ -32,6 +32,12 @@ foreach ($proxyName in @('HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY')) {
 $env:NODE_OPTIONS = '--openssl-legacy-provider'
 
 $portalRoot = Split-Path -Parent $PSScriptRoot
+$classicRuntimeFile = Join-Path $portalRoot 'data\classic-integration-runtime.json'
+$classicIntegration = $null
+if (Test-Path -LiteralPath $classicRuntimeFile) {
+  $classicIntegration = Get-Content -LiteralPath $classicRuntimeFile -Raw | ConvertFrom-Json
+  if ($classicIntegration.enabled) { $NoClaim = $true }
+}
 # Runtime executable 与运行目录由 cutflow-runtime.json 唯一管理。其余启动调优项
 #（例如最低剩余空间）仍可从 .env.local 读取；Web 与 Worker 都继承契约中的工作根。
 $envFile = Join-Path $portalRoot '.env.local'
@@ -354,7 +360,7 @@ function Start-Worker([string]$Name, [string[]]$Arguments, [string]$Heartbeat, [
 }
 
 $listener = Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($NoClaim -and $listener) {
+if ($NoClaim -and $listener -and -not $classicIntegration.enabled) {
   throw 'No-Claim requires restart-cutflow.ps1 -NoClaim while Web is already running; the existing Web watchdog may relaunch a claims-enabled Fleet.'
 }
 if (-not $listener) {
@@ -398,7 +404,8 @@ do {
       }
     }
   }
-  foreach ($auxiliary in @('template', 'delivery', 'chatcut')) {
+  $requiredAuxiliary = if ($classicIntegration.enabled) { @('bridge', 'delivery') } else { @('template', 'delivery', 'chatcut') }
+  foreach ($auxiliary in $requiredAuxiliary) {
     if (-not (Test-TrackedProcess (Join-Path $dataRoot "auxiliary-runtime\$auxiliary.json") "worker\auxiliary-supervisor.mjs*--worker=$auxiliary")) {
       $servicesReady = $false
     }
@@ -407,6 +414,7 @@ do {
   Start-Sleep -Milliseconds 500
 } while ((Get-Date) -lt $deadline)
 
+Write-Host "Web alive: $webReady; required execution services ready: $servicesReady; classic restricted integration: $([bool]$classicIntegration.enabled)"
 if (-not $webReady -or -not $servicesReady) { throw 'Cutflow failed its startup health check. See logs\*.stderr.log.' }
 if ($NoClaim) {
   $fleetRuntime = Get-Content -LiteralPath (Join-Path $dataRoot 'fleet-runtime.json') -Raw -Encoding UTF8 | ConvertFrom-Json

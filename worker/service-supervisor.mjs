@@ -11,6 +11,7 @@ import { recordBatchFailure } from "./failure-diagnostics.mjs";
 import { update } from "./processor.mjs";
 import { workerInstancePaths } from "../lib/work-paths.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
+import { classicExecutionScope } from "../lib/classic-integration.mjs";
 
 const ROOT = process.cwd();
 let RUNTIME = await loadRuntimeConfig(ROOT);
@@ -69,7 +70,8 @@ async function writeLog(message) {
 }
 
 async function releaseCrashedLeases(reason) {
-  if (!claimsEnabled()) return;
+  const allowedBatchIds = claimsEnabled() ? undefined : await classicExecutionScope(ROOT);
+  if (allowedBatchIds?.size === 0) return;
   const message = `Service worker crashed: ${truncate(reason)}`;
   const classification = { category: "recoverable", kind: "worker_crash", recoverable: true, label: "服务异常重启" };
   const released = await releaseWorkerLeases({
@@ -77,6 +79,7 @@ async function releaseCrashedLeases(reason) {
     workerId: INSTANCE,
     reason: message,
     maxAttempts: MAX_RECOVERY_ATTEMPTS,
+    allowedBatchIds,
   });
   for (const { task, state, attempt } of released) {
     await recordBatchFailure({

@@ -7,9 +7,11 @@ if (handoff) {
   config.allowedHandoffIds = [handoff];
 }
 const once = process.argv.includes("--once");
+const heartbeat = !once && setInterval(() => writeBridgeHeartbeat(process.cwd(), config).catch(() => undefined), 5000);
 do {
   await writeBridgeHeartbeat(process.cwd(), config);
   await bridgeTick(process.cwd(), config);
   await writeBridgeHeartbeat(process.cwd(), config);
   if (!once) await new Promise((resolve) => setTimeout(resolve, 2000));
 } while (!once);
+if (heartbeat) clearInterval(heartbeat);

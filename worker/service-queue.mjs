@@ -251,7 +251,7 @@ export async function enqueueStage({ root, batchId, stage, operation = "default"
     };
     queue.tasks.push(task);
     return { ...task };
-  }, allowedBatchIds);
+  }, allowedBatchIds ?? [batchId]);
 }
 
 export async function cancelBatchStages({ root, batchId }) {
@@ -264,7 +264,7 @@ export async function cancelBatchStages({ root, batchId }) {
       changed.push({ ...task });
     }
     return changed.length ? changed : noChange(changed);
-  });
+  }, [batchId]);
 }
 
 // A user may explicitly restart a task that reached a terminal manual state
@@ -283,7 +283,7 @@ export async function resetBatchStagesForExplicitRetry({ root, batchId, reason =
       changed.push({ ...task });
     }
     return changed.length ? changed : noChange(changed);
-  }, allowedBatchIds);
+  }, allowedBatchIds ?? [batchId]);
 }
 
 export async function cancelStage({ root, batchId, stage, operation }) {
@@ -297,7 +297,7 @@ export async function cancelStage({ root, batchId, stage, operation }) {
       changed.push({ ...task });
     }
     return changed.length ? changed : noChange(changed);
-  });
+  }, [batchId]);
 }
 
 export async function manualStageForBatch({ root, batchId, workflowVersion }) {
@@ -320,7 +320,7 @@ export async function holdQueuedStageForBatch({ root, batchId, stage, operation,
     task.notBefore = undefined;
     task.lease = undefined;
     return structuredClone(task);
-  });
+  }, [batchId]);
 }
 
 export async function claimStage({ root, stage, workerId, leaseMs = 90_000, fairMultiBatch, allowedBatchIds }) {
@@ -402,7 +402,7 @@ export async function heartbeatLease({ root, task, leaseMs = 90_000 }) {
     current.lease.heartbeatAt = now();
     current.lease.expiresAt = new Date(Date.now() + leaseMs).toISOString();
     return true;
-  });
+  }, [task.batchId]);
 }
 
 export async function assertLease({ root, task }) {
@@ -420,7 +420,7 @@ export async function completeStage({ root, task }) {
     current.completedAt = now();
     current.lease = undefined;
     return true;
-  });
+  }, [task.batchId]);
 }
 
 export async function retryStage({ root, task, reason, maxAttempts = DEFAULT_MAX_ATTEMPTS, delayMs }) {
@@ -445,7 +445,7 @@ export async function retryStage({ root, task, reason, maxAttempts = DEFAULT_MAX
     current.notBefore = new Date(Date.now() + selectedDelay).toISOString();
     current.retryAt = now();
     return { state: "retry", attempt, notBefore: current.notBefore };
-  });
+  }, [task.batchId]);
 }
 
 // A global dependency can be temporarily unavailable even though this Batch
@@ -469,7 +469,7 @@ export async function deferStage({ root, task, reason, notBefore, fairMultiBatch
     current.deferredAt = now();
     current.lease = undefined;
     return { state: "retry", attempt: Number(current.attempt || 0), notBefore };
-  });
+  }, [task.batchId]);
 }
 
 // A process can disappear before its task-level error handler runs. Do not

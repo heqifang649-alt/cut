@@ -14,6 +14,7 @@ import { guidedIntervals, prepareGuidedInputs, scheduleGuided, assertGuidedMusic
 import { runAutoOotdQuality, assertAutoOotdQuality } from "../worker/libtv-auto-quality.mjs";
 import { dryRunRenderPlan, renderPlansToEdl } from "../worker/batch-renderer.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
+import { classicExecutionScope, classicIntegrationConfig } from "../lib/classic-integration.mjs";
 
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 const sharp = createRequire(import.meta.resolve("next/package.json"))("sharp");
@@ -49,6 +50,44 @@ async function imported(t) {
   e.batchDir = batchWorkspacePath(e.root, e.batch);
   return e;
 }
+
+test("unattended admission persists scoped capability; missing notification, restart and scope tampering never open historical queues", async t => {
+  const e = await fixture(t);
+  e.config.integrationEnabled = true;
+  e.config.scanEnabled = true;
+  e.config.scanSince = '2026-01-01T00:00:00Z';
+  const settings = { schemaVersion: 1, enabled: true, nasRoot: e.config.nasRoot, scanSince: e.config.scanSince };
+  await writeJsonAtomic(path.join(e.root, 'data/classic-integration-runtime.json'), settings);
+  await writeJsonAtomic(path.join(e.root, 'data/batches.json'), [{id:'old',status:'batch_queued'}]);
+  // No notification at all: scanner uses the same durable admission boundary.
+  assert.equal(await scanLanReady(e.root, e.config), 1);
+  await Promise.all([enqueueImport(e.root, e.config, e.input), bridgeTick(e.root, e.config)]);
+  const receiptsFile = path.join(e.root, 'data/libtv-receipts.json');
+  const receipts = await readJson(receiptsFile);
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].executionGrant.batchId, receipts[0].batchId);
+  assert.deepEqual([...await classicExecutionScope(e.root, {})], [receipts[0].batchId]);
+  const fresh = await import(`../lib/classic-integration.mjs?restart=${randomUUID()}`);
+  assert.deepEqual([...await fresh.classicExecutionScope(e.root, {})], [receipts[0].batchId]);
+  assert.equal(fresh.classicIntegrationConfig(e.root).scanSince, settings.scanSince);
+  assert.equal(classicIntegrationConfig(e.root).scanIntervalMs, 60000);
+  assert.equal((await classicExecutionScope(e.root, {CUTFLOW_CANARY_BATCH_IDS:'old'})).size, 0);
+  const original = structuredClone(receipts);
+  for (const change of [r => r.executionGrant.nasRoot += '-other', r => r.executionGrant.manifestSha256='b'.repeat(64),
+    r => r.editPolicyReceipt.strategy='other', r => r.userId='wrong', r => r.contractVersion='libtv-to-cutflow/1.2']) {
+    const changed = structuredClone(original); change(changed[0]); await writeJsonAtomic(receiptsFile, changed);
+    assert.equal((await classicExecutionScope(e.root, {})).size, 0);
+  }
+  // Upgrade of a previously accepted receipt validates source bytes again.
+  delete receipts[0].executionGrant; await writeJsonAtomic(receiptsFile, receipts);
+  await rename(e.config.nasRoot, e.config.nasRoot+'-offline');
+  await bridgeTick(e.root, e.config);
+  assert.equal((await classicExecutionScope(e.root, {})).size, 0);
+  await rename(e.config.nasRoot+'-offline', e.config.nasRoot);
+  await bridgeTick(e.root, e.config);
+  assert.deepEqual([...await classicExecutionScope(e.root, {})], [receipts[0].batchId]);
+  assert.deepEqual((await readJson(path.join(e.root,'data/batches.json')))[0], {id:'old',status:'batch_queued'});
+});
 test("/2 accepts durably without a template; concurrent POST, offline retry, GET and import recovery retain the original binding", async (t) => {
   const e = await fixture(t), peers = [{ id: "old", status: "canceled" }];
   await writeJsonAtomic(path.join(e.root, "data/batches.json"), peers);
