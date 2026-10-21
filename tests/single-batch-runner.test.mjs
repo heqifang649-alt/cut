@@ -12,6 +12,7 @@ import * as fence from "../worker/task-fence.mjs";
 import * as taskNumber from "../lib/task-number.mjs";
 import * as recovery from "../worker/recovery.mjs";
 import * as governor from "../worker/resource-governor.mjs";
+import * as qualityEvidence from "../lib/quality-evidence-v2.mjs";
 
 // Run the unchanged module body against isolated files and fake media/provider
 // executors. No network, provider generation, production paths or real media.
@@ -79,6 +80,7 @@ async function harness(t, { enabled = "true", ids = "target", service = "analyze
     "./runtime-preflight.mjs": { preflightRuntime: async () => ({}) },
     "./claim-control.mjs": { claimsEnabled: () => enabled !== "false" },
     "./batch-scope.mjs": scopeModule,
+    "../lib/quality-evidence-v2.mjs": qualityEvidence,
   };
   const processMock = { cwd: () => root, env: { CUTFLOW_CANARY_BATCH_IDS: ids }, argv: [process.execPath, "fixture.mjs", `--service=${service}`], pid: process.pid };
   const runner = await loadSource("worker/service-runner.mjs", mocks, processMock);
@@ -177,6 +179,7 @@ test("single-batch preparation queues only initial reference and preserves manua
   const peer = { id: "peer", status: "uploading" };
   await atomic.writeJsonAtomic(h.batchesFile, [{ id: "target", status: "uploading", templateId: "template", referenceProfile: { summary: "fixture" }, files: [{ kind: "products" }] }, peer]);
   const store = await loadSource("lib/store.ts", {
+    "./libtv-bridge.mjs": { syncConfiguredLanStatuses: async () => {} },
     "node:path": nodePath, "./atomic-json.mjs": atomic,
     "./task-number.mjs": taskNumber, "../worker/batch-scope.mjs": scopeModule,
   }, h.processMock);

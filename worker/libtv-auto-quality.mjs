@@ -1,3 +1,5 @@
+import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
+import { prepareGuidedInputs } from "./libtv-guided-auto.mjs";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,11 +15,11 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fail = (code, reason) => Object.assign(new Error(reason), { code, automaticReason: reason });
 
 export async function autoOotdInputs(root, batch) {
-  if (!isAutoOotdBatch(batch)) throw fail("QUALITY_REJECTED", "source_policy_invalid");
+  if (!isAutoOotdBatch(batch) && !isGuidedBatch(batch)) throw fail("QUALITY_REJECTED", "source_policy_invalid");
   const users = await readJson(path.join(root, "data/users.json"), []);
   const templates = await readJson(path.join(root, "data/templates.json"), []);
   if (!users.some((user) => user.id === batch.ownerId && user.status === "active")) throw fail("QUALITY_REJECTED", "owner_inactive");
-  if (!templates.some((template) => template.id === batch.templateId && template.ownerId === batch.ownerId && template.status === "ready"
+  if (!isGuidedBatch(batch) && !templates.some((template) => template.id === batch.templateId && template.ownerId === batch.ownerId && template.status === "ready"
     && isDeepStrictEqual(template.profile, batch.referenceProfile))) throw fail("TEMPLATE_NOT_READY", "template_not_ready_or_owner_changed");
   const files = batch.files.filter((file) => file.kind === "products");
   const refs = batch.files.filter((file) => file.kind === "product_refs");
@@ -37,12 +39,13 @@ export async function autoOotdInputs(root, batch) {
 }
 
 export async function runAutoOotdQuality({ root, batch, batchDir, artifactDir, ffmpeg,
-  prepare = prepareDeterministicInputs, ingest = importBatchToShotPool, validate = validateWithQualityGateV2 } = {}) {
+  prepare, ingest = importBatchToShotPool, validate = validateWithQualityGateV2 } = {}) {
   const input = await autoOotdInputs(root, batch);
-  await prepare({ batch, batchDir, ffmpeg });
+  await (prepare || (isGuidedBatch(batch) ? prepareGuidedInputs : prepareDeterministicInputs))({ root, batch, batchDir, ffmpeg });
   const decisions = [];
   const result = await ingest({ batch, batchDir, admissionPolicy: "source_policy_segment_quality",
     validateSegment: async ({ shot, file }) => {
+      try {
       const stateDir = path.join(batchDir, "automatic-segment-quality", shot.id);
       await validate({ root, batch, batchDir: stateDir, evidenceStateDir: stateDir, artifactDir: path.join(artifactDir, shot.id),
         sourceBatchDir: batchDir, file: { ...file, id: shot.id }, ffmpeg, referenceOverrides: input.refs,
@@ -59,6 +62,12 @@ export async function runAutoOotdQuality({ root, batch, batchDir, artifactDir, f
       return gate.state === "READY" ? { verdict: "accept", artifacts: [] }
         : { verdict: gate.state === "REJECT" ? "reject" : "review",
           rejectReason: gate.state === "REJECT" ? "quality_v2:reject" : "quality_v2:review", artifacts: [] };
+      } catch (error) {
+        if (!isGuidedBatch(batch)) throw error;
+        decisions.push({ shotId: shot.id, start: shot.start, end: shot.end, sourceHash: input.sourceHash,
+          referenceHashes: input.referenceHashes, state: "WAITING", reason: "segment_evidence_unavailable", nextAction: "exclude_interval" });
+        return { verdict: "review", rejectReason: "quality_v2:review", artifacts: [] };
+      }
     } });
   await writeJsonAtomic(path.join(batchDir, "automatic-product-check.v1.json"), { schemaVersion: "automatic-product-check.v1",
     sourceHumanApprovalRequired: false, sourceHash: input.sourceHash, referenceHashes: input.referenceHashes,

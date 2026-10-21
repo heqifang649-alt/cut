@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { authenticateBridge, bridgeConfig, bridgeTick, enqueueImport, hashFile, importStatus, sharedPath } from "../lib/libtv-bridge.mjs";
+import { authenticateBridge, bridgeConfig, bridgeTick, enqueueImport, hashFile, importStatus, sharedPath, writeBridgeHeartbeat } from "../lib/libtv-bridge.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 
@@ -46,6 +46,37 @@ test("bridge defaults off and service token is required", () => {
   assert(!authenticateBridge(null, config));
 });
 
+test("LAN receipt reports completed only after a Review output is published", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-lan-status-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const handoffId = `handoff-${randomUUID()}`;
+  const batchId = randomUUID();
+  await writeJsonAtomic(path.join(root, "data/libtv-receipts.json"), [{
+    contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256: "a".repeat(64), batchId,
+    status: "ready", outputs: [{ id: "output-1", relative_path: "outputs/output-1.mp4" }], errorCode: null,
+  }]);
+  await writeJsonAtomic(path.join(root, "data/batches.json"), [{ id: batchId, status: "review" }]);
+  const status = await importStatus(root, {}, handoffId, "", "");
+  assert.equal(status.status, "completed");
+  assert.equal(status.outputs.length, 1);
+});
+
+test("LAN retry resolves a durable receipt while NAS is unavailable and rejects changed identity", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-lan-retry-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const handoffId = `handoff-${randomUUID()}`;
+  const manifestSha256 = "a".repeat(64);
+  const batchId = randomUUID();
+  await writeJsonAtomic(path.join(root, "data/libtv-receipts.json"), [{
+    contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256, batchId, status: "queued",
+  }]);
+  const accepted = await enqueueImport(root, { nasRoot: path.join(root, "missing-nas") },
+    { contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256 });
+  assert.equal(accepted.batchId, batchId);
+  await assert.rejects(enqueueImport(root, { nasRoot: path.join(root, "missing-nas") },
+    { contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256: "b".repeat(64) }), /IMPORT_CONFLICT/);
+});
+
 test("parallel requests produce one tenant batch and materialize local SSD media", async (t) => {
   const env = await fixture(t);
   await Promise.all(Array.from({ length: 10 }, () => enqueueImport(env.root, env.config, env.descriptor)));
@@ -65,6 +96,69 @@ test("parallel requests produce one tenant batch and materialize local SSD media
   assert.equal(batches[0].files[0].sourceType, "upload");
   assert.equal((await importStatus(env.root, env.config, env.descriptor.handoffId,
     env.descriptor.userId, env.siteId)).batchId, batches[0].id);
+});
+
+test("accepted receipt survives worker exit and a later worker imports the same batch", async (t) => {
+  const env = await fixture(t);
+  const accepted = await enqueueImport(env.root, env.config, env.descriptor);
+  const persisted = (await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0];
+  assert.equal(accepted.status, "queued");
+  assert.equal(persisted.batchId, accepted.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/batches.json"), [])).length, 0);
+  await bridgeTick(env.root, env.config);
+  const recovered = (await readJson(path.join(env.root, "data/batches.json"), []))[0];
+  assert.equal(recovered.id, persisted.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0].status, "ready");
+});
+
+test("duplicate POST is idempotent and identity conflicts are rejected", async (t) => {
+  const env = await fixture(t);
+  const first = await enqueueImport(env.root, env.config, env.descriptor);
+  const second = await enqueueImport(env.root, env.config, env.descriptor);
+  assert.equal(second.batchId, first.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), [])).length, 1);
+  await assert.rejects(enqueueImport(env.root, env.config,
+    { ...env.descriptor, manifestSha256: "b".repeat(64) }), /MANIFEST_HASH_MISMATCH|IMPORT_CONFLICT/);
+});
+
+test("temporary NAS outage retains a queued receipt and recovers without a second POST", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  const unavailable = `${env.config.nasRoot}-offline`;
+  await rename(env.config.nasRoot, unavailable);
+  await bridgeTick(env.root, env.config);
+  let receipt = (await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0];
+  assert.equal(receipt.status, "queued");
+  assert.equal(receipt.errorCode, "NAS_UNAVAILABLE");
+  await rename(unavailable, env.config.nasRoot);
+  const receiptsPath = path.join(env.root, "data/libtv-receipts.json");
+  receipt.nextRunAt = new Date(0).toISOString();
+  await writeJsonAtomic(receiptsPath, [receipt]);
+  await bridgeTick(env.root, env.config);
+  receipt = (await readJson(receiptsPath, []))[0];
+  assert.equal(receipt.status, "ready");
+  assert.equal(receipt.errorCode, null);
+  assert.equal((await readJson(path.join(env.root, "data/batches.json"), [])).length, 1);
+});
+
+test("diagnostics expose real heartbeat freshness, stable progress, and scope mismatch", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await writeBridgeHeartbeat(env.root, { ...env.config, allowedHandoffIds: [env.descriptor.handoffId] });
+  const healthy = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(healthy.diagnostics.schemaVersion, "cutflow-diagnostics/1");
+  assert.equal(healthy.diagnostics.workerAlive, true);
+  assert.deepEqual(healthy.diagnostics.workerHandoffIds, [env.descriptor.handoffId]);
+  assert.equal(healthy.diagnostics.blockerCode, null);
+  const again = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(again.diagnostics.progressRevision, healthy.diagnostics.progressRevision);
+  await writeBridgeHeartbeat(env.root, { ...env.config, allowedHandoffIds: [`handoff-${randomUUID()}`] });
+  const mismatch = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(mismatch.diagnostics.workerAlive, true);
+  assert.equal(mismatch.diagnostics.blockerCode, "WORKER_SCOPE_MISMATCH");
 });
 
 test("unmapped users, changed owner and conflicting manifest cannot claim another batch", async (t) => {

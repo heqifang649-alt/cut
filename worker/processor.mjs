@@ -1,3 +1,6 @@
+import { syncConfiguredLanStatuses } from "../lib/libtv-bridge.mjs";
+import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
+import { scheduleGuided } from "./libtv-guided-auto.mjs";
 import { existsSync } from "node:fs";
 import { access, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -128,6 +131,8 @@ const CODEX_DEPENDENT_BATCH_STATUSES = new Set(["reference_queued", "analyzing_r
 // Codex-gated so an unavailable session still pauses the work that genuinely
 // needs model reasoning.
 function hasConfirmedDeterministicInputs(batch) {
+  if (isGuidedBatch(batch)) return isNewRendererEnabled() && isNewSchedulerEnabled()
+    && ["batch_queued", "editing"].includes(batch.status);
   const profile = batch?.referenceProfile;
   const profileReady = Boolean(profile)
     && typeof profile.summary === "string"
@@ -715,7 +720,7 @@ async function writeBatches(batches) {
 
 async function update(id, change) {
   if (leaseGuard && !(await leaseGuard())) throw new Error("Lease lost; refusing batch write");
-  return withFileLock(STORE, async () => {
+  const changed = await withFileLock(STORE, async () => {
     const batches = await readBatches();
     const index = batches.findIndex((batch) => batch.id === id);
     if (index < 0) throw new Error("Batch not found");
@@ -724,6 +729,8 @@ async function update(id, change) {
     await writeBatches(batches);
     return batches[index];
   });
+  await syncConfiguredLanStatuses(ROOT);
+  return changed;
 }
 
 function createThread(batch) {
@@ -1323,7 +1330,7 @@ function recordedTextOrManualOverride(batch, profile, batchField, profileField, 
 async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}) {
   await throwIfCanceled(batch.id);
   if (batch.libtvSource?.editPolicyReceipt) {
-    if (!isAutoOotdBatch(batch) || !isNewSchedulerEnabled() || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD requires validated source policy and deterministic scheduler/renderer"), { code: "SOURCE_INSUFFICIENT" });
+    if ((!isAutoOotdBatch(batch) && !isGuidedBatch(batch)) || !isNewSchedulerEnabled() || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD requires validated source policy and deterministic scheduler/renderer"), { code: "SOURCE_INSUFFICIENT" });
     if (includeAnalyze) throw Object.assign(new Error("Automatic OOTD must use the isolated quality → clip → render service stages"), { code: "SOURCE_INSUFFICIENT" });
     await assertAutoOotdQuality({ root: ROOT, batch, batchDir: batchDirFor(batch) });
   }
@@ -1370,7 +1377,14 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
   }
   let scheduledProducts = [];
   let semanticEvidence;
-  if (isNewSchedulerEnabled()) {
+  if (isGuidedBatch(batch)) {
+    const scheduled = scheduleGuided({ batch, shots: (await loadShotPool(batch.id, batchDir)).shots,
+      prepared: await readJson(path.join(batchDir, "deterministic-inputs.v1.json"), null) });
+    scheduledProducts = scheduled.products;
+    semanticEvidence = await readJson(path.join(batchDir, "semantic-evidence.v1.json"), null);
+    await writeJsonAtomic(path.join(batchDir, "guided-edit-decisions.json"), scheduled);
+    await writeJsonAtomic(path.join(batchDir, "schedule-result.json"), { batchId: batch.id, products: scheduledProducts });
+  } else if (isNewSchedulerEnabled()) {
     const scriptTemplatePath = path.join(batchDir, "script-template.json");
     const scriptTemplate = await readJson(scriptTemplatePath, null);
     const fileProductGroups = (await readJson(path.join(batchDir, "product-groups.json"), null))?.groups || [];
@@ -1585,7 +1599,7 @@ async function runRenderBatch(batch) {
     ? partitionScheduledProducts(scheduleArtifact?.products || [])
     : null;
   if (batch.libtvSource?.editPolicyReceipt) {
-    if (!isAutoOotdBatch(batch) || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD policy/render prerequisites invalid"), { code: "SOURCE_INSUFFICIENT" });
+    if ((!isAutoOotdBatch(batch) && !isGuidedBatch(batch)) || !isNewRendererEnabled()) throw Object.assign(new Error("Automatic OOTD policy/render prerequisites invalid"), { code: "SOURCE_INSUFFICIENT" });
     await assertAutoOotdQuality({ root: ROOT, batch: refreshed, batchDir, scheduledProducts: partitioned.renderable });
   }
   const semanticEvidence = isNewRendererEnabled() && (isSemanticShadowEnabled() || batch.demoMode?.enabled === true)

@@ -1,4 +1,4 @@
-import { bridgeConfig, bridgeTick } from "../lib/libtv-bridge.mjs";
+import { bridgeConfig, bridgeTick, writeBridgeHeartbeat } from "../lib/libtv-bridge.mjs";
 
 const config = bridgeConfig();
 const handoff = process.argv.find(arg => arg.startsWith('--handoff='))?.slice('--handoff='.length);
@@ -8,6 +8,8 @@ if (handoff) {
 }
 const once = process.argv.includes("--once");
 do {
+  await writeBridgeHeartbeat(process.cwd(), config);
   await bridgeTick(process.cwd(), config);
+  await writeBridgeHeartbeat(process.cwd(), config);
   if (!once) await new Promise((resolve) => setTimeout(resolve, 2000));
 } while (!once);

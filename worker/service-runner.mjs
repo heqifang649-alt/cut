@@ -295,7 +295,7 @@ async function handleFailure(task, error) {
   const message = error instanceof Error ? error.message : String(error);
   const automaticBatch = await loadBatch(task.batchId);
   if (automaticBatch?.libtvSource?.editPolicyReceipt?.state === "accepted") {
-    const code = ["SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY"].includes(error?.code) ? error.code
+    const code = ["SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
       : /Schedule Failed:.*(?:schedule:hook|no_matching_shot.*hook)/i.test(message) ? "NO_MATCHING_HOOK"
       : /Schedule Failed:/.test(message) ? "SOURCE_INSUFFICIENT" : null;
     if (code) {
@@ -303,7 +303,8 @@ async function handleFailure(task, error) {
       await update(task.batchId, (item) => {
         item.status = "failed"; item.bridgeErrorCode = code;
         item.error = { NO_MATCHING_HOOK: "合格素材中没有符合母版的开头镜头。", SOURCE_INSUFFICIENT: "自动检查后合格素材或必要证据不足。",
-          QUALITY_REJECTED: "自动质量检查拒绝使用相关素材。", TEMPLATE_NOT_READY: "指定母版不可用或归属已变化。" }[code];
+          QUALITY_REJECTED: "自动质量检查拒绝使用相关素材。", TEMPLATE_NOT_READY: "指定母版不可用或归属已变化。",
+          BGM_MISSING: "可用音乐库为空。", SOURCE_SCOPE_INVALID: "来源超出本包授权范围。" }[code];
         item.renderingLabel = item.error;
         item.execution = { state: "failed", stage: task.stage, reason: code, updatedAt: new Date().toISOString() };
       });

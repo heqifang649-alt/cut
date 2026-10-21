@@ -1,3 +1,5 @@
+import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
+import { assertGuidedMusic } from "./libtv-guided-auto.mjs";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { createHash, randomInt } from "node:crypto";
@@ -421,8 +423,8 @@ export function buildRenderPlanMaster({ batch = {}, legacyMaster = {}, reference
     cursor += duration;
     cuts.push(Number(cursor.toFixed(6)));
   }
-  const hookText = typeof batch.hookText === "string" ? batch.hookText : referenceProfile.hook_text;
-  const cvrText = typeof batch.cvrText === "string" ? batch.cvrText : referenceProfile.cvr_text;
+  const hookText = isGuidedBatch(batch) ? "" : typeof batch.hookText === "string" ? batch.hookText : referenceProfile.hook_text;
+  const cvrText = isGuidedBatch(batch) ? "" : typeof batch.cvrText === "string" ? batch.cvrText : referenceProfile.cvr_text;
   const cvrLayout = {
     ...(referenceProfile?.cvr_layout || {}),
     ...(batch?.cvrLayout || {}),
@@ -883,6 +885,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   const templateMusicPath = templateMusicFile ? resolveBatchAsset(templateMusicFile) : undefined;
   if (templateMusicPath) await requireRenderFile("template BGM", templateMusicPath);
   const musicPool = templateMusicPath ? [templateMusicPath] : await listMusic(root, batchDir, runtimeConfig);
+  assertGuidedMusic(batch, musicPool);
 
   const overlayDir = path.join(editDir, "overlays");
   const clipsDir = path.join(editDir, "clips_graded");

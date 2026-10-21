@@ -1,3 +1,4 @@
+import { syncConfiguredLanStatuses } from "./libtv-bridge.mjs";
 import path from "node:path";
 import type { Batch, BatchFile } from "./types";
 import { readJson, withFileLock, writeJsonAtomic } from "./atomic-json.mjs";
@@ -55,7 +56,10 @@ export function mutateBatch(id: string, mutate: (batch: Batch) => Batch | void, 
     return changed;
   }));
   mutationQueue = task.catch(() => undefined);
-  return task;
+  return task.then(async (changed) => {
+    await syncConfiguredLanStatuses();
+    return changed;
+  });
 }
 
 export async function createBatch(input: Pick<Batch, "ownerId" | "name" | "requirements" | "durationMax" | "outputCount" | "speed" | "autoDetectProducts" | "sourceMode" | "nasPath"> & Partial<Pick<Batch, "targetOutputsPerBatch" | "coveragePolicy" | "cvrText" | "hookText" | "colorStrategy" | "musicSource" | "templateId" | "templateName" | "referenceProfile" | "transitionMode" | "transitionProfile" | "demoMode">>) {
