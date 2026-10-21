@@ -51,6 +51,16 @@ async function imported(t) {
   return e;
 }
 
+test("editing quality diagnostics follow the analyze runner rather than clip runners", async t => {
+  const e = await imported(t);
+  e.config.integrationEnabled = true;
+  e.batch.status = "editing";
+  e.batch.execution = { state: "running", stage: "analyze" };
+  await writeJsonAtomic(path.join(e.root, "data/batches.json"), [e.batch]);
+  const status = await importStatus(e.root, e.config, e.input.handoffId);
+  assert.equal(status.diagnostics.stage, "quality");
+});
+
 test("unattended admission persists scoped capability; missing notification, restart and scope tampering never open historical queues", async t => {
   const e = await fixture(t);
   e.config.integrationEnabled = true;
@@ -313,8 +323,8 @@ test('fresh process reuses accepted scan task without creating a second batch',a
 test('scan requires explicit activation and valid lower time bound',async t=>{
  const e=await fixture(t);assert.equal(await scanLanReady(e.root,e.config),0);
  const env={LIBTV_BRIDGE_ENABLED:'true',LIBTV_BRIDGE_ROOT:e.config.nasRoot,LIBTV_BRIDGE_TOKEN:'fixture-only'};
- assert.equal(bridgeConfig(env).scanEnabled,false);assert.equal(bridgeConfig(env).scanIntervalMs,60000);
- assert.throws(()=>bridgeConfig({...env,LIBTV_LAN_SCAN_ENABLED:'true'}),/INVALID_SCAN_CONFIG/);
+ assert.equal(bridgeConfig(env,e.root).scanEnabled,false);assert.equal(bridgeConfig(env,e.root).scanIntervalMs,60000);
+ assert.throws(()=>bridgeConfig({...env,LIBTV_LAN_SCAN_ENABLED:'true'},e.root),/INVALID_SCAN_CONFIG/);
 });
 test('half manifest JSON matching READY hash is ignored',async t=>{
  const e=await fixture(t);enableScan(e);const base=path.join(e.config.nasRoot,'inbox',e.input.handoffId);
