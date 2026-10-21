@@ -162,6 +162,44 @@ test("/2 isolated output publication and GET keep the new receipt and never reus
   await assert.rejects(importStatus(e.root, e.config, e.input.handoffId), /IMPORT_OWNERSHIP_MISMATCH/);
 });
 
+test('completed delivery rechecks deletion, equal-size corruption, truncation and NAS recovery without editing again', async t => {
+  const e = await imported(t);
+  const fs = await import('node:fs/promises');
+  const output = path.join(e.batchDir, 'output', 'delivery.mp4');
+  await mkdir(path.dirname(output), { recursive: true });
+  const runtime = await readJson(path.join(e.root, 'config/cutflow-runtime.json'));
+  await promisify(execFile)(runtime.ffmpegExecutable, ['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=64x64:r=10','-t','0.3','-c:v','libx264','-pix_fmt','yuv420p','-y',output], {windowsHide:true});
+  e.batch.status = 'review';
+  e.batch.files.push({id:randomUUID(),kind:'output',qualityStatus:'passed',storagePath:path.relative(e.root,output)});
+  const batchStore = path.join(e.root,'data/batches.json');
+  await writeJsonAtomic(batchStore,[e.batch]); await bridgeTick(e.root,e.config);
+  const completed = await importStatus(e.root,e.config,e.input.handoffId);
+  assert.equal(completed.status,'completed');
+  const file = path.join(e.config.nasRoot,'outbox',e.input.handoffId,completed.outputs[0].relative_path);
+  const bytes = await fs.readFile(file), batchesBefore = await fs.readFile(batchStore);
+  const receiptsBefore = await fs.readFile(path.join(e.root,'data/libtv-receipts.json'));
+  for (const kind of ['deleted','same-size','truncated','offline']) {
+    if(kind==='deleted') await fs.rm(file);
+    if(kind==='same-size') await fs.writeFile(file,Buffer.alloc(bytes.length));
+    if(kind==='truncated') await fs.writeFile(file,bytes.subarray(0,10));
+    if(kind==='offline') await fs.rename(e.config.nasRoot,e.config.nasRoot+'-offline');
+    const restarted = await import('../lib/libtv-bridge.mjs?delivery='+kind+Date.now());
+    const unavailable = await restarted.importStatus(e.root,e.config,e.input.handoffId);
+    assert.equal(unavailable.status,'failed'); assert(unavailable.error.code); assert.deepEqual(unavailable.outputs,[]);
+    await restarted.syncLanStatuses(e.root,e.config);
+    if(kind!=='offline') assert.deepEqual(await readJson(path.join(e.config.nasRoot,'outbox',e.input.handoffId,'status.json')),unavailable);
+    e.batch.status='editing'; await writeJsonAtomic(batchStore,[e.batch]);
+    assert.deepEqual(await restarted.importStatus(e.root,e.config,e.input.handoffId),unavailable);
+    if(kind==='offline') await fs.rename(e.config.nasRoot+'-offline',e.config.nasRoot);
+    else await fs.writeFile(file,bytes);
+    await restarted.syncLanStatuses(e.root,e.config);
+    assert.deepEqual(await restarted.importStatus(e.root,e.config,e.input.handoffId),completed);
+    assert.deepEqual(await readJson(path.join(e.config.nasRoot,'outbox',e.input.handoffId,'status.json')),completed);
+  }
+  await fs.writeFile(batchStore,batchesBefore);
+  assert.deepEqual(await fs.readFile(path.join(e.root,'data/libtv-receipts.json')),receiptsBefore);
+});
+
 test("/1 LAN retains its template path and never receives a /2 acceptance receipt", async (t) => {
   const e = await fixture(t), templateId = randomUUID();
   e.manifest.edit_policy = { version: "yiying-ootd/1" }; e.input.editPolicy = structuredClone(e.manifest.edit_policy);
