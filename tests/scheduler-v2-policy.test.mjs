@@ -10,7 +10,7 @@ import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-function fixture(n = 2, duration = 3) {
+function fixture(n = 2, duration = 4) {
   const shots = Array.from({ length: n }, (_, i) => ({ id: `s${i}`, source: `camera:${i}.mp4`, path: `D:/media/${i}.mp4`, start: 0, end: duration, duration, tags: [], reject: false, origin: "real", productVisibility: 0.9, productCentered: true, motionEnergy: "medium" }));
   return { batchId: "batch", targetDuration: 10, durationCap: 13, allowPartial: true,
     scriptTemplate: { id: "t", name: "t", totalDuration: 10, slots: [{ id: "hook", label: "hook", requireTags: [], targetDuration: 3 }] },
@@ -19,28 +19,27 @@ function fixture(n = 2, duration = 3) {
 }
 function sameSourceFixture() {
   const f = fixture();
-  Object.assign(f.productView.shots[1], { path: f.productView.shots[0].path, start: 4, end: 7 });
+  Object.assign(f.productView.shots[1], { path: f.productView.shots[0].path, start: 5, end: 9 });
   f.productView.sourceNamesByShotId.s1 = "0.mp4";
   f.frameHashesByShot = { s0: ["a", "b", "c"], s1: ["d", "e", "f"] };
   f.visualReview = { batchId: "batch", productId: "p", inputHash: digest(JSON.stringify(f.productView.shots.map((s) => ({ shotId: s.id, frames: f.frameHashesByShot[s.id] })))), shotBindings: Object.fromEntries(f.productView.shots.map((s) => [s.id, { source: s.path, start: s.start, end: s.end }])), distinctPairs: [{ shotIds: ["s0", "s1"], visuallyDistinct: true, evidenceRef: "review/contact.jpg" }] };
   return f;
 }
-test("MVA requires 5 actual seconds, 2+ intervals, no Hook or CTA shot", () => {
-  assert.equal(scheduleV2Policy(fixture(2, 2.49)).reason, "INSUFFICIENT_MATERIAL");
-  const r = scheduleV2Policy(fixture(2, 2.5));
-  assert.equal(r.level, "MVA"); assert.equal(r.actualCutDuration, 5); assert.equal(r.cta.dedicatedShotRequired, false);
-  assert.equal(scheduleV2Policy(fixture(1, 9)).reason, "INSUFFICIENT_MATERIAL");
-  assert.equal(scheduleV2Policy(fixture(3, 1.8)).level, "MVA");
+test("minimum applies to final picture, single source is supported", () => {
+ assert.equal(scheduleV2Policy(fixture(2,3.99)).reason,"INSUFFICIENT_SAFE_DURATION");
+ assert.equal(scheduleV2Policy(fixture()).actualCutDuration,8);
+ assert.equal(scheduleV2Policy(fixture(1,9)).mode,"single");
+ assert.equal(scheduleV2Policy(fixture(3,2.7)).mode,"multi");
 });
-test("target below 5 is a preference; duration cap remains hard", () => {
-  assert.equal(scheduleV2Policy({ ...fixture(), targetDuration: 3 }).actualCutDuration, 5);
-  assert.equal(scheduleV2Policy({ ...fixture(), durationCap: 4 }).reason, "INSUFFICIENT_MATERIAL");
+test("target below 8 is soft, cap remains explicit",()=>{
+ assert.equal(scheduleV2Policy({...fixture(),targetDuration:3}).actualCutDuration,8);
+ assert.equal(scheduleV2Policy({...fixture(),durationCap:4}).reason,"INSUFFICIENT_SAFE_DURATION");
 });
-test("Hard Safety is unchanged and cannot be overridden by visual review", () => {
-  for (const mutate of [f => { f.semanticEvidence.records[0].result.usable = false; }, f => { f.semanticEvidence.records[0].result.product_match = 0.1; }, f => { f.semanticEvidence.records[0].result.clothing_visibility = 0.1; }, f => { f.semanticEvidence.records[0].verdict = "REVIEW"; }, f => { f.productView.shots[0].reject = true; }]) {
-    const f = sameSourceFixture(); mutate(f); assert.equal(scheduleV2Policy(f).reason, "QUALITY_BLOCKED");
-  }
-  const f = fixture(); f.semanticEvidence.records.pop(); assert.equal(scheduleV2Policy(f).reason, "ANALYSIS_INCOMPLETE");
+test("blocked and missing shots never enter automatic selection",()=>{
+ for(const mutate of [f=>f.semanticEvidence.records[0].result.usable=false,f=>f.semanticEvidence.records[0].result.product_match=.1,f=>f.semanticEvidence.records[0].result.clothing_visibility=.1,f=>f.semanticEvidence.records[0].verdict="REVIEW",f=>f.productView.shots[0].reject=true]){
+ const f=sameSourceFixture();mutate(f);const r=scheduleV2Policy(f);assert.equal(r.reason,"INSUFFICIENT_SAFE_DURATION");assert.equal(r.availableSafeDuration,4);
+ }
+ const f=fixture();f.semanticEvidence.records.pop();assert.equal(scheduleV2Policy(f).reason,"INSUFFICIENT_SAFE_DURATION");
 });
 test("upstream technical reject is UPSTREAM_BLOCKED, never insufficient", () => {
   const f = fixture(0); f.productView.product.files = ["long.mp4"];
@@ -48,26 +47,26 @@ test("upstream technical reject is UPSTREAM_BLOCKED, never insufficient", () => 
   assert.equal(scheduleV2Policy(f).reason, "UPSTREAM_BLOCKED");
   delete f.upstreamImport; assert.equal(scheduleV2Policy(f).reason, "ANALYSIS_INCOMPLETE");
 });
-test("same source reuse needs existing bound evidence; stale frames/ranges/batch fail closed", () => {
+test("single-source chronological action does not require multi-source pair evidence", () => {
   const f = sameSourceFixture(); const r = scheduleV2Policy(f);
   assert.equal(r.status, "success"); assert.equal(r.sameSourceReuse.length, 1);
   for (const mutate of [g => { delete g.visualReview; }, g => { g.visualReview.batchId = "other"; }, g => { g.frameHashesByShot.s0[0] = "changed"; }, g => { g.productView.shots[1].start = 4.1; }]) {
-    const g = sameSourceFixture(); mutate(g); assert.equal(scheduleV2Policy(g).reason, "INSUFFICIENT_MATERIAL");
+    const g = sameSourceFixture(); mutate(g); assert.equal(scheduleV2Policy(g).status, "success");
   }
 });
 test("visual evidence cannot allow overlap or exact duplicate sampled sequences", () => {
   const f = sameSourceFixture(); f.productView.shots[1].start = 2; f.visualReview.shotBindings.s1.start = 2;
-  assert.equal(scheduleV2Policy(f).reason, "INSUFFICIENT_MATERIAL");
+  assert.equal(scheduleV2Policy(f).reason, "INSUFFICIENT_SAFE_DURATION");
   const g = sameSourceFixture(); g.frameHashesByShot.s1 = g.frameHashesByShot.s0;
   g.visualReview.inputHash = digest(JSON.stringify(g.productView.shots.map((s) => ({ shotId: s.id, frames: g.frameHashesByShot[s.id] }))));
-  assert.equal(scheduleV2Policy(g).reason, "INSUFFICIENT_MATERIAL");
+  assert.equal(scheduleV2Policy(g).reason, "INSUFFICIENT_SAFE_DURATION");
 });
 test("feature off/default/rollback and unpinned enabled preserve legacy results", () => {
   const f = fixture(); const legacy = scheduleProductView(f);
   assert.equal(schedulerV2Mode({}), "off");
   for (const mode of ["off", "shadow", "enabled"]) assert.deepEqual(routeProductSchedule(f, { mode }).selected, legacy);
   const pin = { version: SCHEDULER_V2_POLICY, revision: "revision-1" };
-  assert.equal(routeProductSchedule(f, { mode: "enabled", policyPin: pin }).selected.level, "MVA");
+  assert.equal(routeProductSchedule(f, { mode: "enabled", policyPin: pin }).selected.mode, "multi");
   assert.deepEqual(routeProductSchedule(f, { mode: "off", policyPin: pin }).selected, legacy);
   assert.throws(() => routeProductSchedule(f, { mode: "enabled", policyPin: { version: "unknown", revision: "1" } }));
 });
@@ -77,7 +76,7 @@ test("deterministic, no input mutation and unchanged RenderPlan renderer contrac
   assert.deepEqual(scheduleV2Policy(f).renderPlan, a.renderPlan);
   const m = fixture(); const r = scheduleV2Policy(m);
   const edl = renderPlansToEdl({ scheduledProducts: [{ ...m.productView, scheduleResult: r }], featureEnabled: false });
-  assert.equal(edl.products[0].segments.length, 2); assert.equal(edl.products[0].duration_seconds, 6);
+  assert.equal(edl.products[0].segments.length, 2); assert.equal(edl.products[0].duration_seconds, 8);
 });
 
 test("explicit revisions preserve previous output, resume identically and reject changed results", async () => {

@@ -4,8 +4,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { assertOutputDuration, verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
 import { loadRuntimeConfig } from "./runtime-config.mjs";
 import { createProductViews, enforceMinimumSafeDuration, MINIMUM_SAFE_DURATION_SECONDS, partitionScheduledProducts, scheduleProductView } from "./shot-scheduler.mjs";
 import { renderBatchFromRenderPlans } from "./batch-renderer.mjs";
@@ -41,6 +40,10 @@ export function scheduleClassicMultisource({ record, shotPool, scriptTemplate, s
       createdAt: record.acceptedAt, semanticEvidence, allowPartial: true })) }));
 }
 
+export function assertMultisourceOutputDuration(durationSeconds, minimum = MINIMUM_SAFE_DURATION_SECONDS) {
+  return assertOutputDuration(durationSeconds, minimum);
+}
+
 function rendererOutputPath(root, output) {
   if (typeof output?.storagePath !== "string" || !output.storagePath) throw new Error("RENDER_OUTPUT_INVALID");
   return path.isAbsolute(output.storagePath) ? output.storagePath : path.resolve(root, output.storagePath);
@@ -55,14 +58,7 @@ async function outputDigest(file) {
 }
 
 export async function probeMultisourceDuration(file, ffprobe) {
-  const { stdout } = await promisify(execFile)(ffprobe,
-    ["-v", "error", "-show_entries", "format=duration", "-of", "json", file], { windowsHide: true, timeout: 30000 });
-  const duration = Number(JSON.parse(stdout).format?.duration);
-  if (!Number.isFinite(duration) || duration < MINIMUM_SAFE_DURATION_SECONDS - 1e-6) throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), {
-    code: "INSUFFICIENT_SAFE_DURATION", retryable: false, availableSafeDuration: Number.isFinite(duration) ? duration : 0,
-    durationShortfall: Number.isFinite(duration) ? Math.max(0, MINIMUM_SAFE_DURATION_SECONDS - duration) : MINIMUM_SAFE_DURATION_SECONDS,
-  });
-  return duration;
+  return verifyEncodedSafeDuration(ffprobe, file);
 }
 
 export async function executeClassicMultisource({
@@ -151,12 +147,13 @@ export async function executeClassicMultisource({
     for (const output of rendered.files) {
       const sourcePath = rendererOutputPath(root, output);
       const info = await stat(sourcePath);
+      const durationSeconds = await probeMultisourceDuration(sourcePath, runtime.ffprobeExecutable);
       outputs.push({ id: randomUUID(), sourcePath, sha256: await outputDigest(sourcePath), size: info.size,
-        durationSeconds: await probeMultisourceDuration(sourcePath, runtime.ffprobeExecutable) });
+        durationSeconds });
     }
     stage = "publish";
     await progress(stage, 95);
-    return await publishMultisourceResults(root, config, taskId, outputs, "review", { ffmpeg, lease });
+    return await publishMultisourceResults(root, config, taskId, outputs, "review", { ffmpeg, ffprobe: runtime.ffprobeExecutable, lease });
   } catch (error) {
     error.stage ||= stage;
     await updateMultisourceStatus(root, taskId, "failed", error, config, lease).catch(() => undefined);

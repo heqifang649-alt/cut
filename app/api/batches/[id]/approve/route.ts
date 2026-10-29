@@ -27,6 +27,7 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     if (!outputs.length) throw new Error("没有可通过的成片");
     if (outputs.some((file) => file.qualityStatus !== "passed")) throw new Error("存在未通过自动质检的成片");
     if (!existing.renderSummary || (existing.renderSummary.renderedOutputs ?? existing.renderSummary.renderedProducts) !== outputs.length) throw new Error("成片质检摘要不完整，请重新渲染后再交付");
+    if (existing.renderSummary.qualityGates.outputDuration !== "passed") throw new Error("缺少成片实际时长门禁，禁止交付");
     if (Object.values(existing.renderSummary.qualityGates).some((value) => value !== "passed")) throw new Error("仍有质量门禁未通过，禁止交付");
     await ensureFleetAvailable({ root: process.cwd() });
     const batch = await mutateBatch(id, (item) => {

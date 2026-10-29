@@ -379,6 +379,7 @@ export type MetadataSidecar = {
 };
 
 export type RenderPlan = {
+  minimumSafeDuration?: 8;
   id: string;
   batchId: string;
   slots: Array<{ slot: Slot; shot: Shot }>;
@@ -476,7 +477,8 @@ export function isMetadataSidecar(value: unknown): value is MetadataSidecar {
 }
 
 export function isRenderPlan(value: unknown): value is RenderPlan {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile", "shortShotCount", "consecutiveShortShots", "shortestShotDuration", "beatCompressionCreatedShortShot", "shortShotReviewWarning"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile", "minimumSafeDuration", "shortShotCount", "consecutiveShortShots", "shortestShotDuration", "beatCompressionCreatedShortShot", "shortShotReviewWarning"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (value.minimumSafeDuration !== undefined && value.minimumSafeDuration !== 8) return false;
   if (value.transitionProfile !== undefined && !isTransitionProfile(value.transitionProfile)) return false;
   return (value.shortShotCount === undefined || (typeof value.shortShotCount === "number" && Number.isInteger(value.shortShotCount) && value.shortShotCount >= 0))
     && (value.consecutiveShortShots === undefined || (typeof value.consecutiveShortShots === "number" && Number.isInteger(value.consecutiveShortShots) && value.consecutiveShortShots >= 0))

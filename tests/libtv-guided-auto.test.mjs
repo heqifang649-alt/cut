@@ -39,7 +39,7 @@ async function fixture(t) {
   async function publish() { const raw = JSON.stringify(manifest); input.manifestSha256 = hash(raw);
     await writeFile(path.join(base, "manifest.json"), raw); await writeJsonAtomic(path.join(base, "READY"), { sha256: input.manifestSha256 }); }
   const runtime = await readJson(path.join(process.cwd(), 'config/cutflow-runtime.json'));
-  await writeJsonAtomic(path.join(root,'config/cutflow-runtime.json'), {schemaVersion:3, ffmpegExecutable:runtime.ffmpegExecutable});
+  await writeJsonAtomic(path.join(root,'config/cutflow-runtime.json'), {schemaVersion:3, ffmpegExecutable:runtime.ffmpegExecutable, ffprobeExecutable:runtime.ffprobeExecutable});
   await publish();
   return { root, config, input, manifest, publish, png };
 }
@@ -143,20 +143,23 @@ test("detected scene boundaries split candidates with frame guards", () => {
   assert(intervals.every((s) => s.end <= 2.4 - 2 / 30 || s.start >= 2.4 + 2 / 30));
   assert(intervals.length > 2); assert.throws(() => guidedIntervals(0, []));
 });
-test("scheduler keeps clear static holds, removes repeated low-value tails, keeps order and 1x hard cuts without a minimum duration", async (t) => {
+test("guided scheduler preserves source order and 1x hard cuts while enforcing the 8 second publish minimum", async (t) => {
   const e = await imported(t), file = e.batch.files.find((f) => f.kind === "products");
   const videoPath = path.resolve(e.root, file.storagePath);
-  const shots = [0, 1, 2, 3, 4].map((i) => ({ id: `s${i}`, path: videoPath, source: "fixture", start: i, end: i + 1, duration: 1,
-    tags: ["scene:0"], reject: false, origin: "real", productVisibility: .9, productCentered: true, motionEnergy: "low" }));
-  const prepared = { sidecars: [{ fileId: file.id, videoPath, segments: shots.map((s) => ({ ...s, fingerprint: "identical" })) }] };
+  const shots = Array.from({ length: 9 }, (_, i) => ({ id: `s${i}`, path: videoPath, source: "fixture", start: i, end: i + 1, duration: 1,
+    tags: [`scene:${i}`], reject: false, origin: "real", productVisibility: .9, productCentered: true, motionEnergy: "low" }));
+  const prepared = { sidecars: [{ fileId: file.id, videoPath, segments: shots.map((s) => ({ ...s, fingerprint: `frame-${s.id}` })) }] };
   const result = scheduleGuided({ batch: e.batch, shots: [...shots].reverse(), prepared });
   assert.throws(() => assertGuidedMusic(e.batch, []), /BGM_MISSING/);
   assert.doesNotThrow(() => assertGuidedMusic(e.batch, ["fixture.mp3"]));
-  assert.deepEqual(result.used.map((s) => s.start), [0, 1, 2]); assert.equal(result.excluded.length, 2);
-  const dry = dryRunRenderPlan(result.products[0].scheduleResult.renderPlan); assert.equal(dry.totalSourceDuration, 3);
+  assert.deepEqual(result.used.map((s) => s.start), shots.map((s) => s.start)); assert.equal(result.excluded.length, 0);
+  const dry = dryRunRenderPlan(result.products[0].scheduleResult.renderPlan); assert.equal(dry.totalSourceDuration, 9);
+  assert.equal(result.products[0].scheduleResult.renderPlan.minimumSafeDuration, 8);
   const edl = renderPlansToEdl({ scheduledProducts: result.products, transitionProfile: "hard_cut" });
   assert(edl.products[0].segments.every((s) => s.speed === 1 && s.transition_out === "hard_cut"));
   assert.throws(() => scheduleGuided({ batch: e.batch, shots: [], prepared }), /SOURCE_INSUFFICIENT/);
+  assert.throws(() => scheduleGuided({ batch: e.batch, shots: shots.slice(0, 7), prepared }),
+    (error) => error.code === "INSUFFICIENT_SAFE_DURATION" && error.availableSafeDuration === 7 && error.durationShortfall === 1);
   assert.throws(() => scheduleGuided({ batch: e.batch, shots: [{ ...shots[0], path: "other-task" }], prepared }), /SOURCE_SCOPE_INVALID/);
 });
 test("quality excludes only the local rejected/uncertain windows; accepted intervals remain evidence-bound", async (t) => {
@@ -194,12 +197,36 @@ test("guided preparation consumes detected cuts rather than fixed OOTD windows",
   assert.equal(await readJson(path.join(e.batchDir, "script-template.json"), null), null);
 });
 
+for (const probeUnavailable of [false, true]) test(`guided publication rejects ${probeUnavailable ? "unavailable ffprobe" : "short video"} without retry or visible output`, async t => {
+  const e = await imported(t);
+  const output = path.join(e.batchDir, "output", "duration-fixture.mp4");
+  await mkdir(path.dirname(output), { recursive: true });
+  const runtimePath = path.join(e.root, "config/cutflow-runtime.json");
+  const runtime = await readJson(runtimePath);
+  await promisify(execFile)(runtime.ffmpegExecutable, ["-nostdin", "-v", "error", "-f", "lavfi", "-i", "color=c=blue:s=32x32:r=10", "-t", probeUnavailable ? "8" : "7.9", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", output], { windowsHide: true });
+  if (probeUnavailable) await writeJsonAtomic(runtimePath, { ...runtime, ffprobeExecutable: path.join(e.root, "missing-ffprobe.exe") });
+  e.batch.status = "review";
+  e.batch.files.push({ id: randomUUID(), kind: "output", qualityStatus: "passed", storagePath: path.relative(e.root, output) });
+  await writeJsonAtomic(path.join(e.root, "data/batches.json"), [e.batch]);
+  await bridgeTick(e.root, e.config);
+  const receipts = await readJson(path.join(e.root, "data/libtv-receipts.json"));
+  assert.equal(receipts[0].status, "failed");
+  assert.equal(receipts[0].failures, 1);
+  assert.equal(receipts[0].errorCode, probeUnavailable ? "OUTPUT_VERIFY_UNAVAILABLE" : "INSUFFICIENT_SAFE_DURATION");
+  const status = await importStatus(e.root, e.config, e.input.handoffId);
+  assert.equal(status.status, "failed"); assert.deepEqual(status.outputs, []);
+  await bridgeTick(e.root, e.config);
+  assert.equal((await readJson(path.join(e.root, "data/libtv-receipts.json")))[0].failures, 1);
+  const { readdir } = await import("node:fs/promises");
+  assert.deepEqual(await readdir(path.join(e.config.nasRoot, "outbox", e.input.handoffId, "outputs")), []);
+});
+
 test("/2 isolated output publication and GET keep the new receipt and never reuse another task's output", async (t) => {
   const e = await imported(t), store = path.join(e.root, "data/batches.json");
   e.batch.status = "review";
   const output = path.join(e.batchDir, "output", "fixture.mp4"); await mkdir(path.dirname(output), { recursive: true });
   const runtime = await readJson(path.join(e.root,'config/cutflow-runtime.json'));
-  await promisify(execFile)(runtime.ffmpegExecutable, ['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=64x64:r=10','-t','0.3','-c:v','libx264','-pix_fmt','yuv420p','-y',output], {windowsHide:true});
+  await promisify(execFile)(runtime.ffmpegExecutable, ['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=64x64:r=10','-t','8','-c:v','libx264','-pix_fmt','yuv420p','-y',output], {windowsHide:true});
   e.batch.files.push({ id: randomUUID(), kind: "output", qualityStatus: "passed", storagePath: path.relative(e.root, output) });
   await writeJsonAtomic(store, [e.batch]); await bridgeTick(e.root, e.config);
   const status = await importStatus(e.root, e.config, e.input.handoffId);
@@ -217,7 +244,7 @@ test('completed delivery rechecks deletion, equal-size corruption, truncation an
   const output = path.join(e.batchDir, 'output', 'delivery.mp4');
   await mkdir(path.dirname(output), { recursive: true });
   const runtime = await readJson(path.join(e.root, 'config/cutflow-runtime.json'));
-  await promisify(execFile)(runtime.ffmpegExecutable, ['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=64x64:r=10','-t','0.3','-c:v','libx264','-pix_fmt','yuv420p','-y',output], {windowsHide:true});
+  await promisify(execFile)(runtime.ffmpegExecutable, ['-nostdin','-v','error','-f','lavfi','-i','color=c=blue:s=64x64:r=10','-t','8','-c:v','libx264','-pix_fmt','yuv420p','-y',output], {windowsHide:true});
   e.batch.status = 'review';
   e.batch.files.push({id:randomUUID(),kind:'output',qualityStatus:'passed',storagePath:path.relative(e.root,output)});
   const batchStore = path.join(e.root,'data/batches.json');

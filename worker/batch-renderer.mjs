@@ -14,6 +14,8 @@ import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { reviewScheduledProductVisualConsistency } from "../lib/product-visual-review.mjs";
 import { resolveOutputAllocation } from "../lib/output-allocation.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
+import { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
+export { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
 
 const MEDIA_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".mp4", ".mov"]);
 const PROCESS_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_FFMPEG_TIMEOUT_MS) || 20 * 60 * 1000);
@@ -369,6 +371,8 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       return {
         segment_id: `${product.id}-S${String(index + 1).padStart(2, "0")}`,
         slot: slot.id,
+        shot_id: shot.id,
+        content_tags: shot.tags || [],
         duration,
         source_name: sourceName,
         source_original: shot.path,
@@ -378,16 +382,30 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
         transition_out: "hard_cut",
       };
     });
+    const mergedSegments = rawSegments.reduce((segments, segment) => {
+      const previous = segments.at(-1);
+      if (previous && previous.source_original === segment.source_original
+        && Math.abs(previous.source_out - segment.source_in) <= 1e-3) {
+        previous.duration = Number((previous.duration + segment.duration).toFixed(6));
+        previous.source_out = segment.source_out;
+        previous.shot_ids = [...(previous.shot_ids || [previous.shot_id]), segment.shot_id];
+        previous.content_tags = [...new Set([...(previous.content_tags || []), ...(segment.content_tags || [])])];
+      } else segments.push({ ...segment });
+      return segments;
+    }, []);
     const computedShortShotQuality = renderPlanShortShotQuality(scheduleResult.renderPlan.slots, {
       beatCompressionCreatedShortShot: scheduleResult.renderPlan.beatCompressionCreatedShortShot ?? false,
     });
     const productProfile = resolvedTransitionProfile(transitionProfile || scheduleResult.renderPlan.transitionProfile || selectedProfile);
-    const timeline = materializeProductTimeline(rawSegments, master, { transitionProfile: productProfile, featureEnabled });
+    const minimumSafeDuration = scheduleResult.renderPlan.minimumSafeDuration;
+    const timeline = materializeProductTimeline(mergedSegments, master, { transitionProfile: minimumSafeDuration ? "hard_cut" : productProfile, featureEnabled });
+    if (minimumSafeDuration && timeline.durationSeconds < minimumSafeDuration - 1e-6) throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), { code: "INSUFFICIENT_SAFE_DURATION", retryable: false, availableSafeDuration: timeline.durationSeconds, durationShortfall: minimumSafeDuration - timeline.durationSeconds });
     return {
       product_id: product.id,
       ...(product.productKey ? { product_key: product.productKey } : {}),
       display_name: product.label,
       duration_seconds: timeline.durationSeconds,
+      ...(minimumSafeDuration ? { minimum_safe_duration: minimumSafeDuration } : {}),
       visual_consistency_verified: true,
       short_shot_quality: {
         shortShotCount: computedShortShotQuality.shortShotCount,
@@ -914,7 +932,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     await assertActive();
     let product = products[productIndex];
     if (!Array.isArray(product.segments) || !product.segments.length) continue;
-    const timeline = materializeProductTimeline(product.segments, master, { transitionProfile, featureEnabled: transitionFeatureEnabled });
+    const timeline = materializeProductTimeline(product.segments, master, { transitionProfile: product.minimum_safe_duration ? "hard_cut" : transitionProfile, featureEnabled: transitionFeatureEnabled });
+    if (product.minimum_safe_duration && timeline.durationSeconds < product.minimum_safe_duration - 1e-6) throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), { code: "INSUFFICIENT_SAFE_DURATION", retryable: false });
     product = {
       ...product,
       segments: timeline.segments,
@@ -1017,9 +1036,11 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     if (canReuseOutput) {
+      const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
       const record = savedOutput.record || await buildOutputRecord(root, outputPath, {
         musicName: path.basename(musicPath), beatOffsetSeconds: musicOffset, qualityStatus: "passed", variantIndex: variantIndex + 1, productId: product.product_id, displayName: product.display_name,
       });
+      record.durationSeconds = outputDurationSeconds;
       if (!record.chatcut?.manifestPath) {
         const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master, product, record, musicPath, musicOffset, textLayout });
         record.chatcut = { status: "pending", manifestPath: chatcutManifestPath };
@@ -1036,6 +1057,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][3:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout];[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, "-loop", "1", "-i", hookOverlayPath, "-loop", "1", "-i", cvrOverlayPath, "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
+    const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
     const record = await buildOutputRecord(root, outputPath, {
       musicName: path.basename(musicPath),
       beatOffsetSeconds: musicOffset,
@@ -1044,6 +1066,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       productId: product.product_id,
       displayName: product.display_name,
     });
+    record.durationSeconds = outputDurationSeconds;
     const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master, product, record, musicPath, musicOffset, textLayout });
     record.chatcut = { status: "pending", manifestPath: chatcutManifestPath };
     if (record.size < 500_000) throw new Error(`成片体积异常：${outputName}`);
@@ -1067,7 +1090,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     requestedOutputs: totalOutputs,
     renderedOutputs: results.length,
     excludedProducts: Array.isArray(edl.excluded_products) ? edl.excluded_products : [],
-    qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", uniqueMusic: "passed", shortShotReview: shortShotReviewWarnings.length ? "warning" : "passed" },
+    qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", outputDuration: "passed", uniqueMusic: "passed", shortShotReview: shortShotReviewWarnings.length ? "warning" : "passed" },
     shortShotQuality: {
       products: shortShotProducts.map((product) => ({ product_id: product.product_id, ...product.short_shot_quality })),
       reviewWarnings: shortShotReviewWarnings,

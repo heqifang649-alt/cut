@@ -11,7 +11,7 @@ import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool, prepareDeter
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
 import { isQualityGateV2Enabled, validateWithQualityGateV2 } from "./quality-gate-v2.mjs";
-import { createProductViews, isNewSchedulerEnabled, partitionScheduledProducts } from "./shot-scheduler.mjs";
+import { createProductViews, enforceMinimumSafeDuration, isNewSchedulerEnabled, partitionScheduledProducts } from "./shot-scheduler.mjs";
 import { routeProductSchedule, schedulerV2Mode } from "./scheduler-policy-router.mjs";
 import { readExistingShotFrameHashes } from "../lib/scheduler-v2-visual-evidence.mjs";
 import { persistSchedulerRevision } from "./scheduler-revision-store.mjs";
@@ -1413,7 +1413,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
         targetDuration: scriptTemplate.totalDuration, durationCap: Math.min(13, Number(batch.durationMax) || 13), upstreamImport, frameHashesByShot,
         visualReview: visualEvidence?.cases?.find((entry) => entry.batchId === batch.id && entry.productId === productView.product.id),
       }, { mode: schedulerMode, policyPin: batch.schedulerPolicy });
-      return { product: productView.product, sourceNamesByShotId: productView.sourceNamesByShotId, scheduleResult: routed.selected,
+      return { product: productView.product, sourceNamesByShotId: productView.sourceNamesByShotId, scheduleResult: enforceMinimumSafeDuration(routed.selected),
         ...(schedulerMode !== "off" ? { schedulerPolicy: routed.policyVersion, schedulerRevision: routed.revision, shadow: routed.shadow, shadowError: routed.shadowError } : {}),
       };
     });
@@ -1437,6 +1437,9 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     if (batch.libtvSource?.editPolicyReceipt && renderable.length) await assertAutoOotdQuality({ root: ROOT, batch, batchDir, scheduledProducts: renderable });
     if (!renderable.length) {
       const message = `Schedule Failed: ${excludedProducts.map((item) => `${item.product_id}:${item.reason}`).join(", ")}`;
+      if (scheduledProducts.every((item) => item.scheduleResult.reason === "INSUFFICIENT_SAFE_DURATION")) {
+        throw Object.assign(new Error(message), { code: "INSUFFICIENT_SAFE_DURATION", retryable: false });
+      }
       const providerFailures = transientSemanticProviderFailures(semanticEvidence);
       if (providerFailures.length) {
         const error = new Error(message);

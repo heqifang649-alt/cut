@@ -196,6 +196,7 @@ test("approval is blocked unless every quality gate passed", async () => {
   const source = await readFile(new URL("app/api/batches/[id]/approve/route.ts", root), "utf8");
   assert.match(source, /qualityStatus !== "passed"/);
   assert.match(source, /renderSummary\.qualityGates/);
+  assert.match(source, /qualityGates\.outputDuration !== "passed"/);
   assert.match(source, /existing\.status !== "review"/);
   assert.match(source, /stat\(outputPath\)/);
   assert.match(source, /info\.size > 500_000/);

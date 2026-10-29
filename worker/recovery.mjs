@@ -435,6 +435,7 @@ export async function tripCodexConcurrencyCircuit({ root, message, task, service
 }
 
 export function classifyRecoveryError(error, context = {}) {
+  if (error?.code === "INSUFFICIENT_SAFE_DURATION" || /INSUFFICIENT_SAFE_DURATION/.test(String(error?.message || error))) return { category: "business", kind: "insufficient_safe_duration", recoverable: false, label: "安全有效画面不足8秒" };
   const message = String(error instanceof Error ? error.message : error || "").toLowerCase();
   const errorCode = String(error && typeof error === "object" ? error.code || "" : "").toLowerCase();
   const providerFailures = Array.isArray(context.providerFailures) ? context.providerFailures : error?.providerFailures;

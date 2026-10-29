@@ -17,6 +17,8 @@ import {
 } from "../lib/classic-multisource.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
+const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+const testFfmpeg = () => process.env.CUTFLOW_TEST_FFMPEG || runtime.ffmpegExecutable;
 
 async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount = 2 } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "cut-multi-"));
@@ -109,17 +111,17 @@ test("v2 rejects changed business content at the same authoritative revision", a
 });
 
 test("v2 authoritative revisions are monotonic and stale failed snapshots cannot replace completed", { timeout: 30_000 }, async () => {
-  const ffmpeg = process.env.CUTFLOW_TEST_FFMPEG || "ffmpeg";
+  const ffmpeg = testFfmpeg();
   const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1 });
   const accepted = await admitMultisource(f.root, f.config, f.input);
   const processing = await recordMultisourceProgress(f.root, f.config, f.taskId, { stage: "analyze", progress: 10 });
   assert.equal(processing.revision, 2); assert.equal(processing.status, "processing");
   const sourcePath = path.join(f.root, "v2-output.mp4");
-  await promisify(execFile)(ffmpeg, ["-v", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:d=0.2",
+  await promisify(execFile)(ffmpeg, ["-v", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:d=8",
     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", sourcePath], { windowsHide: true });
   const bytes = await readFile(sourcePath); const output = { id: randomUUID(), sourcePath, sha256: hash(bytes), size: bytes.length };
-  const review = await publishMultisourceResults(f.root, f.config, f.taskId, [output], "review", { ffmpeg });
-  const completed = await completeMultisource(f.root, f.config, f.taskId, [output], { ffmpeg });
+  const review = await publishMultisourceResults(f.root, f.config, f.taskId, [output], "review", { ffmpeg, ffprobe: runtime.ffprobeExecutable });
+  const completed = await completeMultisource(f.root, f.config, f.taskId, [output], { ffmpeg, ffprobe: runtime.ffprobeExecutable });
   assert.equal(review.revision, 3); assert.equal(completed.revision, 4); assert.equal(completed.status, "completed");
   assert.equal(completed.outputs[0].reviewStatus, "PENDING");
   await writeJsonAtomic(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), { ...completed, revision: 5 });
@@ -270,20 +272,20 @@ test("reference tampering, cross-source binding and false MIME cannot be admitte
 });
 
 test("review/completed outputs are fully decoded and atomically published under outbox/taskId", { timeout: 30_000 }, async () => {
-  const ffmpeg = process.env.CUTFLOW_TEST_FFMPEG || "ffmpeg"; const f = await fixture(); await admitMultisource(f.root, f.config, f.input);
+  const ffmpeg = testFfmpeg(); const f = await fixture(); await admitMultisource(f.root, f.config, f.input);
   const sourcePath = path.join(f.root, "output.mp4");
-  await promisify(execFile)(ffmpeg, ["-v", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:d=0.2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", sourcePath], { windowsHide: true });
-  const bytes = await readFile(sourcePath); const output = { id: randomUUID(), sourcePath, sha256: hash(bytes), size: bytes.length, durationSeconds: 0.2 };
-  const review = await publishMultisourceResults(f.root, f.config, f.taskId, [output], "review", { ffmpeg });
+  await promisify(execFile)(ffmpeg, ["-v", "error", "-f", "lavfi", "-i", "color=c=black:s=32x32:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", sourcePath], { windowsHide: true });
+  const bytes = await readFile(sourcePath); const output = { id: randomUUID(), sourcePath, sha256: hash(bytes), size: bytes.length, durationSeconds: 8 };
+  const review = await publishMultisourceResults(f.root, f.config, f.taskId, [output], "review", { ffmpeg, ffprobe: runtime.ffprobeExecutable });
   assert.equal(review.status, "review"); assert.deepEqual(review.outputs[0], { id: output.id, outputId: output.id,
-    relativePath: `outbox/${f.taskId}/${output.id}.mp4`, sha256: output.sha256, size: bytes.length, durationSeconds: 0.2 });
+    relativePath: `outbox/${f.taskId}/${output.id}.mp4`, sha256: output.sha256, size: bytes.length, durationSeconds: 8 });
   assert.equal((await stat(path.join(f.nasRoot, ...review.outputs[0].relativePath.split("/")))).size, bytes.length);
-  const completed = await completeMultisource(f.root, f.config, f.taskId, [output], { ffmpeg });
+  const completed = await completeMultisource(f.root, f.config, f.taskId, [output], { ffmpeg, ffprobe: runtime.ffprobeExecutable });
   assert.equal(completed.status, "completed"); assert.equal(completed.outputs[0].sha256, hash(bytes));
 });
 
 test("hash or decode failure leaves no published output and no completed receipt", { timeout: 30_000 }, async () => {
-  const ffmpeg = process.env.CUTFLOW_TEST_FFMPEG || "ffmpeg"; const f = await fixture(); await admitMultisource(f.root, f.config, f.input);
+  const ffmpeg = testFfmpeg(); const f = await fixture(); await admitMultisource(f.root, f.config, f.input);
   const corrupt = path.join(f.root, "corrupt.mp4"); await writeFile(corrupt, "not-video"); const bytes = await readFile(corrupt); const id = randomUUID();
   await assert.rejects(completeMultisource(f.root, f.config, f.taskId,
     [{ id, sourcePath: corrupt, sha256: hash(bytes), size: bytes.length }], { ffmpeg }), /INVALID_OUTPUT_DECODE/);

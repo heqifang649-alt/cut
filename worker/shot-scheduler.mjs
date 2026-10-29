@@ -3,6 +3,7 @@ import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.
 import { renderPlanShortShotQuality, shortShotPenalty } from "../lib/short-shot-quality.mjs";
 
 const EPSILON = 1e-9;
+export const MINIMUM_SAFE_DURATION_SECONDS = 8;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
@@ -186,6 +187,24 @@ export function scheduleProductView({ batchId, productView, scriptTemplate, crea
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
   return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial });
+}
+
+export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAFE_DURATION_SECONDS) {
+  if (scheduleResult?.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) return scheduleResult;
+  const availableSafeDuration = Number(scheduleResult.renderPlan.slots.reduce((sum, entry) => {
+    const available = Math.max(0, Math.min(Number(entry.shot.duration), Number(entry.shot.end) - Number(entry.shot.start)));
+    return sum + Math.min(available, Number(entry.slot.targetDuration) || available);
+  }, 0).toFixed(6));
+  if (availableSafeDuration < minimum - EPSILON) return {
+    status: "failed", reason: "INSUFFICIENT_SAFE_DURATION", retryable: false,
+    availableSafeDuration, durationShortfall: Number((minimum - availableSafeDuration).toFixed(6)),
+  };
+  return {
+    ...scheduleResult,
+    actualCutDuration: availableSafeDuration,
+    minimumSafeDuration: minimum,
+    renderPlan: { ...scheduleResult.renderPlan, minimumSafeDuration: minimum, transitionProfile: "hard_cut" },
+  };
 }
 
 export function partitionScheduledProducts(scheduledProducts) {

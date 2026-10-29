@@ -301,16 +301,23 @@ async function runTask(task) {
 
 async function handleFailure(task, error) {
   const message = error instanceof Error ? error.message : String(error);
+  const durationFailureMessage = error?.code === "INSUFFICIENT_SAFE_DURATION"
+    ? Number.isFinite(error?.availableSafeDuration)
+      ? `成片实际有效视频时长 ${error.availableSafeDuration.toFixed(3)} 秒，低于最低 8 秒，已拒绝发布。`
+      : "成片实际有效视频时长不足8秒，已拒绝发布。"
+    : null;
   const automaticBatch = await loadBatch(task.batchId);
   if (automaticBatch?.libtvSource?.editPolicyReceipt?.state === "accepted") {
-    const code = ["SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
+    const code = ["INSUFFICIENT_SAFE_DURATION", "SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
       : /Schedule Failed:.*(?:schedule:hook|no_matching_shot.*hook)/i.test(message) ? "NO_MATCHING_HOOK"
       : /Schedule Failed:/.test(message) ? "SOURCE_INSUFFICIENT" : null;
     if (code) {
       if (!(await taskCanFinalize(task))) return { state: "lost", lost: true };
       await update(task.batchId, (item) => {
         item.status = "failed"; item.bridgeErrorCode = code;
-        item.error = { NO_MATCHING_HOOK: "合格素材中没有符合母版的开头镜头。", SOURCE_INSUFFICIENT: "自动检查后合格素材或必要证据不足。",
+        item.error = code === "INSUFFICIENT_SAFE_DURATION"
+          ? durationFailureMessage
+          : { INSUFFICIENT_SAFE_DURATION: "成片实际有效视频时长不足8秒，已拒绝发布。", NO_MATCHING_HOOK: "合格素材中没有符合母版的开头镜头。", SOURCE_INSUFFICIENT: "自动检查后合格素材或必要证据不足。",
           QUALITY_REJECTED: "自动质量检查拒绝使用相关素材。", TEMPLATE_NOT_READY: "指定母版不可用或归属已变化。",
           BGM_MISSING: "可用音乐库为空。", SOURCE_SCOPE_INVALID: "来源超出本包授权范围。" }[code];
         item.renderingLabel = item.error;
@@ -323,7 +330,7 @@ async function handleFailure(task, error) {
   // structured Provider code was added. Recover the sidecar evidence here so
   // an explicit requeue receives the same bounded two-attempt policy.
   let providerFailures = error?.providerFailures;
-  if (!Array.isArray(providerFailures) && /schedule failed|排片失败/i.test(message)) {
+  if (error?.code !== "INSUFFICIENT_SAFE_DURATION" && !Array.isArray(providerFailures) && /schedule failed|排片失败/i.test(message)) {
     const evidence = await readJson(path.join(await batchWorkspacePathForId(ROOT, task.batchId), "semantic-evidence.v1.json"), null).catch(() => null);
     providerFailures = (Array.isArray(evidence?.records) ? evidence.records : [])
       .filter((record) => {
