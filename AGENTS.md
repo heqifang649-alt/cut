@@ -16,3 +16,10 @@ Before working on this repository:
 - Do not claim a Pilot or production pass without independent review and the required real evidence.
 - Escalate to the user only for the contract's `USER_DECISION_REQUIRED` boundaries, including missing required third-party credentials.
 - Never put provider credentials in Git, logs, artifacts, prompts, or client-visible payloads.
+
+## Frozen production deployment
+
+- Read `.project-governance/PRODUCTION_FREEZE.md` before production/runtime work.
+- Production currently uses `D:\CUT-Releases\20261022-original-r0` after the single 2026-10-22 cutover attempt was rolled back. The stability candidate is not deployed.
+- Repository edits, candidate builds and source synchronization are development only. Never write into `D:\CUT-Releases`, restart production, or repoint scheduled tasks without an applicable deployment authorization.
+- `data` and `storage` are persistent production data referenced by the releases. They are not development fixtures and must not be replaced during source synchronization.
