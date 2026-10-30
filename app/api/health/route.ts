@@ -3,7 +3,9 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { currentUser, unauthenticated } from "@/lib/auth";
 import { readCodexExecutionState } from "../../../worker/recovery.mjs";
-import { fleetRuntimeIsHealthy } from "../../../worker/fleet-availability.mjs";
+import { fleetRuntimeIsOperational } from "../../../worker/fleet-availability.mjs";
+
+import { auxiliaryStatus } from "@/lib/service-health.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,7 +53,7 @@ export async function GET() {
   const fleetRuntime = await readState("fleet-runtime.json") as { status?: string; at?: string; pid?: number; unavailable?: string[]; failureStage?: string; detectedAt?: string; runtimeProfile?: string; runtimeRevision?: string; runtimeConfigHash?: string; members?: Array<{ name?: string; pid?: number }> } | null;
   const byStage = Object.fromEntries(["analyze", "clip", "render"].map((stage) => [stage, services.filter((heartbeat) => heartbeat?.service === stage).length]));
   const servicesOnline = Object.values(byStage).every((count) => count >= 3);
-  const fleetOnline = fleetRuntimeIsHealthy(fleetRuntime);
+  const fleetOnline = fleetRuntimeIsOperational(fleetRuntime);
   const codexState = await readState("codex-account-state.json");
   const codexRuntime = await readCodexExecutionState(process.cwd());
   const chatcutState = await readState("chatcut-account-state.json");
@@ -68,7 +70,14 @@ export async function GET() {
     const value = await readState(`auxiliary-runtime/${worker}.json`) as { status?: string; unavailable?: string[]; failureStage?: string; detectedAt?: string; runtimeProfile?: string; runtimeRevision?: string; runtimeConfigHash?: string; updatedAt?: string; worker?: string } | null;
     return value ? { worker, status: value.status, unavailable: value.unavailable, failureStage: value.failureStage, detectedAt: value.detectedAt, runtimeProfile: value.runtimeProfile, runtimeRevision: value.runtimeRevision, runtimeConfigHash: value.runtimeConfigHash, updatedAt: value.updatedAt } : null;
   }));
+  const auxiliaries = Object.fromEntries(await Promise.all(["template", "chatcut"].map(async (worker) => {
+    const state = await readState(`auxiliary-runtime/${worker}.json`);
+    const heartbeat = await readState(`${worker}-worker-heartbeat.json`);
+    return [worker, auxiliaryStatus(state, heartbeat, { isAlive: processIsAlive })];
+  })));
   return NextResponse.json({
+    auxiliaries,
+    claims: { enabled: (fleetRuntime as { claimsEnabled?: boolean } | null)?.claimsEnabled === true },
     workerOnline: fleetRuntime ? fleetOnline && servicesOnline : legacyOnline,
     workerBusy: false,
     runtime: {
@@ -81,7 +90,7 @@ export async function GET() {
     heartbeat: legacyHeartbeat || services[0] || null,
     services: { online: servicesOnline, fleetOnline, instances: services.length, requiredInstances: 9, byStage },
     codex: {
-      ready: codexState?.ready === true,
+      ready: codexRuntime.probe?.fresh === true && codexRuntime.sdkTurnCompleted === true && codexRuntime.codexExecutorAlive === true && codexRuntime.authenticationValid !== false,
       apiReady: codexRuntime.modelServiceReachable === true,
       executorReady: codexRuntime.codexExecutorAlive === true,
       modelServiceReachable: codexRuntime.modelServiceReachable,

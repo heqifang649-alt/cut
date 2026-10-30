@@ -3,6 +3,7 @@ import { readJson, withFileLock, writeJsonAtomic } from "../lib/atomic-json.mjs"
 import { environmentBatchScope, batchInScope } from "./batch-scope.mjs";
 
 const DEFAULT_RENDER_LIMIT = 2;
+const MAX_RENDER_LIMIT = 5;
 const DEFAULT_LEASE_MS = 120_000;
 const statePath = (root) => path.join(root, "data", "resource-governor.json");
 
@@ -46,7 +47,7 @@ function cleanExpired(render, currentTime, isPidLive) {
 async function mutate(root, options, change) {
   const file = statePath(root);
   const currentTime = options.now?.() ?? Date.now();
-  const limit = Math.max(1, Math.min(2, Math.floor(Number(options.limit) || DEFAULT_RENDER_LIMIT)));
+  const limit = Math.max(1, Math.min(MAX_RENDER_LIMIT, Math.floor(Number(options.limit) || DEFAULT_RENDER_LIMIT)));
   return withFileLock(file, async () => {
     const state = normalizeState(await readJson(file, {}), currentTime, limit);
     account(state.render, currentTime);

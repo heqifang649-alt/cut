@@ -2,16 +2,17 @@ import test from "node:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm, rename, utimes } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, rename, utimes, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { GUIDED_POLICY, isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { enqueueImport, importStatus, bridgeTick, scanLanReady, syncLanStatuses, bridgeConfig } from "../lib/libtv-bridge.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { guidedIntervals, prepareGuidedInputs, scheduleGuided, assertGuidedMusic } from "../worker/libtv-guided-auto.mjs";
-import { runAutoOotdQuality, assertAutoOotdQuality } from "../worker/libtv-auto-quality.mjs";
+import { runAutoOotdQuality, assertAutoOotdQuality, autoOotdInputs } from "../worker/libtv-auto-quality.mjs";
 import { dryRunRenderPlan, renderPlansToEdl } from "../worker/batch-renderer.mjs";
 import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
 import { classicExecutionScope, classicIntegrationConfig } from "../lib/classic-integration.mjs";
@@ -50,6 +51,51 @@ async function imported(t) {
   e.batchDir = batchWorkspacePath(e.root, e.batch);
   return e;
 }
+
+test("one-shot execution policy preserves failure evidence and never automatically reclaims a failed stage", async t => {
+  const e = await imported(t);
+  const runtime = await readJson(path.join(process.cwd(), 'config/cutflow-runtime.json'));
+  await writeJsonAtomic(path.join(e.root, 'config/cutflow-runtime.json'), { ...runtime,
+    workRoot: path.join(e.root, 'work'), deliveryRoot: e.root, runtimeTempRoot: path.join(e.root, 'temp'),
+    runtimeCacheRoot: path.join(e.root, 'cache'), codexHome: null, codexCliExecutable: null,
+    assets: { bgmRoot: e.root, lutRoot: e.root, subtitleTemplateRoot: e.root } });
+  await mkdir(path.join(e.root, 'worker'), { recursive: true });
+  await writeFile(path.join(e.root, 'worker/service-runner.mjs'), '// preflight fixture');
+  await writeFile(path.join(e.root, 'worker/processor.mjs'), '// preflight fixture');
+  e.batch.executionPolicy = { automaticRetry: false };
+  await writeJsonAtomic(path.join(e.root, 'data/batches.json'), [e.batch]);
+  const run = promisify(execFile);
+  const runner = fileURLToPath(new URL('../worker/service-runner.mjs', import.meta.url));
+  const env = { ...process.env, CUTFLOW_CLAIM_ENABLED: 'true', CUT_WORK_ROOT: path.join(e.root, 'work') };
+  await run(process.execPath, [runner, '--service=analyze', '--once'], { cwd: e.root, env, windowsHide: true, timeout: 30000 });
+  const failed = (await readJson(path.join(e.root, 'data/batches.json')))[0];
+  assert.equal(failed.status, 'failed');
+  const before = await readJson(path.join(e.root, 'data/service-queue.json'));
+  assert.equal(before.tasks.at(-1).status, 'manual');
+  const diagnostics = await readJson(path.join(e.batchDir, 'failure-diagnostics.json'));
+  assert.equal(diagnostics.latest.context.automaticRetry, false);
+  await run(process.execPath, [runner, '--service=analyze', '--once'], { cwd: e.root, env, windowsHide: true, timeout: 30000 });
+  const after = await readJson(path.join(e.root, 'data/service-queue.json'));
+  assert.equal(after.tasks.length, before.tasks.length);
+  assert.equal(after.tasks.at(-1).attempt, before.tasks.at(-1).attempt);
+});
+
+test("guided LAN import through release storage junction survives restart and repeated GET/POST with one batch", async t => {
+  const e = await fixture(t);
+  const persistent = path.join(e.root, "persistent-storage");
+  await mkdir(persistent);
+  await symlink(persistent, path.join(e.root, "storage"), process.platform === "win32" ? "junction" : "dir");
+  await enqueueImport(e.root, e.config, e.input);
+  await bridgeTick(e.root, e.config);
+  const restarted = await import('../lib/libtv-bridge.mjs?junction-restart');
+  await restarted.enqueueImport(e.root, e.config, e.input);
+  await restarted.bridgeTick(e.root, e.config);
+  await restarted.importStatus(e.root, e.config, e.input.handoffId);
+  await restarted.importStatus(e.root, e.config, e.input.handoffId);
+  const batches = await readJson(path.join(e.root, "data/batches.json"));
+  assert.equal(batches.length, 1);
+  assert.equal((await autoOotdInputs(e.root, batches[0])).sourceHash, hash("fake"));
+});
 
 test("editing quality diagnostics follow the analyze runner rather than clip runners", async t => {
   const e = await imported(t);
@@ -223,6 +269,9 @@ for (const probeUnavailable of [false, true]) test(`guided publication rejects $
 
 test("/2 isolated output publication and GET keep the new receipt and never reuse another task's output", async (t) => {
   const e = await imported(t), store = path.join(e.root, "data/batches.json");
+  e.batch.status = "failed";
+  await writeJsonAtomic(store, [e.batch]); await bridgeTick(e.root, e.config);
+  assert.equal((await importStatus(e.root, e.config, e.input.handoffId)).status, "failed");
   e.batch.status = "review";
   const output = path.join(e.batchDir, "output", "fixture.mp4"); await mkdir(path.dirname(output), { recursive: true });
   const runtime = await readJson(path.join(e.root,'config/cutflow-runtime.json'));

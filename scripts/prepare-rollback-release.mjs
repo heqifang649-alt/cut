@@ -1,0 +1,14 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+const base = 'D:/CUT-Releases/20261022-stability-r1';
+const rollback = 'D:/CUT-Releases/20261022-original-r0';
+await fs.mkdir(rollback);
+for (const name of ['lib', 'worker', 'scripts', 'config', 'tests']) await fs.cp(path.join(base, name), path.join(rollback, name), { recursive: true });
+for (const name of ['node_modules', 'standards', 'public', 'app', '.next-bridge-build-20261015', 'runtime-tools']) await fs.symlink(path.join(base, name), path.join(rollback, name), 'junction');
+for (const name of ['data', 'storage']) await fs.symlink(path.join(process.cwd(), name), path.join(rollback, name), 'junction');
+for (const name of ['package.json', '.env.local', '.env.example', 'next.config.ts', 'tsconfig.json', 'next-env.d.ts']) await fs.copyFile(path.join(base, name), path.join(rollback, name));
+for (const name of ['fleet-supervisor.mjs', 'service-supervisor.mjs', 'auxiliary-supervisor.mjs']) await fs.copyFile(path.join(base, 'rollback-original', name), path.join(rollback, 'worker', name));
+await fs.copyFile(path.join(process.cwd(), 'scripts/start-cutflow.ps1'), path.join(rollback, 'scripts/start-cutflow.ps1'));
+const manifest = JSON.parse(await fs.readFile(path.join(base, 'RELEASE-MANIFEST.json'), 'utf8'));
+await fs.writeFile(path.join(rollback, 'RELEASE-MANIFEST.json'), JSON.stringify({ ...manifest, version: '20261022-original-r0', release: rollback, files: [], links: [], purpose: 'Original supervisor behavior and identical web build; shares only frozen dependencies and persistent data' }, null, 2));
+console.log(JSON.stringify({ rollback }));

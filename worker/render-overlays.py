@@ -155,6 +155,7 @@ def main():
     parser.add_argument("--font", default=r"C:\Windows\Fonts\arialbd.ttf")
     parser.add_argument("--italic-font", default=r"C:\Windows\Fonts\arialbi.ttf")
     parser.add_argument("--layout", default=str(Path(__file__).resolve().parents[1] / "standards" / "text-layout-9x16-v1.json"))
+    parser.add_argument("--optional-copy", action="store_true")
     args = parser.parse_args()
     edl = json.loads(Path(args.edl).read_text(encoding="utf-8-sig"))
     master = edl.get("master", {})
@@ -162,6 +163,30 @@ def main():
     layout = json.loads(Path(args.layout).read_text(encoding="utf-8-sig"))
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
+    if args.optional_copy:
+        actual = {"hook": "", "cta": "", "warnings": []}
+        for kind, filename in [("hook", "hook.png"), ("cta", "cvr.png")]:
+            spec = master.get("hook" if kind == "hook" else "cvr", {})
+            text = spec.get("text", "")
+            target = output / filename
+            try:
+                if not text:
+                    raise ValueError("empty_copy")
+                if kind == "hook":
+                    make_hook(width, height, text, target, args.font, layout)
+                else:
+                    make_cvr(width, height, text, "", target, args.font, args.italic_font,
+                             {**layout, "cvr": {**layout["cvr"], "secondary_text_default": ""}}, spec)
+                with Image.open(target) as image:
+                    bbox = image.getchannel("A").getbbox()
+                    if bbox and (bbox[0] < width * .04 or bbox[2] > width * .96):
+                        raise ValueError("copy_exceeds_safe_width")
+                actual[kind] = text
+            except Exception as error:
+                Image.new("RGBA", (width, height), (0, 0, 0, 0)).save(target)
+                actual["warnings"].append({"kind": kind, "reason": str(error)})
+        (output / "copy-layout.json").write_text(json.dumps(actual, ensure_ascii=False), encoding="utf-8")
+        return
     make_hook(width, height, master.get("hook", {}).get("text", "Wearing what I believe."), output / "hook.png", args.font, layout)
     cvr = master.get("cvr", {})
     make_cvr(width, height, cvr.get("text", "One of our best sellers."), cvr.get("secondary_text", ""), output / "cvr.png", args.font, args.italic_font, layout, cvr)

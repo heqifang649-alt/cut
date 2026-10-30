@@ -1,0 +1,24 @@
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {prepareBrandAudio} from '../worker/brand-bgm.mjs';
+import {loadRenderRuntimeConfig} from '../worker/runtime-config.mjs';
+const root=process.cwd(),runtime=await loadRenderRuntimeConfig(root),exec=promisify(execFile);
+const out=path.join(root,'artifacts/brand-bgm-20261021'),dir=path.join(out,'original-audio-mix');await mkdir(dir,{recursive:true});
+const edl=JSON.parse(await readFile(path.join(root,'.project-governance/evidence/brand-copy-20261020/copy-tt-ootd/edit/render-plan-edl.json'),'utf8'));
+const product=edl.products[0],duration=product.duration_seconds;
+const audio=await prepareBrandAudio({root,batch:{brandCopyContext:{brandId:'NW',provenance:'isolated_canary'}},product,duration,directory:dir,ffmpeg:runtime.ffmpegExecutable,ffprobe:runtime.ffprobeExecutable});
+assert.equal(audio.decision.originalAudio,true);assert.equal(audio.decision.bgmGain,.08);assert.equal(audio.decision.status,'selected');
+const run=args=>exec(runtime.ffmpegExecutable,args,{windowsHide:true,timeout:30000,maxBuffer:8*1024*1024,encoding:'buffer'});
+const source=path.join(root,'artifacts/brand-copy-20261020/copy-tt-ootd-TT4-M1.mp4'),target=path.join(out,'original-audio-mix.mp4');
+await run(['-v','error','-y','-i',source,'-i',audio.path,'-map','0:v','-map','1:a','-c:v','copy','-c:a','aac','-t',String(duration),'-movflags','+faststart',target]);
+await run(['-v','error','-i',target,'-f','null','-']);
+// Compare the exact selected music with/without fade; this verifies real-track fade independently of music dynamics.
+const pcm=async filters=>(await run(['-v','error','-stream_loop','-1','-i',audio.decision.path,'-af',filters,'-t',String(duration),'-ac','1','-ar','48000','-f','s16le','pipe:1'])).stdout;
+const clean=await pcm('volume=0.08'),faded=await pcm(`volume=0.08,afade=t=out:st=${duration-.8}:d=0.8`);
+const rms=(buffer,seconds)=>{let sum=0,n=0;for(let i=Math.max(0,buffer.length-Math.round(seconds*48000)*2);i+1<buffer.length;i+=2){sum+=buffer.readInt16LE(i)**2;n++;}return Math.sqrt(sum/n);};
+const ratio=rms(faded,.1)/rms(clean,.1);assert.ok(ratio<.2,`fade tail ratio ${ratio}`);
+const report={file:target,decision:audio.decision,decode:'pass',originalRetained:true,bgmGainDb:20*Math.log10(.08),realTrackFadeTailRatio:ratio,subjectiveListening:'pending',limitation:'NW music mixed over reused TT footage solely to test source-audio mixing; not a branded product delivery or verified speech sample'};
+await writeFile(path.join(dir,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

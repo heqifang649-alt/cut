@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { analyzeDeterministicMetadataBudget } from "../worker/deterministic-budget.mjs";
 
 const WIDTH = 64;
@@ -36,4 +37,17 @@ test("requires review instead of inventing visibility for uniform frames", async
     () => analyzeDeterministicMetadataBudget("blank.mp4", { decode: async () => ({ bytes: frames({ foreground: false }), sampleFps: 2 }) }),
     (error) => error.code === "METADATA_BUDGET_REVIEW_REQUIRED",
   );
+});
+
+test("existing source short tail produces frames instead of successful empty decode", {
+  skip: !process.env.CUTFLOW_EXISTING_VIDEO_TEST_PATH,
+}, async () => {
+  const runtime = JSON.parse(await readFile(new URL('../config/cutflow-runtime.json', import.meta.url), 'utf8'));
+  const result = await analyzeDeterministicMetadataBudget(process.env.CUTFLOW_EXISTING_VIDEO_TEST_PATH, {
+    ffmpeg: runtime.ffmpegExecutable, start: 7.9, duration: 0.14,
+  }).catch(error => {
+    if (error.code === 'METADATA_BUDGET_REVIEW_REQUIRED') return { evidence: error.evidence };
+    throw error;
+  });
+  assert.ok(result.evidence.sampleCount >= 1);
 });

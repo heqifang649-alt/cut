@@ -64,7 +64,11 @@ async function imageDataUrl(file) {
 
 async function loadPolicy(policyPath = POLICY_FILE) {
   const policy = await readJson(policyPath, null);
-  if (!policy?.policyVersion || !Array.isArray(policy.sampleFrameRatios) || policy.sampleFrameRatios.length !== 5) throw new Error("Quality Gate V2 policy is invalid");
+  if (!policy?.policyVersion || !Array.isArray(policy.sampleFrameRatios) || policy.sampleFrameRatios.length !== 5) {
+    throw Object.assign(new Error("Quality Gate V2 policy is invalid"), {
+      code: policy === null ? "QUALITY_POLICY_MISSING" : "QUALITY_POLICY_INVALID", stage: "quality", detailCode: policy === null ? "QUALITY_POLICY_MISSING" : "QUALITY_POLICY_INVALID",
+    });
+  }
   return policy;
 }
 
@@ -156,14 +160,14 @@ function providerRunner(config, root) {
   });
 }
 
-async function requestProviderEvidence({ runner, model, sourceId, prompt, images, imageLabels, signal }) {
+async function requestProviderEvidence({ runner, model, sourceId, prompt, images, imageLabels, signal, beforeDispatch }) {
   const parse = (response) => parseQualityEvidenceProvider(response.text, { expectedSourceId: sourceId });
   try {
-    const response = await runner.complete({ model, prompt, images, imageLabels, jsonSchema: qualityEvidenceProviderJsonSchema(), capability: "structured", signal });
+    const response = await runner.complete({ model, prompt, images, imageLabels, jsonSchema: qualityEvidenceProviderJsonSchema(), capability: "structured", signal, beforeDispatch });
     return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null } };
   } catch (nativeError) {
     try {
-      const response = await runner.complete({ model, prompt: `${prompt}\nNative schema was unavailable. Return only valid JSON matching the required schema.`, images, imageLabels, capability: "structured", signal });
+      const response = await runner.complete({ model, prompt: `${prompt}\nNative schema was unavailable. Return only valid JSON matching the required schema.`, images, imageLabels, capability: "structured", signal, beforeDispatch });
       return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null, jsonFallback: true } };
     } catch (fallbackError) {
       const error = fallbackError instanceof ProviderAdapterError ? fallbackError : nativeError;
@@ -191,7 +195,7 @@ export async function setQualityEvidenceV2ReviewDecision({ batchDir, sourceId, d
   });
 }
 
-export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, evidenceStateDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides, sourceInterval, automaticOnly = false } = {}) {
+export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, evidenceStateDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides, sourceInterval, automaticOnly = false, beforeDispatch } = {}) {
   const sourceId = String(file?.id || file?.storagePath || file?.absolutePath || "");
   const videoPath = sourcePath(root, batch, batchDir, file || {});
   const policy = await loadPolicy(policyPath);
@@ -258,7 +262,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
         try {
           const imageLabels = qualityEvidenceImageLabels({ references: refs, frames, crops: specialistCrops });
           record.inputEvidenceRoles = imageLabels;
-          result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements, references: record.referenceCoverage.references.map((reference) => ({ type: reference.referenceType, name: reference.mappedFilename })), frames, crops: record.specialistEvidence.crops }), images: [...referenceImages, ...frameImages, ...cropImages], imageLabels, signal: timeout.signal });
+          result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements, references: record.referenceCoverage.references.map((reference) => ({ type: reference.referenceType, name: reference.mappedFilename })), frames, crops: record.specialistEvidence.crops }), images: [...referenceImages, ...frameImages, ...cropImages], imageLabels, signal: timeout.signal, beforeDispatch });
         } finally {
           clearTimeout(timer);
         }

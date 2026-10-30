@@ -17,8 +17,8 @@ const apply = process.argv.includes("--apply");
 if (!batchId) throw new Error("--batch is required");
 
 const batch = await getBatch(batchId);
-if (!batch || batch.status !== "failed" || batch.execution?.reason !== "QUALITY_REJECTED") {
-  throw new Error("Target is not the expected failed Quality Batch");
+if (!batch || batch.status !== "failed" || !["QUALITY_REJECTED", "SOURCE_INSUFFICIENT"].includes(batch.execution?.reason)) {
+  throw new Error("Target is not the expected recoverable Quality Batch");
 }
 const batchDir = batchWorkspacePath(root, batch);
 const auditDir = path.join(root, "audit", "lan-recheck", "v3-once");
@@ -143,6 +143,10 @@ await resetBatchStagesForExplicitRetry({ root, batchId, reason: "quality_v3_two_
 const recovered = await mutateBatch(batchId, (item) => {
   if (item.status !== "failed") throw new Error("Batch changed during recovery");
   item.workflowVersion = Number(item.workflowVersion || 1) + 1;
+  if (!item.productDetection?.sourcePolicy) throw new Error("Source-policy provenance is missing");
+  item.productDetection.sourcePolicy.sourceVersion = item.workflowVersion;
+  item.productDetection.sourcePolicy.previousWorkflowVersion = item.workflowVersion - 1;
+  item.productDetection.sourcePolicy.at = at;
   item.status = "editing";
   item.progress = 45;
   item.error = undefined;

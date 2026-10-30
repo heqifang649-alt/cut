@@ -307,6 +307,18 @@ async function handleFailure(task, error) {
       : "成片实际有效视频时长不足8秒，已拒绝发布。"
     : null;
   const automaticBatch = await loadBatch(task.batchId);
+  if (automaticBatch?.executionPolicy?.automaticRetry === false) {
+    await recordBatchFailure({ root: ROOT, batchId: task.batchId, service: SERVICE,
+      stage: `${task.stage}/${task.operation}`, workerInstance: task.lease?.workerId || WORKER_ID,
+      error, context: { operation: task.operation, leaseId: task.lease?.leaseId, recoverable: false, automaticRetry: false } });
+    if (!(await taskCanFinalize(task))) return { state: "lost", lost: true };
+    await update(task.batchId, item => {
+      item.status = "failed"; item.error = durationFailureMessage || message;
+      item.execution = { state: "failed", stage: task.stage, reason: error.code || "EXECUTION_FAILED", updatedAt: new Date().toISOString() };
+    });
+    await markFatalFailure({ root: ROOT, batchId: task.batchId, stage: task.stage, message: durationFailureMessage || message });
+    return retryStage({ root: ROOT, task, reason: durationFailureMessage || message, maxAttempts: 0 });
+  }
   if (automaticBatch?.libtvSource?.editPolicyReceipt?.state === "accepted") {
     const code = ["INSUFFICIENT_SAFE_DURATION", "SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
       : /Schedule Failed:.*(?:schedule:hook|no_matching_shot.*hook)/i.test(message) ? "NO_MATCHING_HOOK"
@@ -621,6 +633,10 @@ async function processOnce() {
     }
   } catch (error) {
     if (await isCanceled(task.batchId).catch(() => false)) return true;
+    if ((await loadBatch(task.batchId))?.executionPolicy?.automaticRetry === false) {
+      await handleFailure(task, error);
+      return true;
+    }
     if (["PROVIDER_BACKPRESSURE", "PROVIDER_INCIDENT_OPEN", "PROVIDER_RECOVERY_REQUIRED"].includes(error?.code)) {
       const retryAt = typeof error.retryAt === "string"
         ? error.retryAt

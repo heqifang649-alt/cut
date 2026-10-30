@@ -44,3 +44,15 @@ test("Render Governor releases, heartbeats and reclaims an orphaned permit witho
   assert.equal(persisted.windows.providerFixture.requests, 7);
   assert.ok(persisted.render.metrics.capacityMs > 0);
 });
+
+test("Render Governor admits five explicit isolated slots without changing the default of two", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-render-five-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const results = await Promise.all(Array.from({ length: 6 }, (_, index) => acquireRenderPermit({
+    root, batchId: `batch-${index}`, taskKey: `task-${index}`, workerId: `render-${index}`, limit: 5,
+  })));
+  assert.equal(results.filter((item) => item.state === "acquired").length, 5);
+  const snapshot = await renderGovernorSnapshot({ root, limit: 5 });
+  assert.equal(snapshot.limit, 5);
+  assert.equal(snapshot.active.length, 5);
+});

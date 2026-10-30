@@ -35,7 +35,7 @@ $portalRoot = Split-Path -Parent $PSScriptRoot
 $classicRuntimeFile = Join-Path $portalRoot 'data\classic-integration-runtime.json'
 $classicIntegration = $null
 if (Test-Path -LiteralPath $classicRuntimeFile) {
-  $classicIntegration = Get-Content -LiteralPath $classicRuntimeFile -Raw | ConvertFrom-Json
+  $classicIntegration = Get-Content -LiteralPath $classicRuntimeFile -Raw -Encoding UTF8 | ConvertFrom-Json
   if ($classicIntegration.enabled) { $NoClaim = $true }
 }
 # Runtime executable 与运行目录由 cutflow-runtime.json 唯一管理。其余启动调优项
@@ -298,14 +298,14 @@ function Test-TrackedProcess([string]$Heartbeat, [string]$CommandFragment) {
   # process list first so a second launcher never starts a duplicate worker.
   $existing = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
     $normalizedCommand = if ($_.CommandLine) { $_.CommandLine.Replace('/', '\') } else { '' }
-    $_.Name -eq 'node.exe' -and $normalizedCommand -like "*$CommandFragment*"
+    $_.Name -eq 'node.exe' -and $normalizedCommand.Contains($portalRoot + '\') -and $normalizedCommand -like "*$CommandFragment*"
   } | Select-Object -First 1
   if ($existing) { return $true }
   if (-not (Test-Path -LiteralPath $Heartbeat -PathType Leaf)) { return $false }
   try {
     $record = Get-Content -LiteralPath $Heartbeat -Raw | ConvertFrom-Json
     $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($record.pid)" -ErrorAction SilentlyContinue
-    return $null -ne $process -and $process.CommandLine -like "*$CommandFragment*"
+    return $null -ne $process -and $process.CommandLine.Replace('/', '\').Contains($portalRoot + '\') -and $process.CommandLine -like "*$CommandFragment*"
   } catch { return $false }
 }
 
@@ -404,7 +404,7 @@ do {
       }
     }
   }
-  $requiredAuxiliary = if ($classicIntegration.enabled) { @('bridge', 'delivery') } else { @('template', 'delivery', 'chatcut') }
+  $requiredAuxiliary = if ($classicIntegration.enabled) { @('bridge', 'multisource', 'delivery') } else { @('template', 'delivery', 'chatcut') }
   foreach ($auxiliary in $requiredAuxiliary) {
     if (-not (Test-TrackedProcess (Join-Path $dataRoot "auxiliary-runtime\$auxiliary.json") "worker\auxiliary-supervisor.mjs*--worker=$auxiliary")) {
       $servicesReady = $false

@@ -1,4 +1,6 @@
-import { appendFile, mkdir, rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
+import { boundedLogger } from "../lib/bounded-log.mjs";
+import { RestartBudget } from "../lib/restart-budget.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,11 +56,14 @@ export const FLEET_MEMBERS = [
     script: "auxiliary-supervisor.mjs",
     args: [`--worker=${worker}`],
   })),
-  ...(classicIntegrationConfig(ROOT) ? [{ name: "bridge", script: "auxiliary-supervisor.mjs", args: ["--worker=bridge"] }] : []),
+  ...(classicIntegrationConfig(ROOT) ? [
+    { name: "bridge", script: "auxiliary-supervisor.mjs", args: ["--worker=bridge"] },
+    { name: "multisource", script: "auxiliary-supervisor.mjs", args: ["--worker=multisource"] },
+  ] : []),
 ];
 
 const children = new Map();
-const restartFailures = new Map();
+const restartBudget = new RestartBudget({ baseMs: RESTART_DELAY_MS });
 export function fleetRestartDelayMs(failures, baseMs = RESTART_DELAY_MS) {
   return Math.min(5 * 60_000, baseMs * 2 ** Math.min(Math.max(0, failures - 1), 7));
 }
@@ -75,10 +80,7 @@ function truncate(value, limit = 1_000) {
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 
-async function log(message) {
-  await mkdir(path.dirname(logFile), { recursive: true });
-  await appendFile(logFile, `${new Date().toISOString()} ${message}\n`, "utf8");
-}
+const log = boundedLogger(logFile);
 
 async function writeHeartbeat() {
   await writeJsonAtomic(runtimeFile, {
@@ -187,7 +189,8 @@ function memberEnvironment(member) {
 }
 
 async function launchMember(member) {
-  if (stopping || children.has(member.name)) return;
+  if (stopping || children.has(member.name) || !restartBudget.acquire(member.name)) return;
+  try {
   RUNTIME = await loadRuntimeConfig(ROOT);
   applyRuntimeEnvironment(RUNTIME);
   const { temp: workerTemp, cache: workerCache } = workerInstancePaths(member.name);
@@ -209,13 +212,18 @@ async function launchMember(member) {
   child.once("exit", (code, signal) => {
     children.delete(member.name);
     if (stopping) return;
-    const failures = Date.now() - child.startedAt >= 60_000 ? 1 : (restartFailures.get(member.name) || 0) + 1;
-    restartFailures.set(member.name, failures);
-    const delayMs = fleetRestartDelayMs(failures);
-    log(`${member.name} supervisor exited (code ${code ?? "unknown"}${signal ? `, signal ${signal}` : ""}); restarting in ${delayMs}ms.`).catch(() => undefined);
-    setTimeout(() => launchMember(member).catch((error) => log(`${member.name} restart failed: ${truncate(error.message)}`)), delayMs);
+    const { delayMs, circuitOpen } = restartBudget.failed(member.name, Date.now() - child.startedAt >= 60_000);
+    log(`${member.name} supervisor exited (code ${code ?? "unknown"}${signal ? `, signal ${signal}` : ""}); ${circuitOpen ? "retry budget exhausted; cooldown" : "restarting"} in ${delayMs}ms.`).catch(() => undefined);
+    // Periodic repair is the only retry owner. No competing timer can bypass
+    // the budget or create a second child during asynchronous launch setup.
   });
   await writeHeartbeat();
+  } catch (error) {
+    if (!children.has(member.name)) restartBudget.failed(member.name);
+    throw error;
+  } finally {
+    restartBudget.release(member.name);
+  }
 }
 
 async function stop() {

@@ -14,6 +14,15 @@ const sampleConfig = (root) => ({
   runtimeTempRoot: path.join(root, "temp"), runtimeCacheRoot: path.join(root, "cache"),
 });
 
+test("multisource release preflight refuses missing quality policy before worker startup", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-policy-preflight-"));
+  await assert.rejects(preflightRuntime({ root, capability: "multisource", config: sampleConfig(root),
+    fsAccess: async (file) => { if (file === path.join(root, "standards", "quality-gate-v2-policy.json")) throw new Error("missing"); },
+    checkVersion: async () => true,
+  }), (error) => error.code === "RUNTIME_DEPENDENCY_UNAVAILABLE"
+    && error.unavailable.includes("script:standards/quality-gate-v2-policy.json"));
+});
+
 test("Python failure is capability-specific and does not mutate queue bytes", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-runtime-test-"));
   try {

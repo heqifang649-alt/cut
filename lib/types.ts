@@ -172,7 +172,20 @@ export type SampleTemplate = {
   recoveryAttempts?: number;
 };
 
+export type BrandCopyContext = {
+  brandId: string;
+  provenance: string;
+  libraryFiles?: string[];
+  locked?: { hook?: string; cta?: string };
+  script?: { hook?: string; cta?: string; description?: string; shots?: Array<{ shotId: string; description?: string }> };
+  product?: { garment?: string };
+  products?: Record<string, Record<string, unknown>>;
+  claims?: Record<string, unknown>;
+};
+
 export type Batch = {
+  brandCopyContext?: BrandCopyContext;
+  brandCopyEnabled?: boolean;
   id: string;
   taskNumber?: string;
   ownerId: string;

@@ -38,7 +38,15 @@
     ".next-runtime/types/**/*.ts",
     ".next-runtime/dev/types/**/*.ts",
     ".next-bridge-build-20261015/types/**/*.ts",
-    ".next-bridge-build-20261015/dev/types/**/*.ts"
+    ".next-bridge-build-20261015/dev/types/**/*.ts",
+    ".tmp/codex-multisource-build-20261027/types/**/*.ts",
+    ".tmp/codex-multisource-build-20261027/dev/types/**/*.ts",
+    ".tmp/codex-multisource-build-20261027-final/types/**/*.ts",
+    ".tmp/codex-multisource-build-20261027-final/dev/types/**/*.ts",
+    ".next-single-source-fix-20261029/types/**/*.ts",
+    ".next-single-source-fix-20261029/dev/types/**/*.ts",
+    ".next-single-source-final-20261029/types/**/*.ts",
+    ".next-single-source-final-20261029/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

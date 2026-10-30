@@ -1,3 +1,4 @@
+import { probeEventFailure } from "../lib/codex-probe.mjs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { classifyRecoveryError } from "../worker/recovery.mjs";
@@ -109,7 +110,7 @@ async function probeExecutor() {
   let lastEventAt = null;
   let completed = false;
   let finalResponse = "";
-  let turnFailure = null;
+
   let deadlineTimer;
   const run = (async () => {
     const streamed = await thread.runStreamed("This is a connection check. Do not call tools or change files. Reply with exactly: READY", { signal: controller.signal });
@@ -118,8 +119,9 @@ async function probeExecutor() {
       lastEventType = event?.type || null;
       lastEventAt = new Date().toISOString();
       if (event?.type === "item.completed" && event.item?.type === "agent_message") finalResponse = String(event.item.text || "").trim();
-      if (event?.type === "turn.completed") completed = true;
-      if (event?.type === "turn.failed") turnFailure = event.error;
+      if (event?.type === "turn.completed") { completed = true; break; }
+      const failure = probeEventFailure(event);
+      if (failure) throw failure;
     }
     return { completed, finalResponse, eventCount, lastEventType, lastEventAt };
   })();
@@ -129,15 +131,15 @@ async function probeExecutor() {
       run,
       new Promise((_, reject) => { deadlineTimer = setTimeout(() => reject(new Error("Codex executor probe timed out.")), EXECUTOR_PROBE_TIMEOUT_MS + 250); }),
     ]);
-    if (turnFailure) throw new Error(turnFailure.message || "Codex turn failed.");
-    if (!result.completed) {
+
+    if (!result.completed || result.finalResponse !== "READY") {
       return {
         ready: false,
         completed: false,
         eventCount,
         lastEventType,
         lastEventAt,
-        response: `Codex executor ended after ${eventCount} SDK event(s) without turn.completed.`,
+        response: `Codex executor ended after ${eventCount} SDK event(s) without a completed READY response.`,
       };
     }
     return { ready: true, response: result.finalResponse || "READY", completed: true, eventCount, lastEventType, lastEventAt };

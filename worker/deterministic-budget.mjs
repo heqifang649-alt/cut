@@ -11,11 +11,15 @@ function clamp(value, lower = 0, upper = 1) {
 
 function runSampleDecode(videoPath, { ffmpeg, sampleFps = SAMPLE_FPS, signal, start: requestedStart, duration: requestedDuration } = {}) {
   if (!ffmpeg) throw new Error("ffmpeg executable must come from the Cutflow Runtime Contract");
-  const fps = Math.max(1, Number(sampleFps) || SAMPLE_FPS);
+  const duration = Number(requestedDuration);
+  // The fps filter can drop every frame in a valid sub-frame-period tail.
+  // Sample short intervals densely enough to observe them without extending
+  // the requested source window or weakening the visibility gate.
+  const fps = Math.max(1, Number(sampleFps) || SAMPLE_FPS,
+    Number.isFinite(duration) && duration > 0 ? Math.ceil(1 / duration) : 0);
   const filter = `fps=${fps},scale=${FRAME_WIDTH}:${FRAME_HEIGHT}:force_original_aspect_ratio=decrease,pad=${FRAME_WIDTH}:${FRAME_HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=gray`;
   return new Promise((resolve, reject) => {
     const start = Math.max(0, Number(requestedStart) || 0);
-    const duration = Number(requestedDuration);
     const range = [
       ...(start > 0 ? ["-ss", String(start)] : []),
       "-i", videoPath,

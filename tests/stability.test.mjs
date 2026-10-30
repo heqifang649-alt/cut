@@ -240,7 +240,7 @@ test("product reference images assist grouping without becoming product video so
 });
 test("account health follows verified account state instead of expiring by wall clock", async () => {
   const healthRoute = await readFile(new URL("app/api/health/route.ts", root), "utf8");
-  assert.match(healthRoute, /codexState\?\.ready === true/);
+  assert.match(healthRoute, /codexRuntime\.probe\?\.fresh === true/);
   assert.doesNotMatch(healthRoute, /codexFresh|STALE_MS/);
 });
 

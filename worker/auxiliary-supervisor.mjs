@@ -1,4 +1,6 @@
-import { appendFile, mkdir, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
+import { RestartBudget } from "../lib/restart-budget.mjs";
+import { boundedLogger } from "../lib/bounded-log.mjs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -21,6 +23,11 @@ const WORKERS = {
     heartbeat: "libtv-bridge-heartbeat.json",
     guardedLock: "libtv-transfer-worker.lock",
   },
+  multisource: {
+    script: "classic-multisource-runner.mjs",
+    heartbeat: "classic-multisource-heartbeat.json",
+    guardedLock: "classic-multisource-records.json.lock",
+  },
   template: {
     script: "template-processor.mjs",
     heartbeat: "template-worker-heartbeat.json",
@@ -39,7 +46,7 @@ const WORKERS = {
 };
 
 const config = WORKERS[workerName];
-if (!config) throw new Error("Auxiliary supervisor requires --worker=template|delivery|chatcut");
+if (!config) throw new Error("Auxiliary supervisor requires --worker=template|delivery|chatcut|bridge|multisource");
 
 const RESTART_DELAY_MS = Math.max(3_000, Number(process.env.CUTFLOW_AUX_RESTART_DELAY_MS) || 3_000);
 const HEARTBEAT_TIMEOUT_MS = Math.max(20_000, Number(process.env.CUTFLOW_AUX_HEARTBEAT_TIMEOUT_MS) || 30_000);
@@ -52,6 +59,7 @@ const workerPath = path.join(ROOT, "worker", config.script);
 const heartbeatFile = path.join(ROOT, "data", config.heartbeat);
 const guardedLockFile = path.join(ROOT, "data", config.guardedLock);
 
+const restartBudget = new RestartBudget({ baseMs: RESTART_DELAY_MS });
 let child = null;
 let stopping = false;
 let healthCheckPending = false;
@@ -75,10 +83,7 @@ async function writeRuntime(change) {
   });
 }
 
-async function writeLog(message) {
-  await mkdir(path.dirname(logFile), { recursive: true });
-  await appendFile(logFile, `${new Date().toISOString()} ${message}\n`, "utf8");
-}
+const writeLog = boundedLogger(logFile);
 
 function capture(stream) {
   stream.on("data", (chunk) => {
@@ -130,19 +135,20 @@ async function checkHealth() {
   }
 }
 
-async function restartAfterExit(reason) {
+async function restartAfterExit(reason, stable = false) {
+  const { delayMs, circuitOpen } = restartBudget.failed(workerName, stable);
   const current = await readJson(runtimeFile, { restartCount: 0 });
   const restartCount = Number(current.restartCount || 0) + 1;
   await writeRuntime({
-    status: "restarting",
+    status: circuitOpen ? "cooldown" : "restarting",
     pid: undefined,
     restartCount,
     lastFailureReason: truncate(reason),
     lastFailureAt: new Date().toISOString(),
-    nextRestartAt: new Date(Date.now() + RESTART_DELAY_MS).toISOString(),
+    nextRestartAt: new Date(Date.now() + delayMs).toISOString(),
   });
   await writeLog(`Child exited: ${truncate(reason)}`);
-  await new Promise((resolve) => setTimeout(resolve, RESTART_DELAY_MS));
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
   if (!stopping) await launch();
 }
 
@@ -171,13 +177,14 @@ async function launch() {
   await writeLog(`Child started (pid ${child.pid}).`);
   child.once("error", (error) => { lastChildOutput = truncate(`${lastChildOutput}\n${error.message}`, 4_000); });
   child.once("exit", (code, signal) => {
+    const stable = Date.now() - child.startedAt >= 60_000;
     child = null;
     if (stopping) {
       writeRuntime({ status: "offline", pid: undefined, nextRestartAt: undefined }).catch(() => undefined);
       return;
     }
     const reason = truncate(lastChildOutput) || `${workerName} worker exited (code ${code ?? "unknown"}${signal ? `, signal ${signal}` : ""})`;
-    restartAfterExit(reason).catch((error) => writeLog(`Restart failure: ${truncate(error)}`).catch(() => undefined));
+    restartAfterExit(reason, stable).catch((error) => writeLog(`Restart failure: ${truncate(error)}`).catch(() => undefined));
   });
 }
 

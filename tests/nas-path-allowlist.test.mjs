@@ -1,3 +1,4 @@
+import { trustedCopyContext } from '../lib/brand-copy-library.mjs';
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdir, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
@@ -131,6 +132,7 @@ test("creating a NAS Batch re-checks the path instead of storing whatever was po
   const build = () => {
     const routeModule = { exports: {} };
     const mocks = {
+      "../../../lib/brand-copy-library.mjs": { trustedCopyContext },
       "next/server": { NextResponse: { json: (body, init) => ({ body, ...(init || {}) }) } },
       "@/lib/store": { createBatch: async (input) => ({ id: "batch", ...input }), listBatchesForOwners: async () => [] },
       "@/lib/access": { accessibleOwnerIds: () => ["owner"] },

@@ -121,3 +121,21 @@ test("shared Codex turn guard preserves an SDK stream error instead of reporting
       && error.codexTurn.lastEventType === "error"
   );
 });
+
+
+test("executor timeout preserves unknown authentication instead of requiring login", () => {
+  const result = parseCodexProbeOutput(JSON.stringify({ready:false, apiReady:false, executorReady:false, authenticationValid:null, status:"unresponsive", response:"executor timed out"}));
+  assert.equal(result.authenticationValid, null);
+  assert.equal(result.status, "unresponsive");
+  assert.equal(result.ready, false);
+});
+
+
+test("workspace routing 401 is terminal even inside a reconnect notice", async () => {
+ const { probeEventFailure } = await import('../lib/codex-probe.mjs');
+ const { classifyRecoveryError } = await import('../worker/recovery.mjs');
+ const error=probeEventFailure({type:'error',message:'Reconnecting... 2/5 (workspace routing discovery unauthorized (401))'});
+ assert.equal(classifyRecoveryError(error).kind,'codex_authentication');
+ assert.equal(probeEventFailure({type:'error',message:'Reconnecting... 1/5 (connection reset)'}),null);
+ assert.ok(probeEventFailure({type:'turn.failed',error:{message:'execution failed'}}) instanceof Error);
+});

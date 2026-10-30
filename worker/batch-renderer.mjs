@@ -16,6 +16,9 @@ import { resolveOutputAllocation } from "../lib/output-allocation.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
 import { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
 export { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
+import { brandCopyEnabled, ensureBrandCopySnapshot } from "../lib/brand-copy-library.mjs";
+import { prepareOutputBrandCopy } from "./brand-copy-render.mjs";
+import { brandBgmEnabled, prepareBrandAudio } from "./brand-bgm.mjs";
 
 const MEDIA_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".mp4", ".mov"]);
 const PROCESS_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_FFMPEG_TIMEOUT_MS) || 20 * 60 * 1000);
@@ -754,7 +757,7 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
     },
     timeline: {
       canvas: { width: Number(master.width) || 1080, height: Number(master.height) || 1920, fps: Number(master.fps) || 30 },
-      source_audio: "mute",
+      source_audio: record.bgm ? "preserve" : "mute",
       transition_profile: product.transition_profile || batch.transitionProfile || "template",
       applied_transition_profile: product.applied_transition_profile || "hard_cut",
       ending_transition: product.ending_transition || null,
@@ -777,10 +780,11 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
         layout_standard: textLayout,
       },
       music: {
-        source: musicPath,
-        name: path.basename(musicPath),
+        source: record.bgm ? record.bgm.path || null : musicPath,
+        name: record.bgm ? record.bgm.bgmFile : path.basename(musicPath),
         offset_seconds: musicOffset,
-        mute_original_audio: true,
+        mute_original_audio: !record.bgm,
+        ...(record.bgm ? { bgm_result: record.bgm, gain:record.bgm.bgmGain,fade_out_seconds:0.8 } : {}),
       },
     },
     policies: {
@@ -857,10 +861,11 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDi
     validateLegacyProductConsistency: false,
     productVisualReview,
     outputAllocation,
+    brandCopyEvidence: semanticEvidence,
   });
 }
 
-export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null, outputAllocation: suppliedOutputAllocation = null }) {
+export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null, outputAllocation: suppliedOutputAllocation = null, brandCopyEvidence }) {
   const assertActive = async () => { if (await isCanceled()) throw new Error("任务已取消"); };
   await assertActive();
   const editDir = suppliedEditDir || path.join(batchDir, "edit");
@@ -899,11 +904,12 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   const lutPath = lutFile ? resolveBatchAsset(lutFile) : runtimeConfig.lutPath;
   const hasLut = colorProcessingEnabled;
   if (hasLut) await requireRenderFile("LUT", lutPath);
-  const templateMusicFile = batch.musicSource === "template" ? batch.files.find((file) => file.kind === "bgm" && file.sourceType === "template") : undefined;
+  const useBrandBgm = brandBgmEnabled();
+  const templateMusicFile = !useBrandBgm && batch.musicSource === "template" ? batch.files.find((file) => file.kind === "bgm" && file.sourceType === "template") : undefined;
   const templateMusicPath = templateMusicFile ? resolveBatchAsset(templateMusicFile) : undefined;
   if (templateMusicPath) await requireRenderFile("template BGM", templateMusicPath);
-  const musicPool = templateMusicPath ? [templateMusicPath] : await listMusic(root, batchDir, runtimeConfig);
-  assertGuidedMusic(batch, musicPool);
+  const musicPool = useBrandBgm ? [] : templateMusicPath ? [templateMusicPath] : await listMusic(root, batchDir, runtimeConfig);
+  if (!useBrandBgm) assertGuidedMusic(batch, musicPool);
 
   const overlayDir = path.join(editDir, "overlays");
   const clipsDir = path.join(editDir, "clips_graded");
@@ -913,20 +919,22 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   const renderCheckpoint = await readJson(checkpointPath, initialRenderCheckpoint());
   renderCheckpoint.outputs ??= {};
   await assertActive();
-  await run(runtimeConfig.pythonExecutable, [path.join(root, "worker", "render-overlays.py"), "--edl", edlPath, "--output-dir", overlayDir, "--layout", textLayoutPath], "生成字幕与CVR图层", onActivity);
-  const hookOverlayPath = await requireRenderFile("hook overlay", path.join(overlayDir, "hook.png"));
-  const cvrOverlayPath = await requireRenderFile("CVR overlay", path.join(overlayDir, "cvr.png"));
+  const useBrandCopy = brandCopyEnabled(batch);
+  const copySnapshot = useBrandCopy ? await ensureBrandCopySnapshot({root,batch,batchDir,pythonExecutable:runtimeConfig.pythonExecutable}) : null;
+  if (!useBrandCopy) await run(runtimeConfig.pythonExecutable, [path.join(root, "worker", "render-overlays.py"), "--edl", edlPath, "--output-dir", overlayDir, "--layout", textLayoutPath], "生成字幕与CVR图层", onActivity);
+  const hookOverlayPath = useBrandCopy ? null : await requireRenderFile("hook overlay", path.join(overlayDir, "hook.png"));
+  const cvrOverlayPath = useBrandCopy ? null : await requireRenderFile("CVR overlay", path.join(overlayDir, "cvr.png"));
 
   const allocation = suppliedOutputAllocation || resolveOutputAllocation(batch, edl.products);
   const selectedProductIds = new Set(allocation.selectedProductIds);
   const allocatedProducts = edl.products.filter((product) => selectedProductIds.has(String(product.product_id)));
   const products = limit > 0 ? allocatedProducts.slice(0, limit) : allocatedProducts;
   const totalOutputs = products.reduce((total, product) => total + Math.max(0, Number(allocation.variantsByProduct[product.product_id]) || 0), 0);
-  if (!templateMusicPath && musicPool.length < products.length) throw new Error(`Render resource unavailable: music library has ${musicPool.length} tracks for ${products.length} products`);
+  if (!useBrandBgm && !templateMusicPath && musicPool.length < products.length) throw new Error(`Render resource unavailable: music library has ${musicPool.length} tracks for ${products.length} products`);
   const results = [];
   const musicAssignments = [];
   const renderedTimelines = [];
-  if (!templateMusicPath && musicPool.length < totalOutputs) throw new Error(`Music library has ${musicPool.length} tracks but ${totalOutputs} unique outputs were requested.`);
+  if (!useBrandBgm && !templateMusicPath && musicPool.length < totalOutputs) throw new Error(`Music library has ${musicPool.length} tracks but ${totalOutputs} unique outputs were requested.`);
   let outputOrdinal = 0;
   for (let productIndex = 0; productIndex < products.length; productIndex += 1) {
     await assertActive();
@@ -1015,12 +1023,18 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     const revisionSuffix = revisionVersion ? `-r${String(revisionVersion).padStart(2, "0")}` : "";
     const outputName = `${product.product_id}${revisionSuffix}${suffix}.mp4`;
     const outputPath = path.join(outputDir, outputName);
+    const outputCopy = useBrandCopy ? await prepareOutputBrandCopy({root,batch,batchDir,editDir,outputId:outputName,product,semanticEvidence:brandCopyEvidence,master,snapshot:copySnapshot,runtimeConfig,run}) : null;
+    const copyMaster = outputCopy?.master || master;
+    const outputHookOverlay = outputCopy ? outputCopy.hookOverlayPath : hookOverlayPath;
+    const outputCvrOverlay = outputCopy ? outputCopy.cvrOverlayPath : cvrOverlayPath;
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
-    const renderSignature = renderHash({ product, master, colorStrategy, transitionProfile, variantIndex });
+    const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'v1',context:batch.brandCopyContext} : {}) });
     const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
-    const musicPath = savedOutput.musicPath || templateMusicPath || musicPool[currentOutputOrdinal];
+    const brandAudio = useBrandBgm && !canReuseOutput ? await prepareBrandAudio({root,batch,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
+    const bgmDecision = useBrandBgm ? brandAudio?.decision || savedOutput.bgm : null;
+    const musicPath = brandAudio?.path || savedOutput.musicPath || templateMusicPath || musicPool[currentOutputOrdinal];
     await assertActive();
-    const musicOffset = Number.isFinite(savedOutput.musicOffset)
+    const musicOffset = useBrandBgm ? 0 : Number.isFinite(savedOutput.musicOffset)
       ? savedOutput.musicOffset
       : await findBeatAlignedOffset(ffmpeg, musicPath, master.cuts || [3, 6, 8.2, 10.2], productDuration);
     renderCheckpoint.outputs[outputName] = {
@@ -1033,6 +1047,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       musicOffset,
       colorStrategy,
       renderSignature,
+      ...(useBrandBgm ? {bgm:bgmDecision} : {}),
+      ...(outputCopy ? { brandCopy: outputCopy.decision } : {}),
     };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     if (canReuseOutput) {
@@ -1040,22 +1056,26 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       const record = savedOutput.record || await buildOutputRecord(root, outputPath, {
         musicName: path.basename(musicPath), beatOffsetSeconds: musicOffset, qualityStatus: "passed", variantIndex: variantIndex + 1, productId: product.product_id, displayName: product.display_name,
       });
+      if (useBrandBgm) {record.bgm=bgmDecision;record.musicName=bgmDecision?.bgmFile || '';}
+      if (outputCopy) record.brandCopy = outputCopy.decision;
       record.durationSeconds = outputDurationSeconds;
       if (!record.chatcut?.manifestPath) {
-        const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master, product, record, musicPath, musicOffset, textLayout });
+        const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master:copyMaster, product, record, musicPath, musicOffset, textLayout });
         record.chatcut = { status: "pending", manifestPath: chatcutManifestPath };
       }
       renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", record };
       await writeJsonAtomic(checkpointPath, renderCheckpoint);
       results.push(record);
-      musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: path.basename(musicPath), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
+      musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: useBrandBgm ? bgmDecision?.bgmFile : path.basename(musicPath), ...(useBrandBgm ? {bgm:bgmDecision} : {}), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
       await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
       continue;
     }
     const audioEnd = Math.max(0, productDuration - 0.03).toFixed(3);
-    const overlayWindows = overlayWindowsForMaster(master, productDuration);
-    const graph = `[0:v][2:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][3:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout];[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
-    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, "-loop", "1", "-i", hookOverlayPath, "-loop", "1", "-i", cvrOverlayPath, "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
+    const overlayWindows = outputCopy?.decision?.windows ? {hookEnd:outputCopy.decision.windows.hookEnd,cvrStart:outputCopy.decision.windows.ctaStart} : overlayWindowsForMaster(master, productDuration);
+    const hasOverlays = outputHookOverlay && outputCvrOverlay;
+    const videoGraph = hasOverlays ? `[0:v][2:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][3:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout]` : '[0:v]null[vout]';
+    const graph = `${videoGraph};[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
+    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, ...(hasOverlays ? ["-loop", "1", "-i", outputHookOverlay, "-loop", "1", "-i", outputCvrOverlay] : []), "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
     const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
     const record = await buildOutputRecord(root, outputPath, {
@@ -1066,12 +1086,14 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       productId: product.product_id,
       displayName: product.display_name,
     });
+    if (useBrandBgm) {record.bgm=bgmDecision;record.musicName=bgmDecision?.bgmFile || '';}
+    if (outputCopy) record.brandCopy = outputCopy.decision;
     record.durationSeconds = outputDurationSeconds;
-    const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master, product, record, musicPath, musicOffset, textLayout });
+    const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master:copyMaster, product, record, musicPath, musicOffset, textLayout });
     record.chatcut = { status: "pending", manifestPath: chatcutManifestPath };
     if (record.size < 500_000) throw new Error(`成片体积异常：${outputName}`);
     results.push(record);
-    musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: path.basename(musicPath), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
+    musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: useBrandBgm ? bgmDecision?.bgmFile : path.basename(musicPath), ...(useBrandBgm ? {bgm:bgmDecision} : {}), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
     renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", record };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
@@ -1090,6 +1112,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     requestedOutputs: totalOutputs,
     renderedOutputs: results.length,
     excludedProducts: Array.isArray(edl.excluded_products) ? edl.excluded_products : [],
+    ...(useBrandBgm ? {bgmWarnings:results.flatMap(record=>(record.bgm?.warnings || []).map(warning=>({productId:record.productId,brand:record.bgm.brand,warning})))} : {}),
     qualityGates: { productConsistency: productVisualReview?.status === "failed" ? "failed" : "passed", originalSpeed: "passed", decodeCheck: "passed", outputDuration: "passed", uniqueMusic: "passed", shortShotReview: shortShotReviewWarnings.length ? "warning" : "passed" },
     shortShotQuality: {
       products: shortShotProducts.map((product) => ({ product_id: product.product_id, ...product.short_shot_quality })),

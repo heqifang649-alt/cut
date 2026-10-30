@@ -2,11 +2,13 @@ import { access, mkdir, open, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { resolveCodexCliPath } from "../lib/codex-cli-path.mjs";
 import { spawn } from "node:child_process";
 import { loadRuntimeConfig, runtimeIdentity } from "./runtime-config.mjs";
 
 export const RUNTIME_CAPABILITIES = Object.freeze({
   bridge: ["node", "ffmpeg", "ffprobe", "workRoot", "scripts"],
+  multisource: ["node", "ffmpeg", "ffprobe", "workRoot", "scripts"],
   analyze: ["node", "ffmpeg", "workRoot", "scripts"],
   clip: ["node", "ffmpeg", "workRoot", "scripts"],
   render: ["node", "python", "ffmpeg", "ffprobe", "workRoot", "deliveryRoot", "scripts"],
@@ -19,6 +21,9 @@ export const RUNTIME_CAPABILITIES = Object.freeze({
 
 const SCRIPT_REQUIREMENTS = {
   bridge: ["worker/libtv-bridge-worker.mjs"],
+  multisource: ["worker/classic-multisource-runner.mjs", "worker/classic-multisource-context.mjs",
+    "worker/classic-multisource-executor.mjs", "worker/batch-renderer.mjs", "worker/render-overlays.py",
+    "standards/quality-gate-v2-policy.json", "standards/text-layout-9x16-v1.json"],
   analyze: ["worker/service-runner.mjs", "worker/processor.mjs"],
   clip: ["worker/service-runner.mjs", "worker/processor.mjs", "worker/batch-renderer.mjs", "worker/render-overlays.py"],
   render: ["worker/service-runner.mjs", "worker/processor.mjs", "worker/batch-renderer.mjs", "worker/render-overlays.py"],
@@ -85,7 +90,15 @@ export async function preflightRuntime({ root = process.cwd(), capability = "ana
       try { await fsAccess(config.codexHome); } catch { failures.push("codexHome"); }
     }
     if (!config.codexCliExecutable) failures.push("codexCliExecutable");
-    else { try { await fsAccess(config.codexCliExecutable); } catch { failures.push("codexCliExecutable"); } }
+    else {
+      try { await fsAccess(config.codexCliExecutable); }
+      catch {
+        try {
+          const effective = resolveCodexCliPath({ env: { ...process.env, CODEX_CLI_PATH: config.codexCliExecutable } });
+          await fsAccess(effective);
+        } catch { failures.push("codexCliExecutable"); }
+      }
+    }
   }
   if (["analyze", "clip", "render"].includes(capability) && process.env.ENABLE_ARTIFACT_GATE === "true") {
     if (!config.artifactAnalyzerExecutable) failures.push("artifactAnalyzerExecutable");

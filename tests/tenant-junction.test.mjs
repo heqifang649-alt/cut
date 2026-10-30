@@ -1,0 +1,30 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { batchWorkspacePath, resolveBatchFile } from "../lib/tenant-paths.mjs";
+
+test("release junction imports resolve physical storage paths after restart without crossing tenants", async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cut-junction-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const release = path.join(root, "release");
+  const storage = path.join(root, "persistent");
+  await mkdir(release); await mkdir(storage);
+  await symlink(storage, path.join(release, "storage"), process.platform === "win32" ? "junction" : "dir");
+  const batch = { id: "batch-one", ownerId: "bfebdf94-be0e-4f4b-9007-328b649b53c8", storageVersion: 2 };
+  const workspace = batchWorkspacePath(release, batch);
+  await mkdir(path.join(workspace, "products"), { recursive: true });
+  const logical = path.join(workspace, "products", "source.mp4");
+  await writeFile(logical, "existing source");
+  const physical = await realpath(logical);
+  const file = { storagePath: path.relative(release, physical), sourceType: "upload" };
+  assert.equal(resolveBatchFile(release, batch, file), physical);
+  const restarted = await import("../lib/tenant-paths.mjs?restart-junction");
+  assert.equal(restarted.resolveBatchFile(release, batch, JSON.parse(JSON.stringify(file))), physical);
+  assert.equal(resolveBatchFile(release, batch, { storagePath: path.relative(release, logical) }), logical);
+  assert.throws(() => resolveBatchFile(release, { ...batch, id: "batch-two" }, file), { code: "STORED_PATH_OUTSIDE_WORKSPACE" });
+  const outside = path.join(root, "outside.mp4"); await writeFile(outside, "outside");
+  assert.throws(() => resolveBatchFile(release, batch, { storagePath: outside }), { code: "STORED_PATH_OUTSIDE_WORKSPACE" });
+  assert.throws(() => resolveBatchFile(release, batch, { storagePath: path.join(storage, "missing.mp4") }), { code: "STORED_PATH_OUTSIDE_WORKSPACE" });
+});

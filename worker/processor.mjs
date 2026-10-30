@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isNewRendererEnabled, renderBatchFromEdl, renderBatchFromRenderPlans } from "./batch-renderer.mjs";
+import { brandCopyEnabled, ensureBrandCopySnapshot } from "../lib/brand-copy-library.mjs";
 import { importBatchToShotPool, isNewShotPoolEnabled, loadShotPool, prepareDeterministicInputs } from "./ai-ingest.mjs";
 import { isNewValidatorEnabled, validateVideo } from "./ai-video-validator.mjs";
 import { isArtifactGateEnabled, validateWithArtifactGate } from "./artifact-gate.mjs";
@@ -1006,6 +1007,7 @@ async function visualAnalyzerForBatch(batch) {
 }
 
 async function analyzeReference(batch) {
+  if (brandCopyEnabled(batch)) await ensureBrandCopySnapshot({root:ROOT,batch,batchDir:batchDirFor(batch),pythonExecutable:RUNTIME.pythonExecutable});
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => { item.status = "analyzing_reference"; item.progress = 18; item.error = undefined; });
   const batchDir = batchDirFor(batch);
@@ -1075,6 +1077,7 @@ function mergeFilenameAndVisualDetection(filenameDetection, visualDetection, pro
 }
 
 async function detectProducts(batch, activeThread = null, correction = "") {
+  if (brandCopyEnabled(batch)) await ensureBrandCopySnapshot({root:ROOT,batch,batchDir:batchDirFor(batch),pythonExecutable:RUNTIME.pythonExecutable});
   await throwIfCanceled(batch.id);
   await update(batch.id, (item) => { item.status = "detecting_products"; item.progress = 28; item.error = undefined; });
   const batchDir = batchDirFor(batch);
@@ -1250,6 +1253,7 @@ async function semanticProgress(batch, progress) {
 }
 
 async function runAnalyzeQuality(batch) {
+  if (brandCopyEnabled(batch)) await ensureBrandCopySnapshot({root:ROOT,batch,batchDir:batchDirFor(batch),pythonExecutable:RUNTIME.pythonExecutable});
   await throwIfCanceled(batch.id);
   const batchDir = batchDirFor(batch);
   if (batch.libtvSource?.editPolicyReceipt) {
@@ -1337,6 +1341,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
   await update(batch.id, (item) => { item.status = "editing"; item.progress = 45; item.error = undefined; });
   const batchDir = batchDirFor(batch);
   const outputDir = batchArtifactWritePath(batch, "renders");
+  if (brandCopyEnabled(batch)) await ensureBrandCopySnapshot({root:ROOT,batch,batchDir,pythonExecutable:RUNTIME.pythonExecutable});
   await mkdir(outputDir, { recursive: true });
   let validationResults = [];
   if (includeAnalyze && isNewValidatorEnabled()) {

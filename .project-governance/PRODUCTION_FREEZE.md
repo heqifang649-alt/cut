@@ -1,5 +1,34 @@
 # Production freeze / 2026-10-22
 
+## 0036 deployment override / 2026-10-29
+
+The user explicitly authorized instruction `0036` to deploy unified v2 and wait
+for one new classic single-source canary. This supersedes the historical active
+root below only for this authorized deployment; other approval boundaries remain.
+
+- Active root: `D:\CUT-Releases\20261029-unified-v2-r10`.
+- Active build directory: `.next-unified-v2-20261029`.
+- Active BUILD_ID: `P9djDB68o1t1Nn6YDE3AC`.
+- Source anchor: `f451ddca7b1f60e6f03d25e9861487d6eb19cc06` plus the
+  recorded, hashed deployment overlays in `artifacts/0036/`.
+- Rollback root: `D:\CUT-Releases\20261028-multisource-duration-r9`,
+  BUILD_ID `sJKWPjr41ddIP9EfhF29Y`; existing task XML backups are in `artifacts/0036/`.
+- Both existing scheduled-task actions point to the new root. HTTP, bearer
+  authentication, Fleet, stage workers and multisource runner were verified.
+- Canary readiness was published at `2026-10-29T20:41:35+08:00`; the wait deadline
+  is `2026-10-29T21:01:35+08:00`. No real canary acceptance is claimed here.
+- Final 0036 state is `blocked`: new v2 single-source package
+  `d005f972-4dbb-4bb6-846f-0b284a7a2861` arrived during the window but its immutable
+  manifest lacks required `idempotencyKey`. CUT did not admit it or create a
+  batch; authenticated GET remains 404 and no NAS status/classic receipt exists.
+  Do not create a replacement batch or retry editing for this instruction.
+- The authoritative 0036 outcome is `0036-unified-v2-deploy-canary.json` and its
+  NAS `COORD/ack` copy. Do not infer canary success from deployment success.
+- Persistent `data` and `storage` remain junctions to the existing data. They
+  were detached for production build and were not copied or used as fixtures.
+
+## Historical 2026-10-22 freeze record
+
 Status: original-version rollback active; stability candidate NOT deployed.
 
 ## Active original-version snapshot

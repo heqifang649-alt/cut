@@ -684,6 +684,8 @@ export default function Home() {
     return "activity-dead";
   }, []);
   const activeStatuses = ["analyzing_reference", "creating_proxies", "detecting_products", "editing", "revising"];
+  const [serviceHealth, setServiceHealth] = useState<{ template?: { online?: boolean; status?: string }; chatcut?: { online?: boolean; status?: string } }>({});
+  const [claimsEnabled, setClaimsEnabled] = useState<boolean | null>(null);
   const [accountState, setAccountState] = useState<{ codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } }>({});
   const [sourceMode, setSourceMode] = useState<"nas" | "upload">("nas");
   const [nasPath, setNasPath] = useState(defaultNasPath);
@@ -742,6 +744,8 @@ export default function Home() {
     setBatches([]);
     setTemplates([]);
     setAccountState({});
+    setServiceHealth({});
+    setClaimsEnabled(null);
     setWorkerOnline(false);
     setLoading(false);
     setAuthBootstrapError("登录已失效，请重新登录。");
@@ -775,9 +779,16 @@ export default function Home() {
         setReviewLoadError(`成片列表加载失败：${failure instanceof Error ? failure.message : "服务暂时不可用，请重试"}`);
       }
       if (healthResponse?.ok) {
-        const health = (await healthResponse.json()) as { workerOnline: boolean; codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } };
+        const health = (await healthResponse.json()) as { auxiliaries?: typeof serviceHealth; claims?: { enabled?: boolean }; workerOnline: boolean; codex?: { ready?: boolean; apiReady?: boolean; executorReady?: boolean; authenticationValid?: boolean | null; status?: string; failureClass?: string; response?: string; activeSlotCount?: number; concurrencyLimit?: number; currentTurn?: { turnId?: string; taskKey?: string; lastEventAt?: string; service?: string } | null; lastSdkEventAt?: string | null; lastCompletedAt?: string | null; failedRequests?: number; rateLimitErrors?: number; concurrencyErrors?: number; queue?: { waiting?: number; running?: number; failed?: number; retry?: number }; probe?: { checkedAt?: string | null; fresh?: boolean; response?: string | null }; recentFailures?: Array<{ at?: string; kind?: string; failureClass?: string; message?: string }> }; chatcut?: { ready?: boolean } };
         setWorkerOnline(health.workerOnline);
+        setServiceHealth(health.auxiliaries || {});
+        setClaimsEnabled(health.claims ? health.claims.enabled === true : null);
         setAccountState({ codex: health.codex, chatcut: health.chatcut });
+      } else {
+        setWorkerOnline(false);
+        setServiceHealth({});
+        setClaimsEnabled(null);
+        setAccountState({});
       }
       if (templateResponse?.ok) {
         const data = (await templateResponse.json()) as { templates: SampleTemplate[] };
@@ -1695,32 +1706,16 @@ export default function Home() {
           </div>
         </header>
 
-        {view !== "dashboard" && !loading && !workerOnline && (
-          <div className="safe-mode-banner">
-            <span className="safe-mode-icon">⚠</span>
+        {view !== "dashboard" && !loading && (
+          <div className="safe-mode-banner" role="status">
+            <span className="safe-mode-icon">ⓘ</span>
             <div>
-              <strong>自动剪辑 Worker 未连接</strong>
-              <small>
-                {!workerOnline && <>剪辑工作机未连接，当前任务不会开始处理。</>}
-                {accountState.codex?.status === "auth_invalid" && <>Codex 账号需要重新连接，Codex 任务将保持等待。</>}
-                {accountState.codex?.status === "unresponsive" && <>Codex 执行器暂时无响应，恢复后会自动重试。</>}
-              </small>
+              <strong>服务运行状态</strong>
+              <small>剪辑 Worker：{workerOnline ? "在线" : "未连接或检查未通过"}；Template：{serviceHealth.template?.online ? "在线" : serviceHealth.template?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE" ? "运行依赖缺失" : "未就绪"}；ChatCut：{serviceHealth.chatcut?.online ? "在线" : serviceHealth.chatcut?.status === "RUNTIME_DEPENDENCY_UNAVAILABLE" ? "运行依赖缺失" : "未就绪"}</small>
+              <small>Codex 检查：{accountState.codex?.ready ? "检查成功" : accountState.codex?.authenticationValid === false ? "认证失败" : accountState.codex?.status === "unresponsive" ? "执行检查失败或超时，不能据此判断登录失效" : "尚未通过检查"}；全局任务领取：{claimsEnabled === null ? "尚未确认" : claimsEnabled ? "已开启" : "已关闭，仅允许已授权的指定任务"}</small>
             </div>
-            <div className="safe-mode-action">
-              {accountState.codex?.status === "auth_invalid" && (authUser.role === "admin" ? <button className="safe-mode-reconnect" type="button" onClick={() => void reconnectCodex()} disabled={reconnectingCodex} aria-busy={reconnectingCodex}>{reconnectingCodex ? "检测中…" : "重新连接"}</button> : <small>请联系管理员恢复 Codex 账号。</small>)}
-            </div>
-            {codexReconnectNotice && <small className={accountState.codex?.ready ? "safe-mode-result success" : "safe-mode-result"} role="status" aria-live="polite">{codexReconnectNotice}</small>}
-          </div>
-        )}
-
-        {view !== "dashboard" && !loading && workerOnline && accountState.codex?.ready && !accountState.chatcut?.ready && (
-          <div className="safe-mode-banner chatcut-only">
-            <span className="safe-mode-icon">i</span>
-            <div>
-              <strong>自动剪辑正常；ChatCut 待连接</strong>
-              <small>MP4 成片会正常生成，仅“可编辑项目链接”暂时不会创建。</small>
-            </div>
-            <small className="safe-mode-action">无需暂停当前任务</small>
+            {authUser.role === "admin" && <button className="safe-mode-reconnect" type="button" onClick={() => void reconnectCodex()} disabled={reconnectingCodex} aria-busy={reconnectingCodex}>{reconnectingCodex ? "检测中…" : "检查 Codex 连接"}</button>}
+            {codexReconnectNotice && <small className={accountState.codex?.ready ? "safe-mode-result success" : "safe-mode-result"} role="status">{codexReconnectNotice}</small>}
           </div>
         )}
 

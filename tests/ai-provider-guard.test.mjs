@@ -319,3 +319,23 @@ test("429 shares Retry-After, admits one half-open probe, then recovers one to t
   assert.equal(recovered.circuit, "CLOSED");
   assert.equal(recovered.effectiveConcurrency, 2);
 });
+
+test("fair Provider governor can admit five synthetic slots and a 429 opens shared backpressure", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-provider-five-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previous = process.env.FAIR_PROVIDER_MAX_CONCURRENCY;
+  process.env.FAIR_PROVIDER_MAX_CONCURRENCY = "5";
+  t.after(() => previous === undefined ? delete process.env.FAIR_PROVIDER_MAX_CONCURRENCY : process.env.FAIR_PROVIDER_MAX_CONCURRENCY = previous);
+  const guard = new DurableProviderRequestGuard({ root, baseUrl: "https://provider.invalid", apiKey: "fixture",
+    fastModel: "fixture", maxConcurrency: 5, requestCap: 20, retryLimit: 0, fairMultiBatch: true });
+  const tokens = await Promise.all(Array.from({ length: 5 }, () => guard.acquire(undefined, "fixture")));
+  let snapshot = await guard.snapshot("fixture");
+  assert.equal(snapshot.running, 5);
+  assert.equal(snapshot.maxConcurrency, 5);
+  assert.equal(snapshot.requestCap, 20);
+  await Promise.all(tokens.map((token) => guard.release(token, "fixture")));
+  await guard.recordFailure(new ProviderAdapterError("rate limited", { status: 429, retryable: true, retryAfterMs: 120_000 }), "fixture");
+  snapshot = await guard.snapshot("fixture");
+  assert.equal(snapshot.circuit, "OPEN");
+  assert.equal(snapshot.cooldownMs, 120_000);
+});

@@ -1,4 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
+import { boundedLogger } from "../lib/bounded-log.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -64,10 +64,7 @@ async function writeRuntime(change) {
   });
 }
 
-async function writeLog(message) {
-  await mkdir(path.dirname(logFile), { recursive: true });
-  await appendFile(logFile, `${new Date().toISOString()} ${message}\n`, "utf8");
-}
+const writeLog = boundedLogger(logFile);
 
 async function releaseCrashedLeases(reason) {
   const allowedBatchIds = claimsEnabled() ? undefined : await classicExecutionScope(ROOT);

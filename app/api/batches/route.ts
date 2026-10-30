@@ -10,6 +10,7 @@ import { validateNasPath } from "@/lib/nas";
 import { batchFileRoot, resolveStoredWorkspaceFile, templateWorkspacePath } from "@/lib/tenant-paths.mjs";
 import { readQueue } from "../../../worker/service-queue.mjs";
 import { readJson } from "../../../lib/atomic-json.mjs";
+import { trustedCopyContext } from "../../../lib/brand-copy-library.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
   const batch = await createBatch({
     ownerId: user.id,
     name: String(input.batchName),
+    brandCopyContext: trustedCopyContext(input.brandCopyContext, "authenticated_api"),
     requirements: String(input.requirements),
     durationMax: Math.min(30, Math.max(6, Number(input.durationMax) || 13)),
     outputCount: Math.min(5, Math.max(1, Number(input.outputCount) || 1)),
