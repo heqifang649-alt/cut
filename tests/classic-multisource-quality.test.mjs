@@ -9,11 +9,11 @@ import { runClassicMultisourceQuality } from "../worker/classic-multisource-qual
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
-async function setup() {
+async function setup(sourceCount = 2) {
   const root = await mkdtemp(path.join(os.tmpdir(), "cut-multi-quality-")); const taskId = randomUUID();
   const policy = JSON.parse(await readFile(new URL("../standards/quality-gate-v2-policy.json", import.meta.url), "utf8"));
   const sources = []; const referencesByProduct = new Map(); const candidatesBySource = new Map();
-  for (let index = 0; index < 2; index += 1) {
+  for (let index = 0; index < sourceCount; index += 1) {
     const productId = `product-${index + 1}`; const absolutePath = path.join(root, `source-${index + 1}.mp4`);
     const bytes = Buffer.from(`source-${index + 1}`); await writeFile(absolutePath, bytes);
     const source = { id: randomUUID(), productId, bindingKey: productId, order: index + 1, absolutePath, relativePath: path.basename(absolutePath),
@@ -99,3 +99,20 @@ test("unverified or cross-task product references fail closed before visual vali
   const result=await runClassicMultisourceQuality({...env,batchDir:path.join(env.root,"quality"),ffmpeg:"unused",verifier:"test",validate:async()=>{throw Error("offline")}});
   assert.equal(result.shotPool.shots.length,2); assert(result.report.decisions.every(d=>d.state==="REVIEW"));
  });
+
+for (const count of [1, 2, 3, 8]) test(`quality accepts ${count} sources`, async () => {
+ const env = await setup(count); const result = await runCase(env, {});
+ assert.equal(result.shotPool.shots.length, count);
+});
+for (const sources of [[], Array(9).fill({}), null, {}]) test(`quality rejects invalid sources ${JSON.stringify(sources)}`, async () => {
+ const env = await setup(1);
+ await assert.rejects(runCase({...env, sources}, {}), /MULTISOURCE_QUALITY_INPUT_INVALID/);
+});
+for (const [failure, expected] of [['reference', /PRODUCT_REFERENCE_BINDING_INVALID/], ['hash', /SOURCE_INTEGRITY_MISMATCH/], ['size', /SOURCE_INTEGRITY_MISMATCH/], ['shots', /NO_SAFE_MULTISOURCE_SHOTS/]]) test(`single-source reports real ${failure} failure`, async () => {
+ const env = await setup(1);
+ if (failure === 'reference') env.referencesByProduct.clear();
+ if (failure === 'hash') env.sources[0].sha256 = '0'.repeat(64);
+ if (failure === 'size') env.sources[0].sizeBytes++;
+ if (failure === 'shots') env.candidatesBySource.clear();
+ await assert.rejects(runCase(env, {}), expected);
+});

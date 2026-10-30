@@ -34,7 +34,7 @@ function groupReferences(record, sources, productReferences) {
 export async function prepareClassicMultisourceAnalyze({
   record, sources, batchDir, ffmpeg, referenceProfile, productReferences, prepare = prepareDeterministicInputs,
 }) {
-  if (!record || !Array.isArray(sources) || sources.length < 1 || !batchDir || !ffmpeg || !referenceProfile) {
+  if (!record || !Array.isArray(sources) || sources.length < 1 || sources.length > 8 || !batchDir || !ffmpeg || !referenceProfile) {
     throw new Error("MULTISOURCE_ANALYZE_INPUT_INVALID");
   }
   const referencesByProduct = groupReferences(record, sources, productReferences);

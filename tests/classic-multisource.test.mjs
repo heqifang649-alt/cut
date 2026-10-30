@@ -28,7 +28,7 @@ async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount 
   await writeJsonAtomic(path.join(root, "data", "classic-integration-runtime.json"), {
     schemaVersion: 1, enabled: true, nasRoot, scanSince: "2026-10-27T00:00:00+08:00", scanIntervalMs: 1000,
   });
-  const sourceBytes = [Buffer.from("source-one"), Buffer.from("source-two")].slice(0, sourceCount);
+  const sourceBytes = Array.from({ length: sourceCount }, (_, i) => Buffer.from(["source-one", "source-two"][i] || `source-${i + 1}`));
   const sources = [];
   for (let index = 0; index < sourceBytes.length; index += 1) {
     const relativePath = `assets/${index + 1}.mp4`; await writeFile(path.join(dir, ...relativePath.split("/")), sourceBytes[index]);
@@ -82,7 +82,7 @@ test("admits libtv-cut-lan-multi/1, validates source bytes and binds immutable p
 });
 
 test("v2 admits single-source and multi-source packages through one identity and status schema", async () => {
-  for (const sourceCount of [1, 2]) {
+  for (const sourceCount of [1, 2, 3, 8]) {
     const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount });
     const accepted = await admitMultisource(f.root, f.config, f.input);
     assert.equal(accepted.schemaVersion, MULTISOURCE_STATUS_SCHEMA);
@@ -291,4 +291,9 @@ test("hash or decode failure leaves no published output and no completed receipt
     [{ id, sourcePath: corrupt, sha256: hash(bytes), size: bytes.length }], { ffmpeg }), /INVALID_OUTPUT_DECODE/);
   await assert.rejects(access(path.join(f.nasRoot, "outbox", f.taskId, `${id}.mp4`)), /ENOENT/);
   const status = await multisourceStatus(f.root, f.taskId); assert.equal(status.status, "queued"); assert.equal("outputs" in status, false);
+});
+
+for (const sourceCount of [0, 9]) test(`v2 rejects ${sourceCount} sources`, async () => {
+ const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount });
+ await assert.rejects(admitMultisource(f.root, f.config, f.input), /INVALID_MANIFEST/);
 });

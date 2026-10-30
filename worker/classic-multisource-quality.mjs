@@ -55,7 +55,7 @@ export async function runClassicMultisourceQuality({
   candidatesBySource, referencesByProduct, verifier, validate = validateWithQualityGateV2,
   onProgress = async () => {},
 }) {
-  if (!record || !Array.isArray(sources) || sources.length < 1 || !batchDir || !ffmpeg || !verifier
+  if (!record || !Array.isArray(sources) || sources.length < 1 || sources.length > 8 || !batchDir || !ffmpeg || !verifier
     || !(candidatesBySource instanceof Map) || !(referencesByProduct instanceof Map)) throw new Error("MULTISOURCE_QUALITY_INPUT_INVALID");
   await mkdir(batchDir, { recursive: true });
   const decisions = []; const accepted = []; const sourceReports = [];

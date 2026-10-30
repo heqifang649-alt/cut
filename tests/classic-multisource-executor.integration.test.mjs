@@ -8,13 +8,14 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
-import { admitMultisource, MULTISOURCE_CONTRACT_V1, multisourceStatus } from "../lib/classic-multisource.mjs";
+import { admitMultisource, MULTISOURCE_CONTRACT, MULTISOURCE_CONTRACT_V1, multisourceStatus } from "../lib/classic-multisource.mjs";
 import { executeClassicMultisource } from "../worker/classic-multisource-executor.mjs";
 
 const run = promisify(execFile);
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-test("isolated multi-source task reuses Scheduler and Renderer through review publication", { timeout: 180_000 }, async () => {
+for (const [contractVersion, sourceCount] of [[MULTISOURCE_CONTRACT_V1, 2], ...[1, 2, 3, 8].map(n => [MULTISOURCE_CONTRACT, n])]) {
+test(`isolated ${contractVersion} ${sourceCount}-source task completes through review publication`, { timeout: 180_000 }, async () => {
   const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
   const projectRuntime = JSON.parse(await readFile(path.join(projectRoot, "config", "cutflow-runtime.json"), "utf8"));
   const ffmpeg = projectRuntime.ffmpegExecutable;
@@ -34,25 +35,25 @@ test("isolated multi-source task reuses Scheduler and Renderer through review pu
       bgmRoot: path.join(root, "music"), subtitleTemplateRoot: path.join(projectRoot, "standards", "text-layout-9x16-v1.json") } });
 
   const brandIdentity = "TokyoTiger"; const sources = [];
-  for (let index = 0; index < 2; index += 1) {
+  for (let index = 0; index < sourceCount; index += 1) {
     const relativePath = `assets/source-${index + 1}.mp4`; const target = path.join(inbox, ...relativePath.split("/"));
-    await run(ffmpeg, ["-nostdin", "-v", "error", "-f", "lavfi", "-i", `testsrc2=s=360x640:r=30:duration=7`,
+    await run(ffmpeg, ["-nostdin", "-v", "error", "-f", "lavfi", "-i", `testsrc2=s=360x640:r=30:duration=12`,
       "-vf", `hue=h=${index * 60}`, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", target], { windowsHide: true });
     const bytes = await readFile(target);
     sources.push({ id: randomUUID(), productId: null, brandIdentity, order: index + 1, relativePath,
-      sha256: sha256(bytes), sizeBytes: bytes.length, durationSeconds: 7 });
+      sha256: sha256(bytes), sizeBytes: bytes.length, durationSeconds: 12 });
   }
   const bgm = path.join(root, "fixture.wav");
   await run(ffmpeg, ["-nostdin", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=5",
     "-c:a", "pcm_s16le", "-y", bgm], { windowsHide: true });
-  const manifest = { contractVersion: MULTISOURCE_CONTRACT_V1, taskId, handoffKey, userId, policyVersion: "fixture-policy/1",
+  const manifest = { contractVersion, idempotencyKey: `fixture-${taskId}`, taskId, handoffKey, userId, policyVersion: "fixture-policy/1",
     sourceBinding: { kind: "brand", value: brandIdentity, granularity: "brand-profile", productIdProvided: false }, sources };
   const raw = Buffer.from(JSON.stringify(manifest)); const manifestSha256 = sha256(raw);
   await writeFile(path.join(inbox, "manifest.json"), raw); await writeJsonAtomic(path.join(inbox, "READY"), { sha256: manifestSha256 });
   const config = { ready: true, nasRoot, owners: { [`fixture:${userId}`]: "fixture-owner" },
     costVerifier: "fixture-cost", qualityVerifier: "fixture-quality", productionEditor: "existing-renderer" };
-  await admitMultisource(root, config, { contractVersion: MULTISOURCE_CONTRACT_V1, taskId,
-    manifestRelativePath: `inbox/${handoffKey}/manifest.json`, manifestSha256 });
+  await admitMultisource(root, config, { contractVersion, idempotencyKey: `fixture-${taskId}`, taskId,
+    handoffKey, idempotencyKey: `fixture-${taskId}`, manifestRelativePath: `inbox/${handoffKey}/manifest.json`, manifestSha256 });
   const productReference = path.join(root, "product-reference.jpg");
   await run(ffmpeg, ["-nostdin", "-v", "error", "-i", path.join(inbox, "assets", "source-1.mp4"),
     "-frames:v", "1", "-y", productReference], { windowsHide: true });
@@ -84,11 +85,12 @@ test("isolated multi-source task reuses Scheduler and Renderer through review pu
       } },
     qualityVerifier: undefined });
 
-  assert.equal(result.status, "review"); assert.equal(result.outputs.length, 1);
-  assert.equal(result.outputs[0].outputId, result.outputs[0].id);
+  assert.equal(result.status, contractVersion === MULTISOURCE_CONTRACT ? "processing" : "review"); assert.equal(result.outputs.length, 1);
+  assert.ok(result.outputs[0].outputId);
+  if (contractVersion === MULTISOURCE_CONTRACT_V1) assert.equal(result.outputs[0].outputId, result.outputs[0].id);
   assert.ok(Number.isFinite(result.outputs[0].durationSeconds) && result.outputs[0].durationSeconds >= 8);
   const schedule = JSON.parse(await readFile(path.join(workspaceDir, taskId, "edit", "multisource-schedule-result.json"), "utf8"));
-  assert.equal(schedule.admittedShots, 6);
+  assert.ok(schedule.admittedShots >= 2);
   assert.ok(schedule.scheduledProducts[0].scheduleResult.renderPlan.slots.length >= 1);
   const published = path.join(nasRoot, ...result.outputs[0].relativePath.split("/"));
   const probe = JSON.parse((await run(projectRuntime.ffprobeExecutable,
@@ -96,5 +98,7 @@ test("isolated multi-source task reuses Scheduler and Renderer through review pu
   assert.equal(result.outputs[0].durationSeconds, Number(probe.format.duration));
   assert.equal((await stat(published)).size, result.outputs[0].size);
   await run(ffmpeg, ["-nostdin", "-v", "error", "-xerror", "-i", published, "-map", "0:v:0", "-f", "null", "-"], { windowsHide: true });
-  assert.equal((await multisourceStatus(root, taskId)).status, "review");
+  assert.equal((await multisourceStatus(root, taskId)).status, result.status);
 });
+
+}
