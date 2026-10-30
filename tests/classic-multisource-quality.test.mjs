@@ -46,7 +46,7 @@ async function runCase(env, modeByShot) {
     candidatesBySource: env.candidatesBySource, referencesByProduct: env.referencesByProduct, verifier: "quality-v2-production",
     validate: async ({ file, evidenceStateDir, referenceOverrides }) => {
       await mkdir(evidenceStateDir, { recursive: true });
-      const source = env.sources.find((item) => env.candidatesBySource.get(item.id)[0].id === file.id);
+      const source = env.sources.find((item) => env.candidatesBySource.get(item.id).some(shot => shot.id === file.id));
       await writeJsonAtomic(path.join(evidenceStateDir, "quality-evidence.v2.json"), { policy: env.policy, sources: [{
         sourceId: file.id, sourceHash: source.sha256, technical: { verdict: "accept" }, analysisStatus: "complete",
         referenceCoverage: { complete: true, references: referenceOverrides.map((ref) => ({ sha256: ref.sha256 })) },
@@ -86,3 +86,16 @@ test("unverified or cross-task product references fail closed before visual vali
   /PRODUCT_REFERENCE_BINDING_INVALID/);
   assert.equal(calls, 0);
 });
+
+ test("a critical artifact excludes only its interval while a clean interval survives", async () => {
+  const env = await setup(); const source = env.sources[1];
+  env.candidatesBySource.get(source.id).push({...env.candidatesBySource.get(source.id)[0],id:"clean-tail",start:2,end:5,duration:3});
+  const result = await runCase(env,{"shot-2":"body"});
+  assert.deepEqual(result.shotPool.shots.map(s=>s.id),["shot-1","clean-tail"]);
+  assert.equal(result.report.sources[1].state,"READY");
+ });
+ test("provider outage produces Review candidates with independent technical evidence", async () => {
+  const env=await setup(); for(const shots of env.candidatesBySource.values()) for(const shot of shots) shot.technicalVerdict="accept";
+  const result=await runClassicMultisourceQuality({...env,batchDir:path.join(env.root,"quality"),ffmpeg:"unused",verifier:"test",validate:async()=>{throw Error("offline")}});
+  assert.equal(result.shotPool.shots.length,2); assert(result.report.decisions.every(d=>d.state==="REVIEW"));
+ });

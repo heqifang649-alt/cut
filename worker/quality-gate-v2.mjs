@@ -13,6 +13,13 @@ import { QUALITY_EVIDENCE_V2_PROMPT_VERSION, QUALITY_EVIDENCE_V2_SCHEMA_VERSION,
 import { evaluateTechnical, probeTechnical } from "./ai-video-validator.mjs";
 
 export const QUALITY_EVIDENCE_V2_FILE = "quality-evidence.v2.json";
+export const TECHNICAL_SCOPE_VERSION = "source-and-interval.v2";
+export function evaluateQualityTechnical(technical, sourceInterval) {
+  const failure = evaluateTechnical(technical);
+  if (failure) return failure;
+  if (sourceInterval && (!Number.isFinite(sourceInterval.start) || !Number.isFinite(sourceInterval.end) || sourceInterval.start < 0 || sourceInterval.end <= sourceInterval.start || sourceInterval.end > technical.duration + .001)) return { verdict: "reject", rejectReason: "tech:interval_invalid", artifacts: [] };
+  return null;
+}
 const POLICY_FILE = path.join(process.cwd(), "standards", "quality-gate-v2-policy.json");
 
 export const isQualityGateV2Enabled = (env = process.env) => env.ENABLE_QUALITY_GATE_V2 === "true";
@@ -204,7 +211,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
   const existing = await readJson(evidenceFile, null);
   const previous = existing?.sources?.find((entry) => entry.sourceId === sourceId && entry.sourceHash === sourceHash && entry.policyVersion === policy.policyVersion && entry.promptVersion === QUALITY_EVIDENCE_V2_PROMPT_VERSION);
   const referenceKey = automaticOnly ? hash(JSON.stringify((referenceOverrides || []).map((ref) => [ref.id, ref.sha256]))) : null;
-  if (previous?.decision?.verdict && (!automaticOnly || previous.automaticOnly === true && previous.referenceKey === referenceKey
+  if (previous?.decision?.verdict && previous.technicalScopeVersion === TECHNICAL_SCOPE_VERSION && (!automaticOnly || previous.automaticOnly === true && previous.referenceKey === referenceKey
     && JSON.stringify(previous.sourceInterval) === JSON.stringify(sourceInterval))) return toValidationResult(previous);
 
   const createdAt = new Date().toISOString();
@@ -213,7 +220,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
   catch { technical = null; }
   if (sourceInterval && (!technical || !Number.isFinite(sourceInterval.start) || !Number.isFinite(sourceInterval.end)
     || sourceInterval.start < 0 || sourceInterval.end <= sourceInterval.start || sourceInterval.end > technical.duration + 0.001)) throw new Error("INVALID_SOURCE_INTERVAL");
-  const technicalResult = technical ? (evaluateTechnical(technical) || { verdict: "accept", artifacts: [] }) : { verdict: "review", rejectReason: "technical_probe_failed", artifacts: [] };
+  const technicalResult = technical ? (evaluateQualityTechnical(technical, sourceInterval) || { verdict: "accept", artifacts: [] }) : { verdict: "review", rejectReason: "technical_probe_failed", artifacts: [] };
   const frames = technical?.duration
     ? await extractQualityEvidenceFrames({ videoPath, sourceId, batchDir: artifactDir, duration: technical.duration, policy, ffmpeg, extract: extractFrames, sourceInterval }).catch(() => [])
     : [];
@@ -223,6 +230,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
     sourceId,
     source: { fileId: file?.id || null, name: file?.name || path.basename(videoPath), videoPath },
     sourceHash,
+    technicalScopeVersion: TECHNICAL_SCOPE_VERSION,
     ...(automaticOnly ? { automaticOnly: true, referenceKey, sourceInterval } : {}),
     provider: null,
     model: null,

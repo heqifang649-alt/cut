@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from "node:util";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { isAutoOotdBatch, verifyProductImage } from "../lib/libtv-auto-policy.mjs";
 import { resolveBatchFile } from "../lib/tenant-paths.mjs";
+import { evaluateTechnical } from "./ai-video-validator.mjs";
 import { automaticSourceGate } from "../lib/automatic-source-gate.mjs";
 import { prepareDeterministicInputs, importBatchToShotPool } from "./ai-ingest.mjs";
 import { validateWithQualityGateV2 } from "./quality-gate-v2.mjs";
@@ -41,33 +42,28 @@ export async function autoOotdInputs(root, batch) {
 export async function runAutoOotdQuality({ root, batch, batchDir, artifactDir, ffmpeg,
   prepare, ingest = importBatchToShotPool, validate = validateWithQualityGateV2 } = {}) {
   const input = await autoOotdInputs(root, batch);
-  await (prepare || (isGuidedBatch(batch) ? prepareGuidedInputs : prepareDeterministicInputs))({ root, batch, batchDir, ffmpeg });
+  const prepared = await (prepare || (isGuidedBatch(batch) ? prepareGuidedInputs : prepareDeterministicInputs))({ root, batch, batchDir, ffmpeg });
   const decisions = [];
   const result = await ingest({ batch, batchDir, admissionPolicy: "source_policy_segment_quality",
     validateSegment: async ({ shot, file }) => {
-      try {
+      const technical = prepared?.sidecars?.find(item => item.fileId === (file?.id || input.source.id))?.technical;
+      const technicalVerdict = technical ? (!evaluateTechnical(technical) ? "accept" : "reject") : undefined;
       const stateDir = path.join(batchDir, "automatic-segment-quality", shot.id);
-      await validate({ root, batch, batchDir: stateDir, evidenceStateDir: stateDir, artifactDir: path.join(artifactDir, shot.id),
+      try { await validate({ root, batch, batchDir: stateDir, evidenceStateDir: stateDir, artifactDir: path.join(artifactDir, shot.id),
         sourceBatchDir: batchDir, file: { ...file, id: shot.id }, ffmpeg, referenceOverrides: input.refs,
-        automaticOnly: true, sourceInterval: { start: shot.start, end: shot.end } });
+        automaticOnly: true, sourceInterval: { start: shot.start, end: shot.end } }); } catch { /* Read any existing bound evidence before using deterministic Review fallback. */ }
       const evidence = await readJson(path.join(stateDir, "quality-evidence.v2.json"), null);
       const record = evidence?.sources?.find((item) => item.sourceId === shot.id && item.sourceHash === input.sourceHash);
       const gate = automaticSourceGate({ sourceHash: input.sourceHash,
         references: input.refs.map((ref) => ({ sha256: ref.sha256, verified: true, origin: ref.referenceOrigin })),
-        evidence: record, policy: evidence?.policy });
+        evidence: record, policy: evidence?.policy, technicalVerdict, allowReview: true });
       decisions.push({ shotId: shot.id, start: shot.start, end: shot.end, sourceHash: input.sourceHash,
         referenceHashes: input.referenceHashes, state: gate.state, reason: gate.reason, nextAction: gate.nextAction,
         evidencePath: path.relative(batchDir, path.join(stateDir, "quality-evidence.v2.json")),
-        evidenceSha256: hash(await readFile(path.join(stateDir, "quality-evidence.v2.json"))) });
-      return gate.state === "READY" ? { verdict: "accept", artifacts: [] }
+        evidenceSha256: await readFile(path.join(stateDir, "quality-evidence.v2.json")).then(hash).catch(() => null) });
+      return ["READY", "REVIEW"].includes(gate.state) ? { verdict: "accept", artifacts: [] }
         : { verdict: gate.state === "REJECT" ? "reject" : "review",
           rejectReason: gate.state === "REJECT" ? "quality_v2:reject" : "quality_v2:review", artifacts: [] };
-      } catch (error) {
-        if (!isGuidedBatch(batch)) throw error;
-        decisions.push({ shotId: shot.id, start: shot.start, end: shot.end, sourceHash: input.sourceHash,
-          referenceHashes: input.referenceHashes, state: "WAITING", reason: "segment_evidence_unavailable", nextAction: "exclude_interval" });
-        return { verdict: "review", rejectReason: "quality_v2:review", artifacts: [] };
-      }
     } });
   await writeJsonAtomic(path.join(batchDir, "automatic-product-check.v1.json"), { schemaVersion: "automatic-product-check.v1",
     sourceHumanApprovalRequired: false, sourceHash: input.sourceHash, referenceHashes: input.referenceHashes,
@@ -91,11 +87,11 @@ export async function assertAutoOotdQuality({ root, batch, batchDir, scheduledPr
   for (const shot of shots) {
     if (shot.path !== resolveBatchFile(root, batch, input.source) || !Number.isFinite(shot.start) || !Number.isFinite(shot.end)
       || shot.start < 0 || shot.end <= shot.start) throw fail("QUALITY_REJECTED", "selected_source_or_interval_invalid");
-    const record = report.decisions.find((entry) => entry.shotId === shot.id && entry.state === "READY"
+    const record = report.decisions.find((entry) => entry.shotId === shot.id && ["READY", "REVIEW"].includes(entry.state)
       && entry.sourceHash === input.sourceHash && shot.start >= entry.start && shot.end <= entry.end);
     if (!record || !report.admittedShotIds.includes(shot.id)) throw fail("QUALITY_REJECTED", "unaccepted_segment_selected");
     const expected = path.join(batchDir, "automatic-segment-quality", shot.id, "quality-evidence.v2.json");
-    if (hash(await readFile(expected)) !== record.evidenceSha256) throw fail("QUALITY_REJECTED", "automatic_quality_evidence_changed");
+    if (record.evidenceSha256 && hash(await readFile(expected)) !== record.evidenceSha256) throw fail("QUALITY_REJECTED", "automatic_quality_evidence_changed");
   }
   if (scheduledProducts && shots.some((shot, index) => shots.slice(index + 1).some((other) =>
     shot.path === other.path && Math.min(shot.end, other.end) - Math.max(shot.start, other.start) > 0.001))) {

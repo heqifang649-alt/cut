@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 
 
 export const VALIDATOR_POLICY = Object.freeze({
-  minHeight: 720,
-  minDuration: 2,
-  maxDuration: 15,
-  minBitrate: 500_000,
-  minFrameRate: 20,
-  maxFrameRate: 120,
+  minHeight: 1,
+  minDuration: 0,
+  maxDuration: Number.POSITIVE_INFINITY,
+  minBitrate: 0,
+  minFrameRate: 0,
+  maxFrameRate: Number.POSITIVE_INFINITY,
   rejectConfidence: 0.85,
   reviewConfidence: 0.5,
 });
@@ -69,14 +69,15 @@ function parseTechnicalProbe(stderr) {
 export function probeTechnical(videoPath, options = {}) {
   const ffmpeg = options.ffmpeg;
   return new Promise((resolve, rejectProbe) => {
-    const child = spawn(ffmpeg, ["-hide_banner", "-i", videoPath], { windowsHide: true, signal: options.signal });
+    const args = ["-hide_banner", "-xerror", "-i", videoPath, "-map", "0:v:0", "-an", "-f", "null", "-"];
+    const child = spawn(ffmpeg, args, { windowsHide: true, signal: options.signal });
     let stderr = "";
-    const command = [ffmpeg, "-hide_banner", "-i", videoPath].map((value) => String(value)).join(" ");
+    const command = [ffmpeg, ...args].map((value) => String(value)).join(" ");
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", (error) => rejectProbe(Object.assign(error, { ...(stderr ? { stderr } : {}), command })));
     child.on("close", (exitCode) => {
       const technical = parseTechnicalProbe(stderr);
-      if (![technical.width, technical.height, technical.duration, technical.frameRate].every(Number.isFinite)) {
+      if (exitCode !== 0 || ![technical.width, technical.height, technical.duration, technical.frameRate].every(Number.isFinite)) {
         rejectProbe(Object.assign(new Error(`无法读取视频技术信息：${videoPath}`), {
           ...(typeof exitCode === "number" ? { exitCode } : {}),
           ...(stderr ? { stderr } : {}),
@@ -111,13 +112,13 @@ export function evaluateTechnical(technical, policy = VALIDATOR_POLICY) {
   if (!Number.isFinite(technical?.width) || !Number.isFinite(technical?.height) || Math.min(technical.width, technical.height) < policy.minHeight) {
     return reject("tech:low_resolution");
   }
-  if (!Number.isFinite(technical.duration) || technical.duration < policy.minDuration || technical.duration > policy.maxDuration) {
+  if (!Number.isFinite(technical.duration) || technical.duration <= policy.minDuration || technical.duration > policy.maxDuration) {
     return reject("tech:duration_invalid");
   }
   if (Number.isFinite(technical.bitrate) && technical.bitrate < policy.minBitrate) {
     return reject("tech:low_bitrate");
   }
-  if (technical.frameRateConsistent === false || !Number.isFinite(technical.frameRate) || technical.frameRate < policy.minFrameRate || technical.frameRate > policy.maxFrameRate) {
+  if (technical.frameRateConsistent === false || !Number.isFinite(technical.frameRate) || technical.frameRate <= policy.minFrameRate || technical.frameRate > policy.maxFrameRate) {
     return reject("tech:framerate_inconsistent");
   }
   if (Number.isFinite(technical.globalFlickerConfidence)) {

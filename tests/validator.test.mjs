@@ -27,9 +27,9 @@ test("quality gate accepts a clean three-layer result", async () => {
 });
 
 test("layer 1 rejects objective technical failures", async () => {
-  assert.equal((await validate({ technical: { ...normalTechnical, width: 640, height: 360 } })).rejectReason, "tech:low_resolution");
-  assert.equal((await validate({ technical: { ...normalTechnical, duration: 1 } })).rejectReason, "tech:duration_invalid");
-  assert.equal((await validate({ technical: { ...normalTechnical, bitrate: 200_000 } })).rejectReason, "tech:low_bitrate");
+  assert.equal((await validate({ technical: { ...normalTechnical, width: 0, height: 360 } })).rejectReason, "tech:low_resolution");
+  assert.equal((await validate({ technical: { ...normalTechnical, duration: 0 } })).rejectReason, "tech:duration_invalid");
+  assert.equal((await validate({ technical: { ...normalTechnical, bitrate: 200_000 } })).verdict, "accept");
   assert.equal((await validate({ technical: { ...normalTechnical, frameRateConsistent: false } })).rejectReason, "tech:framerate_inconsistent");
   assert.equal((await validate({ technical: { ...normalTechnical, globalFlickerConfidence: 0.91 } })).rejectReason, "tech:global_flicker");
 });

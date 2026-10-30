@@ -1,3 +1,5 @@
+import { analyzeDeterministicMetadataBudget } from "./deterministic-budget.mjs";
+import { evaluateTechnical } from "./ai-video-validator.mjs";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -32,7 +34,7 @@ function groupReferences(record, sources, productReferences) {
 export async function prepareClassicMultisourceAnalyze({
   record, sources, batchDir, ffmpeg, referenceProfile, productReferences, prepare = prepareDeterministicInputs,
 }) {
-  if (!record || !Array.isArray(sources) || sources.length < 2 || !batchDir || !ffmpeg || !referenceProfile) {
+  if (!record || !Array.isArray(sources) || sources.length < 1 || !batchDir || !ffmpeg || !referenceProfile) {
     throw new Error("MULTISOURCE_ANALYZE_INPUT_INVALID");
   }
   const referencesByProduct = groupReferences(record, sources, productReferences);
@@ -52,14 +54,23 @@ export async function prepareClassicMultisourceAnalyze({
   for (const input of prepared.sidecars || []) {
     const source = sourceById.get(input.fileId);
     if (!source || !Array.isArray(input.segments) || !input.segments.length) continue;
+    if (sources.length === 1 && prepare === prepareDeterministicInputs) {
+      const segments = [];
+      for (let start = 0; start < input.technical.duration - .001; start += 3) {
+        const end = Math.min(start + 3, input.technical.duration);
+        const quality = await analyzeDeterministicMetadataBudget(input.videoPath, { ffmpeg, technical: input.technical, start, duration: end-start });
+        segments.push({ id: `continuous-${segments.length}`, start, end, tags: [], budget: quality.budget });
+      }
+      input.segments = segments;
+    }
     const sidecar = await readMetadataSidecar(input.videoPath, { sidecarPath: input.sidecarPath });
     candidatesBySource.set(source.id, input.segments.map((segment) => ({
       ...createShotFromMetadata({ videoPath: input.videoPath, sidecar,
         validationResult: { verdict: "accept", artifacts: [] }, budget: segment.budget, segment }),
-      sourceId: source.id, productId: source.productId, bindingKey: source.bindingKey,
+      technicalVerdict: input.technical && !evaluateTechnical(input.technical) ? "accept" : "reject", sourceId: source.id, productId: source.productId, bindingKey: source.bindingKey,
     })));
   }
-  if (sources.some((source) => !candidatesBySource.get(source.id)?.length)) throw new Error("SOURCE_CANDIDATES_INVALID");
+  if (!candidatesBySource.size) throw new Error("SOURCE_CANDIDATES_INVALID");
   return { batch, scriptTemplate: JSON.parse(await readFile(path.join(batchDir, "script-template.json"), "utf8")),
     candidatesBySource, referencesByProduct, prepared };
 }
