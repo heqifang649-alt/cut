@@ -1,0 +1,18 @@
+{
+  "release": "D:/CUT-Releases/20261030-production-first-r11",
+  "sourceCommit": "4c0a8cf",
+  "buildId": "gz1vqWjdvwm3FftNlcZgt",
+  "rootStatus": 200,
+  "healthUnauthStatus": 401,
+  "integrationUnauthStatus": 401,
+  "claimsEnabled": false,
+  "configHashesUnchanged": {
+    "ai-provider-config.json": true,
+    "classic-integration-runtime.json": true,
+    "users.json": true,
+    "templates.json": true
+  },
+  "sourceMatches": true,
+  "paidProviderCallsByAgent": 0,
+  "verifiedAt": "2026-10-30T11:29:52.194Z"
+}

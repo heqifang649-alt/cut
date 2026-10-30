@@ -1,6 +1,19 @@
 # Production freeze / 2026-10-22
 
-## 0036 deployment override / 2026-10-29
+## Production-first deployment override / 2026-10-30
+
+The user explicitly authorized deployment and committing the production-first fixes.
+
+- Active root: `D:\CUT-Releases\20261030-production-first-r11`.
+- Active build directory: `.next-production-first-r11`; BUILD_ID: `gz1vqWjdvwm3FftNlcZgt`.
+- Source commit: `4c0a8cf`. Candidate built from tracked source with the existing production runtime configuration and local hosting configuration; Next webpack build and typecheck passed.
+- Rollback root: `D:\CUT-Releases\20261029-unified-v2-r10`. Both scheduled-task XML snapshots are preserved under `artifacts/production-first-20261030/deployment/`.
+- Both scheduled-task actions now point to r11 and remain enabled. Startup health gate, HTTP 200, unauthenticated health/integration HTTP 401, worker ownership, source-file equality and unchanged provider/user/template/integration configuration hashes were verified.
+- Fleet claims remain disabled. No paid Provider call was initiated by this deployment. Persistent data/storage mounts retain the existing production data.
+- Directed regression: 93/93. Real 15.041667-second source isolation produced a 15.033333-second decodable MP4 before deployment. No new production canary or Pilot creative-quality acceptance is claimed.
+- Evidence: `evidence/production-first-deployment-20261030.json` and `artifacts/production-first-20261030/`.
+
+## Historical 0036 deployment override / 2026-10-29
 
 The user explicitly authorized instruction `0036` to deploy unified v2 and wait
 for one new classic single-source canary. This supersedes the historical active
