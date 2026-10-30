@@ -1,5 +1,9 @@
 # Production freeze / 2026-10-22
 
+## V2 single-source worker overlay / 2026-10-30
+
+Under the user request for a minimal runtime update, r11 now has the three module overlays from code commit `4de2458efee2525d24054dba9c2dcea07cb0500b`: `lib/classic-multisource.mjs`, `worker/classic-multisource-analyze.mjs`, and `worker/classic-multisource-quality.mjs`. Web BUILD_ID, scheduled tasks and configuration are unchanged. The multisource runner restarted as PID 238972 with matching module hashes and a fresh heartbeat. Historical tasks were not retried. A release-module controlled sample passed in isolated temporary storage with fixture visual evidence and real FFmpeg; no production business canary or classic callback success is claimed. Backups and verification are in `artifacts/single-source-regression-20261030/`; see `evidence/single-source-regression-20261030.md` for limits, including the pre-existing long-source RenderPlan duration issue.
+
 ## Production-first deployment override / 2026-10-30
 
 The user explicitly authorized deployment and committing the production-first fixes.
