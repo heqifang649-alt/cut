@@ -1,5 +1,10 @@
 # Production freeze / 2026-10-22
 
+## V2 completion/finalization deployment / 2026-10-30
+
+The user explicitly authorized this completion-contract repair, minimal deployment and reconciliation of task a28a04b4-581a-46fa-bd81-d7505219d3bc. Active root remains r11; Web build .next-production-first-r11 now has BUILD_ID eCkudH4WVA1n3-bJ6tYvM and code commit e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4 overlays lib/classic-multisource.mjs, worker/classic-multisource-executor.mjs and worker/classic-multisource-runner.mjs. Web PID 333012 and runner PID 334344 loaded the update. Previous Web build is retained at .next-production-first-r11.before-v2-finalize; source backups are in artifacts/v2-finalize-20261030/runtime-before/. Only the specified task was finalized from review/revision 3 to completed/revision 4 without rerendering. API equals NAS, and the real classic receipt confirms PENDING_REVIEW with the same output hash/size. Authenticated classic playback/download and billing-ledger evidence remain pending; no final Verified claim. See evidence/v2-finalize-20261030.md and .json for the exact evidence and limitations. No scheduled tasks, persistent mounts, provider/model/concurrency or classic application settings were changed.
+
+
 ## V2 single-source worker overlay / 2026-10-30
 
 Under the user request for a minimal runtime update, r11 now has the three module overlays from code commit `4de2458efee2525d24054dba9c2dcea07cb0500b`: `lib/classic-multisource.mjs`, `worker/classic-multisource-analyze.mjs`, and `worker/classic-multisource-quality.mjs`. Web BUILD_ID, scheduled tasks and configuration are unchanged. The multisource runner restarted as PID 238972 with matching module hashes and a fresh heartbeat. Historical tasks were not retried. A release-module controlled sample passed in isolated temporary storage with fixture visual evidence and real FFmpeg; no production business canary or classic callback success is claimed. Backups and verification are in `artifacts/single-source-regression-20261030/`; see `evidence/single-source-regression-20261030.md` for limits, including the pre-existing long-source RenderPlan duration issue.

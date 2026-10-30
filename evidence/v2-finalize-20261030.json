@@ -1,0 +1,182 @@
+{
+  "status": "RECOVERED_AND_IMPORTED; FINAL_CLASSIC_ACCESS_EVIDENCE_REQUIRED",
+  "verified": false,
+  "codeCommit": "e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4",
+  "deployment": {
+    "codeCommit": "e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4",
+    "release": "D:/CUT-Releases/20261030-production-first-r11",
+    "buildId": "eCkudH4WVA1n3-bJ6tYvM",
+    "previousBuildBackup": "D:\\CUT-Releases\\20261030-production-first-r11\\.next-production-first-r11.before-v2-finalize",
+    "newWebPid": 333012,
+    "oldRunnerPid": 238972,
+    "at": "2026-10-30T22:40:37.2576973+08:00"
+  },
+  "runtimeFiles": [
+    {
+      "file": "lib/classic-multisource.mjs",
+      "sha256": "60b3672e01a2e000eb0c3690bafa95656af3d6d32478b510e3d02020742c2250",
+      "matchesSource": true
+    },
+    {
+      "file": "worker/classic-multisource-executor.mjs",
+      "sha256": "8b1afc43dca370ab6f9230102bff00eb95d732e455a1885a431b441db6597211",
+      "matchesSource": true
+    },
+    {
+      "file": "worker/classic-multisource-runner.mjs",
+      "sha256": "66627bb115506ff03b8b1b0f73cfdb211cc30f1e55f9981d96b4896000effb8d",
+      "matchesSource": true
+    }
+  ],
+  "reconciliation": {
+    "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "batchId": "1562183b-6bdb-406f-9d7a-786bd5bb1b85",
+    "beforeStatus": "review",
+    "beforeRevision": 3,
+    "afterStatus": "completed",
+    "afterRevision": 4,
+    "idempotent": true,
+    "apiEqualsNas": true,
+    "unchangedOutput": true,
+    "unchangedOutputMtime": true,
+    "unchangedOtherRecords": true,
+    "recordCount": 16,
+    "attempt": 1,
+    "qualityEvidenceUnchanged": true,
+    "newAnalysis": false,
+    "newRender": false,
+    "newGeneration": false,
+    "at": "2026-10-30T14:40:59.322Z"
+  },
+  "nasAndApi": {
+    "schemaVersion": "yiying-cut-status/2",
+    "revision": 4,
+    "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "handoffKey": "multi-a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "manifestSha256": "f0e2643b892d989b6882d9d1e533e3843b92933dbf93e850123870ea66f90a76",
+    "batchId": "1562183b-6bdb-406f-9d7a-786bd5bb1b85",
+    "status": "completed",
+    "policyReceipt": {
+      "state": "accepted",
+      "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+      "handoffKey": "multi-a28a04b4-581a-46fa-bd81-d7505219d3bc",
+      "manifestSha256": "f0e2643b892d989b6882d9d1e533e3843b92933dbf93e850123870ea66f90a76",
+      "policyVersion": "yiying-ootd/2",
+      "costPolicy": "settled_upstream_no_additional_charge",
+      "qualityVerifier": "cut-quality-gate-v2",
+      "editor": "cut-renderer:renderBatchFromRenderPlans",
+      "nasWriteVerification": "verify_on_first_canary_publish"
+    },
+    "outputs": [
+      {
+        "outputId": "c15fbd99-8a52-4e14-817d-fb5b905169a3",
+        "relativePath": "outbox/a28a04b4-581a-46fa-bd81-d7505219d3bc/c15fbd99-8a52-4e14-817d-fb5b905169a3.mp4",
+        "sha256": "2e0ba2185c526adae724061ff30d30e694a4ca9bd968b49eb2a7d855afa9fc7b",
+        "size": 11512563,
+        "reviewStatus": "PENDING",
+        "durationSeconds": 10.033333
+      }
+    ],
+    "updatedAt": "2026-10-30T14:40:57.771Z"
+  },
+  "classicReceipt": {
+    "schemaVersion": "yiying-classic-import/1",
+    "writer": "classic",
+    "status": "PENDING_REVIEW",
+    "reviewStatus": "PENDING",
+    "handoffKey": "multi-a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "contractVersion": "libtv-cut-lan-multi/2",
+    "manifestSha256": "f0e2643b892d989b6882d9d1e533e3843b92933dbf93e850123870ea66f90a76",
+    "batchId": "1562183b-6bdb-406f-9d7a-786bd5bb1b85",
+    "sourceCount": 1,
+    "sourceClipIds": [
+      "76a7821b-39f9-51c2-84a2-81d316147773"
+    ],
+    "outputs": [
+      {
+        "id": "c15fbd99-8a52-4e14-817d-fb5b905169a3",
+        "sha256": "2e0ba2185c526adae724061ff30d30e694a4ca9bd968b49eb2a7d855afa9fc7b",
+        "sizeBytes": 11512563,
+        "durationSeconds": 10.04,
+        "width": 1080,
+        "height": 1920,
+        "reviewStatus": "PENDING",
+        "importedAt": "2026-10-30T14:42:12.479099+00:00"
+      }
+    ],
+    "verifiedAt": "2026-10-30T14:42:12+00:00",
+    "classic": {
+      "appEnv": "development",
+      "buildId": "unconfigured"
+    }
+  },
+  "classicVerification": {
+    "receiptIdentity": "PASS",
+    "classicStatus": "PENDING_REVIEW",
+    "outputHashAndSize": "PASS",
+    "verifiedAt": "2026-10-30T14:42:12+00:00",
+    "authenticatedPlaybackDownload": "NOT_VERIFIED",
+    "billingLedger": "NOT_ACCESSIBLE_WITHOUT_CLASSIC_SESSION",
+    "checks": [
+      {
+        "path": "/api/v1/cutflow-handoffs/a28a04b4-581a-46fa-bd81-d7505219d3bc/diagnostics",
+        "httpStatus": 401
+      },
+      {
+        "path": "/api/v1/downloads/c15fbd99-8a52-4e14-817d-fb5b905169a3",
+        "httpStatus": 401
+      }
+    ]
+  },
+  "ci": {
+    "id": 41073903748,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/heqifang649-alt/cut/actions/runs/41073903748"
+  },
+  "mergeGate": {
+    "httpStatus": 201,
+    "id": 26213661,
+    "name": "CUT V2 status contract",
+    "enforcement": "active",
+    "conditions": {
+      "ref_name": {
+        "exclude": [],
+        "include": [
+          "~DEFAULT_BRANCH"
+        ]
+      }
+    },
+    "rules": [
+      {
+        "type": "required_status_checks",
+        "parameters": {
+          "strict_required_status_checks_policy": false,
+          "do_not_enforce_on_create": false,
+          "required_status_checks": [
+            {
+              "context": "contract"
+            }
+          ]
+        }
+      }
+    ],
+    "url": "https://github.com/heqifang649-alt/cut/rules/26213661"
+  },
+  "tests": {
+    "required": 80,
+    "passed": 80,
+    "failed": 0,
+    "extendedTotal": 154,
+    "extendedPassed": 152,
+    "preExistingFailures": 2,
+    "lint": "PASS",
+    "build": "PASS"
+  },
+  "limitations": [
+    "Authenticated classic playback and download not verified: HTTP 401",
+    "Classic billing ledger unavailable without authenticated session",
+    "No new generation, analysis, edit, render, task or billing call was initiated by reconciliation; cross-system ledger verification remains pending"
+  ]
+}
