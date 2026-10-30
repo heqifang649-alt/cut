@@ -85,8 +85,9 @@ test(`isolated ${contractVersion} ${sourceCount}-source task completes through r
       } },
     qualityVerifier: undefined });
 
-  assert.equal(result.status, contractVersion === MULTISOURCE_CONTRACT ? "processing" : "review"); assert.equal(result.outputs.length, 1);
+  assert.equal(result.status, contractVersion === MULTISOURCE_CONTRACT ? "completed" : "review"); assert.equal(result.outputs.length, 1);
   assert.ok(result.outputs[0].outputId);
+  if (contractVersion === MULTISOURCE_CONTRACT) assert.equal(result.outputs[0].reviewStatus, "PENDING");
   if (contractVersion === MULTISOURCE_CONTRACT_V1) assert.equal(result.outputs[0].outputId, result.outputs[0].id);
   assert.ok(Number.isFinite(result.outputs[0].durationSeconds) && result.outputs[0].durationSeconds >= 8);
   const schedule = JSON.parse(await readFile(path.join(workspaceDir, taskId, "edit", "multisource-schedule-result.json"), "utf8"));

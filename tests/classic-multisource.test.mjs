@@ -11,13 +11,14 @@ import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import {
   admitMultisource, authenticateMultisource, completeMultisource, MULTISOURCE_CONTRACT,
   MULTISOURCE_CONTRACT_V1, MULTISOURCE_STATUS_SCHEMA,
-  multisourceConfig, multisourceStatus, publishMultisourceResults, scanMultisourceReady,
+  reconcileMultisourceCompletion, claimMultisourceTask, multisourceConfig, multisourceStatus, publishMultisourceResults, scanMultisourceReady,
   updateMultisourceStatus,
   recordMultisourceProgress,
 } from "../lib/classic-multisource.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+runtime.ffprobeExecutable = process.env.CUTFLOW_TEST_FFPROBE || runtime.ffprobeExecutable;
 const testFfmpeg = () => process.env.CUTFLOW_TEST_FFMPEG || runtime.ffmpegExecutable;
 
 async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount = 2 } = {}) {
@@ -122,14 +123,15 @@ test("v2 authoritative revisions are monotonic and stale failed snapshots cannot
   const bytes = await readFile(sourcePath); const output = { id: randomUUID(), sourcePath, sha256: hash(bytes), size: bytes.length };
   const review = await publishMultisourceResults(f.root, f.config, f.taskId, [output], "review", { ffmpeg, ffprobe: runtime.ffprobeExecutable });
   const completed = await completeMultisource(f.root, f.config, f.taskId, [output], { ffmpeg, ffprobe: runtime.ffprobeExecutable });
-  assert.equal(review.revision, 3); assert.equal(completed.revision, 4); assert.equal(completed.status, "completed");
+  assert.equal(review.revision, 3); assert.equal(completed.revision, 3);
+  assert.deepEqual(completed, review); assert.equal(completed.status, "completed");
   assert.equal(completed.outputs[0].reviewStatus, "PENDING");
   await writeJsonAtomic(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), { ...completed, revision: 5 });
   const recordsFile = path.join(f.root, "data", "classic-multisource-records.json");
   const records = JSON.parse(await readFile(recordsFile, "utf8"));
-  records[0].revision = 3; records[0].status = "failed"; records[0].error = { code: "STALE" };
+  records[0].revision = 3; records[0].status = "failed"; records[0].error = { code: "STALE", message: "stale snapshot" }; records[0].outputs = [];
   await writeFile(recordsFile, JSON.stringify(records));
-  await admitMultisource(f.root, f.config, f.input);
+  await assert.rejects(admitMultisource(f.root, f.config, f.input), /STATUS_REVISION_STALE/);
   const authoritative = JSON.parse(await readFile(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), "utf8"));
   assert.equal(authoritative.revision, 5); assert.equal(authoritative.status, "completed");
   assert.equal(accepted.batchId, authoritative.batchId);
@@ -296,4 +298,52 @@ test("hash or decode failure leaves no published output and no completed receipt
 for (const sourceCount of [0, 9]) test(`v2 rejects ${sourceCount} sources`, async () => {
  const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount });
  await assert.rejects(admitMultisource(f.root, f.config, f.input), /INVALID_MANIFEST/);
+});
+
+for (const interruptedAfterRename of [false, true]) test(`V2 completion publication interruption and reconciliation afterRename=${interruptedAfterRename}`, { timeout: 30000 }, async () => {
+ const f = await fixture({contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1});
+ const accepted = await admitMultisource(f.root, f.config, f.input);
+ const sourcePath = path.join(f.root, 'output.mp4'); const ffmpeg = testFfmpeg();
+ await promisify(execFile)(ffmpeg, ['-v','error','-f','lavfi','-i','color=c=black:s=32x32:d=8','-c:v','libx264','-pix_fmt','yuv420p','-y',sourcePath], { windowsHide:true });
+ const bytes = await readFile(sourcePath); const output = {id:randomUUID(),sourcePath,sha256:hash(bytes),size:bytes.length};
+ const statusPath = path.join(f.nasRoot,'outbox',f.taskId,'status.json');
+ await assert.rejects(completeMultisource(f.root,f.config,f.taskId,[output],{ffmpeg,ffprobe:runtime.ffprobeExecutable,
+  publishStatus:async (_config, record) => {
+   if(interruptedAfterRename) await writeJsonAtomic(statusPath,{...accepted,revision:2,status:'completed',outputs:record.outputs.map(o=>({outputId:o.id,relativePath:o.relativePath,sha256:o.sha256,size:o.size,durationSeconds:o.durationSeconds,reviewStatus:'PENDING'})),updatedAt:record.updatedAt});
+   throw Error('simulated NAS interruption');
+  }}),/RESULTS_PUBLICATION_PENDING/);
+ assert.equal(await claimMultisourceTask(f.root,'must-not-reexecute'),null);
+ await assert.rejects(updateMultisourceStatus(f.root,f.taskId,'failed',Error('transport'),f.config),/TERMINAL_STATE_CONFLICT/);
+ const completed = await reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable});
+ assert.equal(completed.status,'completed'); assert.equal(completed.revision,2); assert.equal(completed.batchId,accepted.batchId);
+ assert.deepEqual(await reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable}),completed);
+ assert.deepEqual(JSON.parse(await readFile(statusPath,'utf8')),completed);
+ const records=JSON.parse(await readFile(path.join(f.root,'data/classic-multisource-records.json'),'utf8'));
+ assert.equal(records.length,1); assert.equal(records[0].attempt,0); assert.equal(records[0].pendingCompletion,undefined);
+ assert.equal(hash(await readFile(path.join(f.nasRoot,...completed.outputs[0].relativePath.split('/')))),output.sha256);
+ await assert.rejects(updateMultisourceStatus(f.root,f.taskId,'uploading',undefined,f.config),/TERMINAL_STATE_CONFLICT/);
+});
+
+test('historical V2 review is finalized with the same identities and immutable media', {timeout:30000}, async()=>{
+ const f=await fixture({contractVersion:MULTISOURCE_CONTRACT,sourceCount:1}); await admitMultisource(f.root,f.config,f.input);
+ const ffmpeg=testFfmpeg(), sourcePath=path.join(f.root,'historical.mp4');
+ await promisify(execFile)(ffmpeg,['-v','error','-f','lavfi','-i','color=c=black:s=32x32:d=8','-c:v','libx264','-pix_fmt','yuv420p','-y',sourcePath],{windowsHide:true});
+ const bytes=await readFile(sourcePath), output={id:randomUUID(),sourcePath,sha256:hash(bytes),size:bytes.length};
+ const completed=await completeMultisource(f.root,f.config,f.taskId,[output],{ffmpeg,ffprobe:runtime.ffprobeExecutable});
+ const recordFile=path.join(f.root,'data/classic-multisource-records.json'), statusFile=path.join(f.nasRoot,'outbox',f.taskId,'status.json');
+ const records=JSON.parse(await readFile(recordFile,'utf8'));records[0].status='review';records[0].revision=3;
+ const historical={...completed,status:'processing',revision:3};
+ await writeJsonAtomic(recordFile,records);await writeJsonAtomic(statusFile,historical);
+ await assert.rejects(multisourceStatus(f.root,f.taskId),/V2_STATUS_CONTRACT_INVALID/);
+ const media=path.join(f.nasRoot,...completed.outputs[0].relativePath.split('/'));const before=await stat(media);
+ await writeJsonAtomic(statusFile,{...historical,revision:5});
+ await assert.rejects(reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable}),/STATUS_REVISION_STALE/);
+ await writeJsonAtomic(statusFile,historical);
+ records[0].lease={expiresAt:Date.now()+60000};await writeJsonAtomic(recordFile,records);
+ await assert.rejects(reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable}),/MULTISOURCE_LEASE_ACTIVE/);
+ delete records[0].lease;await writeJsonAtomic(recordFile,records);
+ const recovered=await reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable});
+ assert.equal(recovered.revision,4);assert.equal(recovered.status,'completed');assert.deepEqual(recovered.outputs,completed.outputs);assert.equal(recovered.batchId,completed.batchId);
+ assert.equal((await stat(media)).mtimeMs,before.mtimeMs);
+ assert.deepEqual(await reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable}),recovered);
 });

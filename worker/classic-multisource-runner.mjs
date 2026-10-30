@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { claimMultisourceTask, heartbeatMultisourceLease, multisourceConfig, scanMultisourceReady, updateMultisourceStatus } from "../lib/classic-multisource.mjs";
+import { claimMultisourceTask, heartbeatMultisourceLease, multisourceConfig, reconcilePendingMultisourceCompletions, scanMultisourceReady, updateMultisourceStatus } from "../lib/classic-multisource.mjs";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { claimsEnabled } from "./claim-control.mjs";
 import { executeClassicMultisource } from "./classic-multisource-executor.mjs";
@@ -29,6 +29,7 @@ export async function runMultisourceTick({
   const claimAllowed = canClaim ?? (claimsEnabled() || process.env.CUTFLOW_MULTISOURCE_ENABLED === "true");
   const result = { accepted: 0, executed: 0, failed: 0, gate: config.gate, claimsEnabled: claimAllowed };
   if (!claimAllowed || !config.ready) return result;
+  await reconcilePendingMultisourceCompletions(root, config);
   const accepted = await scan(root, config);
   result.accepted = accepted.length;
   const runClaimed = async (slot) => {

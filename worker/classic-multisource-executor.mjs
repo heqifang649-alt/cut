@@ -11,7 +11,7 @@ import { renderBatchFromRenderPlans } from "./batch-renderer.mjs";
 import { runClassicMultisourceQuality } from "./classic-multisource-quality.mjs";
 import { prepareClassicMultisourceAnalyze } from "./classic-multisource-analyze.mjs";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
-import { loadMultisourceExecution, publishMultisourceResults, recordMultisourceVerification, recordMultisourceProgress, updateMultisourceStatus } from "../lib/classic-multisource.mjs";
+import { completionStatusForContract, loadMultisourceExecution, publishMultisourceResults, recordMultisourceVerification, recordMultisourceProgress, updateMultisourceStatus } from "../lib/classic-multisource.mjs";
 import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from "./resource-governor.mjs";
 
 function boundReceipt(receipt, record, state, verifier) {
@@ -166,8 +166,9 @@ export async function executeClassicMultisource({
     }
     stage = "publish";
     await progress(stage, 95);
-    return await publishMultisourceResults(root, config, taskId, outputs, "review", { ffmpeg, ffprobe: runtime.ffprobeExecutable, lease });
+    return await publishMultisourceResults(root, config, taskId, outputs, completionStatusForContract(record.contractVersion), { ffmpeg, ffprobe: runtime.ffprobeExecutable, lease });
   } catch (error) {
+    if (error.code === "RESULTS_PUBLICATION_PENDING") throw error;
     error.stage ||= stage;
     await updateMultisourceStatus(root, taskId, "failed", error, config, lease).catch(() => undefined);
     throw error;
