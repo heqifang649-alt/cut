@@ -50,6 +50,16 @@ function scheduleAvailable(view, record, scriptTemplate, semanticEvidence) {
     ends.set(s.source, s.end); return true;
   });
   if (!shots.length) return planned;
+  // A failed template fit must not concatenate complete alternative takes.
+  // Prefer an already viable source narrative in the existing fallback only.
+  const sourceRuns = record.sources.map(source => shots.filter(shot => shot.source === source.id));
+  const viableRuns = sourceRuns.filter(run => {
+    const duration = run.reduce((sum, shot) => sum + shot.end - shot.start, 0);
+    return duration >= MINIMUM_SAFE_DURATION_SECONDS && duration <= 13;
+  }).sort((a, b) => a.filter(s => s.tags.includes("quality:review")).length - b.filter(s => s.tags.includes("quality:review")).length);
+  if (new Set(shots.map(s => s.source)).size > 1 && viableRuns.length) {
+    shots.splice(0, shots.length, ...viableRuns[0]);
+  }
   return enforceMinimumSafeDuration({ status: "success", renderPlan: { id: `${record.taskId}-${view.product.id}-continuous`, batchId: record.taskId, createdAt: record.acceptedAt, transitionProfile: "hard_cut", slots: shots.map((shot,i) => ({ shot, slot: { id: `segment_${i}`, label: "商品展示", requireTags: [], targetDuration: shot.end-shot.start } })) } });
 }
 

@@ -37,6 +37,26 @@ const slot = (id, overrides = {}) => ({
 const template = (slots = [slot("hook")]) => ({ id: "template-1", name: "street", slots, totalDuration: slots.reduce((sum, item) => sum + item.targetDuration, 0) });
 const pool = (shots) => ({ version: 1, batchId: "batch-1", shots });
 
+test("source order preserves evidence ranking and permits valuable cross-source returns", () => {
+  const shots = [shot("a", { source: "A" }), shot("a2", { source: "A", start: 3, end: 5 }), shot("b", { source: "B" })];
+  const evidence = scores => ({ records: shots.map((s, i) => ({ shotId: s.id, result: {
+    usable: true, shot_type: "overall", product_match: scores[i], clothing_visibility: scores[i],
+    visual_quality: scores[i], hook_value: scores[i], confidence: scores[i],
+  } })) });
+  const run = scores => scheduleProductView({ batchId: "order", productView: { product: { id: "p", label: "p" }, shots },
+    scriptTemplate: template([slot("one"), slot("two"), slot("three")]),
+    semanticEvidence: evidence(scores), preserveSourceOrder: true });
+  assert.deepEqual(run([.99, .7, .9]).renderPlan.slots.map(s => s.shot.id), ["a", "b", "a2"]);
+  assert.deepEqual(run([.99, .9, .9]).renderPlan.slots.map(s => s.shot.id), ["a", "a2", "b"]);
+});
+
+test("source order treats review as a preference and retains candidate fallback", () => {
+  const shots = [shot("a", { source: "A", tags: ["full_body", "detail", "quality:review"] }), shot("b", { source: "B" })];
+  const result = scheduleProductView({ batchId: "review", productView: { product: { id: "p", label: "p" }, shots },
+    scriptTemplate: template([slot("one"), slot("two")]), preserveSourceOrder: true });
+  assert.deepEqual(result.renderPlan.slots.map(s => s.shot.id), ["b", "a"]);
+});
+
 test("creates a valid RenderPlan from complete accept Shots", () => {
   const result = scheduleShotPool({ batchId: "batch-1", shotPool: pool([shot("a")]), scriptTemplate: template(), createdAt: "2026-08-06T00:00:00.000Z" });
   assert.equal(result.status, "success");

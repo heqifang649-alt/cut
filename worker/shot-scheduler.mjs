@@ -152,7 +152,19 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
     const candidates = shots
       .filter((shot) => !usedShotIds.has(shot.id) && (!preserveSourceOrder || selected.every((entry) => entry.shot.source !== shot.source || shot.start >= entry.shot.end)) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
-      .sort((a, b) => preserveSourceOrder ? a.shot.start - b.shot.start || compareCandidates(a, b) : compareCandidates(a, b));
+      .sort((a, b) => {
+        if (!preserveSourceOrder) return compareCandidates(a, b);
+        // Source-relative timestamps are not comparable across files. Order is
+        // enforced by the filter above; retain evidence-based ranking here.
+        const previous = selected.at(-1)?.shot;
+        const adjusted = candidate => candidate.semanticScore
+          - (candidate.shot.tags.includes("quality:review") ? 0.1 : 0)
+          - (previous && previous.source !== candidate.shot.source ? 0.05 : 0);
+        if (a.shortShotPenalty !== b.shortShotPenalty) return a.shortShotPenalty - b.shortShotPenalty;
+        if (a.preferredTags !== b.preferredTags) return b.preferredTags - a.preferredTags;
+        if (Math.abs(adjusted(a) - adjusted(b)) > EPSILON) return adjusted(b) - adjusted(a);
+        return compareCandidates(a, b);
+      });
     const best = candidates[0]?.shot;
     if (!best) {
       firstMissingSlotId ||= slot.id;
