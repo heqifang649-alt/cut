@@ -8,12 +8,14 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { isolatedClassicTasks } from "../lib/classic-task-isolation.mjs";
 import {
   admitMultisource, authenticateMultisource, completeMultisource, MULTISOURCE_CONTRACT,
   MULTISOURCE_CONTRACT_V1, MULTISOURCE_STATUS_SCHEMA,
   reconcileMultisourceCompletion, claimMultisourceTask, multisourceConfig, multisourceStatus, publishMultisourceResults, scanMultisourceReady,
   updateMultisourceStatus,
   recordMultisourceProgress,
+  loadMultisourceExecution, queuedMultisourceTasks, heartbeatMultisourceLease,
 } from "../lib/classic-multisource.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -21,9 +23,9 @@ const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.jso
 runtime.ffprobeExecutable = process.env.CUTFLOW_TEST_FFPROBE || runtime.ffprobeExecutable;
 const testFfmpeg = () => process.env.CUTFLOW_TEST_FFMPEG || runtime.ffmpegExecutable;
 
-async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount = 2 } = {}) {
+async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount = 2, taskId = randomUUID() } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "cut-multi-"));
-  const nasRoot = path.join(root, "nas"); const taskId = randomUUID(); const userId = randomUUID();
+  const nasRoot = path.join(root, "nas"); const userId = randomUUID();
   const handoffKey = `multi-${taskId}`; const dir = path.join(nasRoot, "inbox", handoffKey);
   await mkdir(path.join(root, "data"), { recursive: true }); await mkdir(path.join(dir, "assets"), { recursive: true });
   await writeJsonAtomic(path.join(root, "data", "classic-integration-runtime.json"), {
@@ -95,6 +97,39 @@ test("v2 admits single-source and multi-source packages through one identity and
 });
 
 const UUID_PATTERN = /^[0-9a-f-]{36}$/i;
+
+test("durable exact UUID isolation blocks admission, READY, stale claims and recovery without mutations", async () => {
+  for (const taskId of isolatedClassicTasks()) {
+    const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1, taskId });
+    const original = await readFile(path.join(f.dir, "manifest.json"));
+    await assert.rejects(admitMultisource(f.root, f.config, f.input), /HISTORICAL_TASK_ISOLATED/);
+    assert.deepEqual(await scanMultisourceReady(f.root, f.config), []);
+    assert.deepEqual(await scanMultisourceReady(f.root, f.config), []);
+    const rejection = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-rejections", `${taskId}.json`)));
+    assert.equal(rejection.reason, "HISTORICAL_TASK_ISOLATED");
+    await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+    const records = [{ ...f.input, status: "queued", acceptedAt: new Date().toISOString() }];
+    await writeJsonAtomic(path.join(f.root, "data", "classic-multisource-records.json"), records);
+    assert.equal(await claimMultisourceTask(f.root, "test"), null);
+    assert.deepEqual(await queuedMultisourceTasks(f.root), []);
+    for (const operation of [
+      () => loadMultisourceExecution(f.root, f.config, taskId),
+      () => heartbeatMultisourceLease(f.root, taskId, {}),
+      () => recordMultisourceProgress(f.root, f.config, taskId, {}),
+      () => updateMultisourceStatus(f.root, taskId, "editing", null, f.config),
+      () => reconcileMultisourceCompletion(f.root, f.config, taskId),
+      () => publishMultisourceResults(f.root, f.config, taskId, [], "completed", {}),
+    ]) await assert.rejects(operation(), /HISTORICAL_TASK_ISOLATED/);
+    assert.deepEqual(JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"))), records);
+    assert.deepEqual(await readFile(path.join(f.dir, "manifest.json")), original);
+    const neighbor = taskId.slice(0, -1) + (taskId.endsWith("0") ? "1" : "0");
+    const normal = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1, taskId: neighbor });
+    assert.equal((await admitMultisource(normal.root, normal.config, normal.input)).status, "accepted");
+  }
+  const child = await promisify(execFile)(process.execPath, ["--input-type=module", "-e",
+    "import {isolatedClassicTasks} from './lib/classic-task-isolation.mjs'; console.log(JSON.stringify([...isolatedClassicTasks()]));"], { cwd: path.resolve(import.meta.dirname, "..") });
+  assert.deepEqual(JSON.parse(child.stdout), [...isolatedClassicTasks()]);
+});
 
 test("concurrent POST admission and READY scanning persist one v2 task and batch", async () => {
   const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1 });

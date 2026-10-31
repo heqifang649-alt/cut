@@ -1,4 +1,5 @@
 import { access } from "node:fs/promises";
+import { assertClassicTaskNotIsolated } from "../lib/classic-task-isolation.mjs";
 import path from "node:path";
 import { readJson } from "../lib/atomic-json.mjs";
 import { loadRuntimeConfig } from "./runtime-config.mjs";
@@ -6,6 +7,7 @@ import { multisourceConfig, verifyMultisourceReferences } from "../lib/classic-m
 import { resolveStoredWorkspaceFile, templateWorkspacePath } from "../lib/tenant-paths.mjs";
 
 export async function resolveClassicMultisourceContext(root, taskId) {
+  assertClassicTaskNotIsolated(taskId);
   const runtime = await loadRuntimeConfig(root);
   const contextFile = path.join(root, "data", "classic-multisource-contexts", `${taskId}.json`);
   const context = await readJson(contextFile, null);

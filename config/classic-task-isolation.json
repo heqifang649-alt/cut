@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "authorization": "2026-10-31 user-authorized historical isolation; release requires new authorization",
+  "tasks": [
+    "340aba3a-cbfa-4adf-9458-1d25993afd32",
+    "c9bac33d-582c-4efc-b92b-a047edb08da3",
+    "979812d8-8a1f-440a-8bb5-a59cf7da4afe",
+    "c3af403a-3918-485f-ae99-0bd506dc7c09"
+  ]
+}
