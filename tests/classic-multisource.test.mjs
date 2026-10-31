@@ -262,6 +262,61 @@ test("shipped product references are decoded, verified and bound to each ordered
   assert.equal(record.productReferences[0].verified, true);
 });
 
+test("legacy cross-source shared refIds require identical product image metadata", async () => {
+  const f = await referenceFixture();
+  const first = f.manifest.productReferences[0];
+  const second = f.manifest.productReferences[1];
+  second.refId = first.refId;
+  f.manifest.sources[1].productReferenceIds = [first.refId];
+  await f.save();
+  const accepted = await admitMultisource(f.root, f.config, f.input);
+  assert.equal(accepted.status, "queued");
+  const [record] = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"), "utf8"));
+  assert.equal(record.productReferences.length, 2);
+  assert.equal(record.productReferences[0].id, record.productReferences[1].id);
+  assert.notEqual(record.productReferences[0].referenceForSourceId, record.productReferences[1].referenceForSourceId);
+  second.width += 1;
+  await f.save();
+  await assert.rejects(admitMultisource(f.root, f.config, f.input), /INVALID_PRODUCT_REFERENCE/);
+});
+
+test("orphan NAS completed state is read-only, hash-checked and not requeued", async () => {
+  const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1 });
+  const outputId = randomUUID(), bytes = Buffer.from("completed-output");
+  const relativePath = `outbox/${f.taskId}/${outputId}.mp4`;
+  const outputPath = path.join(f.nasRoot, ...relativePath.split("/"));
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, bytes);
+  const completed = {
+    schemaVersion: MULTISOURCE_STATUS_SCHEMA, revision: 9, taskId: f.taskId,
+    handoffKey: f.handoffKey, manifestSha256: f.manifestSha256,
+    batchId: randomUUID(), status: "completed",
+    outputs: [{ outputId, relativePath, sha256: hash(bytes), size: bytes.length, reviewStatus: "PENDING" }],
+  };
+  await writeJsonAtomic(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), completed);
+  assert.deepEqual(await multisourceStatus(f.root, f.taskId), completed);
+  await assert.rejects(admitMultisource(f.root, f.config, f.input), /NAS_STATUS_WITHOUT_LOCAL_RECORD/);
+  await scanMultisourceReady(f.root, f.config);
+  await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+  const rejection = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-rejections", `${f.taskId}.json`), "utf8"));
+  assert.equal(rejection.reason, "NAS_STATUS_WITHOUT_LOCAL_RECORD");
+  await writeFile(outputPath, "tampered");
+  await assert.rejects(multisourceStatus(f.root, f.taskId), /PUBLISHED_OUTPUT_CONFLICT/);
+});
+
+test("invalid READY package retains a safe rejection code without claiming work", async () => {
+  const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 2 });
+  f.manifest.productReferences = [];
+  for (const source of f.manifest.sources) source.productReferenceIds = [];
+  const raw = Buffer.from(JSON.stringify(f.manifest));
+  await writeFile(path.join(f.dir, "manifest.json"), raw);
+  await writeJsonAtomic(path.join(f.dir, "READY"), { sha256: hash(raw) });
+  assert.deepEqual(await scanMultisourceReady(f.root, f.config), []);
+  const rejection = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-rejections", `${f.taskId}.json`), "utf8"));
+  assert.equal(rejection.reason, "PRODUCT_REFERENCE_BINDING_INVALID");
+  await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+});
+
 test("reference tampering, cross-source binding and false MIME cannot be admitted", async () => {
   for (const kind of ["tamper", "binding", "mime"]) {
     const f = await referenceFixture();
