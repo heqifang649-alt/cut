@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-31T03:12:01.452Z",
+  "probeType": "incomplete descriptor; cannot admit even without isolation",
+  "rows": [
+    {
+      "taskId": "340aba3a-cbfa-4adf-9458-1d25993afd32",
+      "http": 409,
+      "reason": "HISTORICAL_TASK_ISOLATED",
+      "pass": true
+    },
+    {
+      "taskId": "c9bac33d-582c-4efc-b92b-a047edb08da3",
+      "http": 409,
+      "reason": "HISTORICAL_TASK_ISOLATED",
+      "pass": true
+    },
+    {
+      "taskId": "979812d8-8a1f-440a-8bb5-a59cf7da4afe",
+      "http": 409,
+      "reason": "HISTORICAL_TASK_ISOLATED",
+      "pass": true
+    },
+    {
+      "taskId": "c3af403a-3918-485f-ae99-0bd506dc7c09",
+      "http": 409,
+      "reason": "HISTORICAL_TASK_ISOLATED",
+      "pass": true
+    },
+    {
+      "taskId": "55067c65-f421-4510-aeb3-75f793153f06",
+      "http": 409,
+      "reason": "HISTORICAL_TASK_ISOLATED",
+      "pass": true
+    }
+  ],
+  "neighbor": {
+    "taskId": "55067c65-f421-4510-aeb3-75f793153f07",
+    "http": 409,
+    "reason": "INVALID_DESCRIPTOR"
+  }
+}

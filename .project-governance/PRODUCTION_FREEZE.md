@@ -1,3 +1,8 @@
+# Production freeze / latest authorized deployment
+
+## Classic stability / five historical holds / 2026-10-31
+
+User authorized the five exact historical task holds and controlled deployment. Active root remains D:/CUT-Releases/20261030-production-first-r11; dist .next-production-first-r11; actual BUILD_ID jBLQ22K9cTC7micSQYXlC; code commit 53107b7. Shared admission/execution guards and the persistent config/classic-task-isolation.json hold the five UUIDs recorded in evidence/classic-isolation-20261031/isolation.json. No held task was admitted or executed; NAS inputs/statuses and business stores remained unchanged. Historical completed GETs now equal NAS with byte-count/SHA256 verification. Existing startup health gate, nine stage workers (NoClaim), multisource executed=0, and unchanged scheduled-task actions were verified. No paid canary or external billing/independent classic acceptance is claimed. Rollback build and sources are retained under r11/.next-production-first-r11.before-classic-stability-20261031 and D:/CUT-Releases/maintenance-20261031-classic-stability. See evidence/classic-isolation-20261031/FINAL.md and three minimal NAS handoff files for exact facts, deployment retries and limits. Prior permissions remain scoped; no historical hold release is authorized.
 # Production freeze / 2026-10-22
 
 ## V2 completion/finalization deployment / 2026-10-30
@@ -98,3 +103,4 @@ There is no automatic deletion policy for this archive. It must not be truncated
 ## Remaining boundaries
 
 Do not repeat the production cutover under the consumed single-attempt authorization. Windows reboot, unattended startup without login, NAS disconnection simulation, system accounts/permissions, data migrations, historical Batch recovery and Provider/feature-policy changes remain out of scope. DHCP reservation for `192.168.30.35` is owned by the user at the router.
+

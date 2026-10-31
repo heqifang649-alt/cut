@@ -1,22 +1,14 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-10-31T03:00:09.853Z",
-  "policyCommit": "abf7ca6a5cc664d413bf107f8e5826948fe6665c",
-  "policyPersistence": "versioned candidate release config; not activated in production",
-  "tests": {
-    "relatedPassed": 87,
-    "failed": 0,
-    "independentProcessPolicyRead": "pass",
-    "staleQueueClaimBlocked": "pass",
-    "directRecoveryBlocked": "pass",
-    "samePrefixDifferentUuidAdmission": "pass"
-  },
+  "observedAt": "2026-10-31T03:13:31.661Z",
+  "policyCommit": "53107b7a5993586380a7f94d82e19947e31f573b",
+  "persistence": "release config/classic-task-isolation.json; read at admission and execution boundaries",
   "tasks": [
     {
       "taskId": "340aba3a-cbfa-4adf-9458-1d25993afd32",
       "identityVerified": true,
       "candidateIsolation": "active",
-      "productionIsolation": "not_deployed",
+      "productionIsolation": "active",
       "manifestSha256": "320b0cef0c64c070e2f1a6ca7e9205bcfa17f6f7df93a305c0858435cabf9ed9",
       "readySha256": "95af4e170d4d43db5ef09ca1d913bd85bd3da92da1488e3a4eac194c42171d6d",
       "readyPresent": true,
@@ -25,13 +17,16 @@
       "matchingBatchRecordCount": 0,
       "reexecutionTriggeredByThisTask": false,
       "providerCalls": "not_verified",
-      "billing": "not_verified"
+      "billing": "not_verified",
+      "nasInputAndStatusUnchanged": true,
+      "newBatchObserved": false,
+      "scannerReason": "HISTORICAL_TASK_ISOLATED"
     },
     {
       "taskId": "c9bac33d-582c-4efc-b92b-a047edb08da3",
       "identityVerified": true,
       "candidateIsolation": "active",
-      "productionIsolation": "not_deployed",
+      "productionIsolation": "active",
       "manifestSha256": "d339efc62724d8463141d09d9acf6054097ac74b10bac3bb8ef4cc3fa0eb9e79",
       "readySha256": "8f927679628a318557bf52b07e3affc5f65982ebb58a75fbf35a83fc6a578abb",
       "readyPresent": true,
@@ -40,13 +35,16 @@
       "matchingBatchRecordCount": 0,
       "reexecutionTriggeredByThisTask": false,
       "providerCalls": "not_verified",
-      "billing": "not_verified"
+      "billing": "not_verified",
+      "nasInputAndStatusUnchanged": true,
+      "newBatchObserved": false,
+      "scannerReason": "HISTORICAL_TASK_ISOLATED"
     },
     {
       "taskId": "979812d8-8a1f-440a-8bb5-a59cf7da4afe",
       "identityVerified": true,
       "candidateIsolation": "active",
-      "productionIsolation": "not_deployed",
+      "productionIsolation": "active",
       "manifestSha256": "8e93b64d070770fc3675838b25f26f2edff8ac57dfa8b8723e13dd236d7dd5be",
       "readySha256": "7019e0a235a20a44609d2dbec18a7ae5f10d41c2ad911aa790370e97d03fe67a",
       "readyPresent": true,
@@ -55,13 +53,16 @@
       "matchingBatchRecordCount": 0,
       "reexecutionTriggeredByThisTask": false,
       "providerCalls": "not_verified",
-      "billing": "not_verified"
+      "billing": "not_verified",
+      "nasInputAndStatusUnchanged": true,
+      "newBatchObserved": false,
+      "scannerReason": "HISTORICAL_TASK_ISOLATED"
     },
     {
       "taskId": "c3af403a-3918-485f-ae99-0bd506dc7c09",
       "identityVerified": true,
       "candidateIsolation": "active",
-      "productionIsolation": "not_deployed",
+      "productionIsolation": "active",
       "manifestSha256": "0945adc54a5178e9da1c3d21b2d9e2bf3104d91a37b4004b340bacc99f10a5e4",
       "readySha256": "86818307ecf95e0515e7373fc69d38b353303a66a6ad5eda7721253586fce2e3",
       "readyPresent": true,
@@ -70,8 +71,76 @@
       "matchingBatchRecordCount": 0,
       "reexecutionTriggeredByThisTask": false,
       "providerCalls": "not_verified",
-      "billing": "not_verified"
+      "billing": "not_verified",
+      "nasInputAndStatusUnchanged": true,
+      "newBatchObserved": false,
+      "scannerReason": "HISTORICAL_TASK_ISOLATED"
+    },
+    {
+      "taskId": "55067c65-f421-4510-aeb3-75f793153f06",
+      "identityVerified": true,
+      "candidateIsolation": "active",
+      "productionIsolation": "active",
+      "manifestSha256": "5147d0d3345947e6faec4ded8c1ba3564a1748a1483a0ba090bce83ecee70a0f",
+      "readySha256": "208ec000f82269cbab5830abf09a264f68b4ce5080d79d4f4577ee7f40ab6dde",
+      "readyPresent": true,
+      "nasStatusPresent": false,
+      "localAdmissionRecordCount": 0,
+      "matchingBatchRecordCount": 0,
+      "reexecutionTriggeredByThisTask": false,
+      "providerCalls": "not_verified",
+      "billing": "not_verified",
+      "nasInputAndStatusUnchanged": true,
+      "newBatchObserved": false,
+      "scannerReason": "HISTORICAL_TASK_ISOLATED"
     }
   ],
-  "releaseHold": "Requires separately authorized reviewed policy change and redeployment; revert restores hold"
+  "httpProbes": {
+    "at": "2026-10-31T03:12:01.452Z",
+    "probeType": "incomplete descriptor; cannot admit even without isolation",
+    "rows": [
+      {
+        "taskId": "340aba3a-cbfa-4adf-9458-1d25993afd32",
+        "http": 409,
+        "reason": "HISTORICAL_TASK_ISOLATED",
+        "pass": true
+      },
+      {
+        "taskId": "c9bac33d-582c-4efc-b92b-a047edb08da3",
+        "http": 409,
+        "reason": "HISTORICAL_TASK_ISOLATED",
+        "pass": true
+      },
+      {
+        "taskId": "979812d8-8a1f-440a-8bb5-a59cf7da4afe",
+        "http": 409,
+        "reason": "HISTORICAL_TASK_ISOLATED",
+        "pass": true
+      },
+      {
+        "taskId": "c3af403a-3918-485f-ae99-0bd506dc7c09",
+        "http": 409,
+        "reason": "HISTORICAL_TASK_ISOLATED",
+        "pass": true
+      },
+      {
+        "taskId": "55067c65-f421-4510-aeb3-75f793153f06",
+        "http": 409,
+        "reason": "HISTORICAL_TASK_ISOLATED",
+        "pass": true
+      }
+    ],
+    "neighbor": {
+      "taskId": "55067c65-f421-4510-aeb3-75f793153f07",
+      "http": 409,
+      "reason": "INVALID_DESCRIPTOR"
+    }
+  },
+  "releaseHold": "Separate authorized reviewed Git policy change and redeployment; revert restores hold",
+  "fullReadyScan": {
+    "at": "2026-10-31T03:11:45.657Z",
+    "directories": 25,
+    "ready": 24,
+    "unsafe": 0
+  }
 }

@@ -1,39 +1,135 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-10-31T03:00:09.853Z",
-  "deployment": "blocked_before_production_mutation",
+  "observedAt": "2026-10-31T03:13:31.660Z",
+  "deployment": "deployed",
   "candidateBranch": "codex/classic-stability-20261031",
-  "candidateGitCommit": "abf7ca6a5cc664d413bf107f8e5826948fe6665c",
+  "gitCommit": "53107b7a5993586380a7f94d82e19947e31f573b",
   "activeRoot": "D:/CUT-Releases/20261030-production-first-r11",
-  "activeCodeAnchor": "e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4 overlay on r11 (previous release record; module hashes checked in prior evidence)",
-  "buildId": "eCkudH4WVA1n3-bJ6tYvM",
+  "buildId": "jBLQ22K9cTC7micSQYXlC",
   "web": {
     "rootHttp": 200,
-    "unauthenticatedHealthHttp": 401
+    "unauthenticatedHealthHttp": 401,
+    "pid": 456112
   },
   "worker": {
-    "multisourcePid": 34944,
-    "heartbeatAt": "2026-10-31T03:00:09.493Z",
-    "fresh": true,
-    "fleetPid": 388920,
-    "fleetHeartbeatAt": "2026-10-31T03:00:08.526Z",
-    "fleetClaimsEnabled": false
+    "multisource": {
+      "schemaVersion": 1,
+      "at": "2026-10-31T03:13:31.109Z",
+      "pid": 458940,
+      "accepted": 14,
+      "executed": 0,
+      "failed": 0,
+      "gate": "OPEN",
+      "claimsEnabled": true
+    },
+    "fleetPid": 443444,
+    "fleetClaimsEnabled": false,
+    "stages": [
+      {
+        "service": "analyze-1",
+        "pid": 407984,
+        "at": "2026-10-31T03:13:29.082Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "analyze-2",
+        "pid": 452220,
+        "at": "2026-10-31T03:13:29.654Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "analyze-3",
+        "pid": 458384,
+        "at": "2026-10-31T03:13:30.148Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "clip-1",
+        "pid": 182432,
+        "at": "2026-10-31T03:13:30.678Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "clip-2",
+        "pid": 445940,
+        "at": "2026-10-31T03:13:31.193Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "clip-3",
+        "pid": 450164,
+        "at": "2026-10-31T03:13:26.736Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "render-1",
+        "pid": 460356,
+        "at": "2026-10-31T03:13:27.327Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "render-2",
+        "pid": 456368,
+        "at": "2026-10-31T03:13:27.856Z",
+        "claimsEnabled": false
+      },
+      {
+        "service": "render-3",
+        "pid": 460092,
+        "at": "2026-10-31T03:13:28.354Z",
+        "claimsEnabled": false
+      }
+    ],
+    "releaseOwnedProcessCount": 30
   },
-  "scheduledTasks": {
-    "lastInspected": "Ready; both existing startup actions point to r11",
-    "modified": false
+  "scheduledTasks": [
+    {
+      "task": "Cutflow Morning Website",
+      "state": "Ready",
+      "releaseActionUnchanged": true
+    },
+    {
+      "task": "Cutflow Worker Startup",
+      "state": "Ready",
+      "releaseActionUnchanged": true
+    }
+  ],
+  "protectedUnchanged": {
+    ".env.local": true,
+    "config/cutflow-runtime.json": true,
+    "data/ai-provider-config.json": true,
+    "data/classic-integration-runtime.json": true,
+    "data/users.json": true,
+    "data/templates.json": true,
+    "data/batches.json": true,
+    "data/classic-multisource-records.json": true
   },
-  "productionFilesModified": false,
-  "productionRestarted": false,
+  "sourceHashes": {
+    "lib/classic-multisource.mjs": {
+      "productionSha256": "6d07a9de6f1c1b668e58cc237b647aee49fee5773179f5b0bcfcf85cc43e1021",
+      "equalsCandidate": true
+    },
+    "lib/classic-task-isolation.mjs": {
+      "productionSha256": "5ccc78ec14c1ba8b8c48dfca1aa603d5cfee74b877990245700dd529d0c8b2e4",
+      "equalsCandidate": true
+    },
+    "worker/classic-multisource-context.mjs": {
+      "productionSha256": "be31a6f23f59c3fb9379783e94516f501ca80d1627cdf7e815a53d11079f2f88",
+      "equalsCandidate": true
+    },
+    "config/classic-task-isolation.json": {
+      "productionSha256": "a729367a51fca5cf662c059a50b448edc2dabe6a6485db90d4eb0c65dad3364f",
+      "equalsCandidate": true
+    }
+  },
   "rollback": {
-    "needed": false,
-    "reason": "No cutover performed; current release intact"
+    "backupRoot": "D:/CUT-Releases/maintenance-20261031-classic-stability",
+    "previousBuild": "D:/CUT-Releases/20261030-production-first-r11/.next-production-first-r11.before-classic-stability-20261031",
+    "previousBuildId": "eCkudH4WVA1n3-bJ6tYvM"
   },
-  "blocker": {
-    "code": "ADDITIONAL_UNISOLATED_HISTORICAL_READY",
-    "taskId": "55067c65-f421-4510-aeb3-75f793153f06",
-    "readOnlyPackageValidation": "pass",
-    "ownerMapping": "pass",
-    "authorization": "pending"
-  }
+  "deploymentEvents": [
+    "initial startup blocked by existing disk threshold; original release restored",
+    "own test temporary files archived to C drive; unchanged disk threshold passed",
+    "Web bundled policy path failed closed; corrected to runtime-root path, rebuilt and revalidated"
+  ]
 }
