@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "allwe-classic-cut-readonly-evidence/1",
+  "generatedAtUtc": "2026-10-31T01:13:59.086816+00:00",
+  "readOnlyVerification": true,
+  "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+  "doctor": {
+    "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+    "checkedAt": "2026-10-31T01:13:58.130246+00:00",
+    "readOnly": true,
+    "local": {
+      "status": "PENDING_REVIEW",
+      "error_code": null,
+      "error_message": null,
+      "failure_count": 0,
+      "next_run_at": "2026-10-30 14:42:25.685504",
+      "lease_until": null,
+      "updated_at": "2026-10-30 14:42:15"
+    },
+    "cutStatus": {
+      "present": true,
+      "status": "completed",
+      "revision": 4,
+      "batchId": "1562183b-6bdb-406f-9d7a-786bd5bb1b85",
+      "identityMatches": true,
+      "mediaVerified": true
+    },
+    "classicReceipt": {
+      "present": true,
+      "valid": true,
+      "status": "PENDING_REVIEW",
+      "verifiedAt": "2026-10-30T14:42:12+00:00"
+    },
+    "blockerCode": null
+  },
+  "importedFile": {
+    "present": true,
+    "sizeBytes": 11512563,
+    "expectedSizeBytes": 11512563,
+    "sizeMatches": true,
+    "sha256": "2e0ba2185c526adae724061ff30d30e694a4ca9bd968b49eb2a7d855afa9fc7b",
+    "sha256Matches": true,
+    "durationSeconds": 10.04,
+    "streams": [
+      {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920
+      },
+      {
+        "codec": "aac",
+        "width": null,
+        "height": null
+      }
+    ],
+    "ffmpegFullVideoDecodePassed": true,
+    "reviewStatus": "PENDING"
+  },
+  "accountUsage": {
+    "cutflowEntries": 1,
+    "cutflowUsdTotal": 0.15,
+    "entries": [
+      {
+        "kind": "CUTFLOW",
+        "units": 1,
+        "usd": 0.15,
+        "status": "RESERVED",
+        "businessDate": "2026-10-30"
+      }
+    ],
+    "note": "Reserved budget entry is not independent proof of actual provider settlement; no duplicate entry for this task."
+  },
+  "authentication": {
+    "unauthenticatedApiRequest": "HTTP 401 (expected for protected endpoints)",
+    "browserPlayback": "not_observed_in_this_report",
+    "authenticatedDownload": "not_observed_in_this_report",
+    "note": "Do not send tokens, disable authentication, or treat 401 without a session as media failure."
+  },
+  "overall": {
+    "localStateAndImport": "verified",
+    "cutNasCompletion": "verified",
+    "outputIntegrityAndDecode": "verified",
+    "browserUiPlaybackAndDownload": "not_yet_verified"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "status": "RECOVERED_AND_IMPORTED; FINAL_CLASSIC_ACCESS_EVIDENCE_REQUIRED",
+  "status": "CROSS_SYSTEM_IMPORT_INTEGRITY_AND_NO_DUPLICATE_RESERVATION_CONFIRMED; BROWSER_ACCEPTANCE_PENDING",
   "verified": false,
   "codeCommit": "e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4",
   "deployment": {
@@ -117,7 +117,7 @@
     "outputHashAndSize": "PASS",
     "verifiedAt": "2026-10-30T14:42:12+00:00",
     "authenticatedPlaybackDownload": "NOT_VERIFIED",
-    "billingLedger": "NOT_ACCESSIBLE_WITHOUT_CLASSIC_SESSION",
+    "billingLedger": "REPORT_CONFIRMS_ONE_USD_0_15_RESERVED_ENTRY_NO_DUPLICATE",
     "checks": [
       {
         "path": "/api/v1/cutflow-handoffs/a28a04b4-581a-46fa-bd81-d7505219d3bc/diagnostics",
@@ -127,7 +127,8 @@
         "path": "/api/v1/downloads/c15fbd99-8a52-4e14-817d-fb5b905169a3",
         "httpStatus": 401
       }
-    ]
+    ],
+    "authentication": "HTTP_401_EXPECTED_WITHOUT_SESSION; NOT_A_MEDIA_OR_IMPORT_FAILURE"
   },
   "ci": {
     "id": 41073903748,
@@ -175,8 +176,18 @@
     "build": "PASS"
   },
   "limitations": [
-    "Authenticated classic playback and download not verified: HTTP 401",
-    "Classic billing ledger unavailable without authenticated session",
-    "No new generation, analysis, edit, render, task or billing call was initiated by reconciliation; cross-system ledger verification remains pending"
-  ]
+    "Logged-in browser playback and download operation remain unobserved; final Verified acceptance is pending.",
+    "Classic read-only report confirms one $0.15 RESERVED entry and no duplicate entry; reservation is not independent proof of provider settlement."
+  ],
+  "classicReadOnlyReport": {
+    "path": "evidence/classic/cut-task-a28a04b4-581a-46fa-bd81-d7505219d3bc-20261031.json",
+    "sha256": "33e7f40d765502d3649541f9388bb63fdf6ff062b2f6e871228c96a6b143118a",
+    "generatedAtUtc": "2026-10-31T01:13:59.086816+00:00",
+    "taskIdentityMatches": true,
+    "currentNasMatches": true,
+    "billingReservationEntries": 1,
+    "billingReservationUsd": 0.15,
+    "actualProviderSettlement": "NOT_PROVEN_BY_RESERVED_ENTRY",
+    "browserPlaybackAndDownload": "NOT_OBSERVED"
+  }
 }
