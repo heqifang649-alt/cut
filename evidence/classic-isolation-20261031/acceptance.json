@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-31T03:00:09.853Z",
+  "conclusion": "blocked_not_deployed",
+  "historicalGet": [
+    {
+      "taskId": "0c424032-b507-4187-9a32-c6a500dc6877",
+      "productionHttp": 404,
+      "productionStatus": null,
+      "productionError": "IMPORT_NOT_FOUND",
+      "candidateStatus": "completed",
+      "candidateRevision": 16,
+      "candidateEqualsNas": true,
+      "candidateOutputSha256AndSizeVerified": true
+    },
+    {
+      "taskId": "b6b2f9e7-e6e4-410a-b897-5768538cc592",
+      "productionHttp": 404,
+      "productionStatus": null,
+      "productionError": "IMPORT_NOT_FOUND",
+      "candidateStatus": "completed",
+      "candidateRevision": 15,
+      "candidateEqualsNas": true,
+      "candidateOutputSha256AndSizeVerified": true
+    },
+    {
+      "taskId": "d005f972-4dbb-4bb6-846f-0b284a7a2861",
+      "productionHttp": 404,
+      "productionStatus": null,
+      "productionError": "IMPORT_NOT_FOUND",
+      "candidateStatus": "completed",
+      "candidateRevision": 15,
+      "candidateEqualsNas": true,
+      "candidateOutputSha256AndSizeVerified": true
+    },
+    {
+      "taskId": "a28a04b4-581a-46fa-bd81-d7505219d3bc",
+      "productionHttp": 200,
+      "productionStatus": "completed",
+      "productionError": null,
+      "candidateStatus": "completed",
+      "candidateRevision": 4,
+      "candidateEqualsNas": true,
+      "candidateOutputSha256AndSizeVerified": true
+    }
+  ],
+  "tests": {
+    "classicMultisource": "87/87",
+    "changedFilesEslint": "pass",
+    "fullWebpackBuild": "pass"
+  },
+  "productionAcceptance": "not_verified",
+  "newProductionCanary": "not_verified",
+  "classicIndependentAcceptance": "not_verified",
+  "billingNoDuplicates": "not_verified",
+  "providerNoNewCalls": "not_verified",
+  "actions": {
+    "historicalPost": false,
+    "historicalRequeue": false,
+    "providerRequest": false,
+    "originalNasInputOrStatusModified": false
+  },
+  "requiredDecision": "Authorize isolation of additional historical UUID 55067c65-f421-4510-aeb3-75f793153f06 before activation"
+}

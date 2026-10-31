@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-31T03:00:09.853Z",
+  "deployment": "blocked_before_production_mutation",
+  "candidateBranch": "codex/classic-stability-20261031",
+  "candidateGitCommit": "abf7ca6a5cc664d413bf107f8e5826948fe6665c",
+  "activeRoot": "D:/CUT-Releases/20261030-production-first-r11",
+  "activeCodeAnchor": "e6b9ba68b7c84ee8c8f2347ff49b7fe202ea6bb4 overlay on r11 (previous release record; module hashes checked in prior evidence)",
+  "buildId": "eCkudH4WVA1n3-bJ6tYvM",
+  "web": {
+    "rootHttp": 200,
+    "unauthenticatedHealthHttp": 401
+  },
+  "worker": {
+    "multisourcePid": 34944,
+    "heartbeatAt": "2026-10-31T03:00:09.493Z",
+    "fresh": true,
+    "fleetPid": 388920,
+    "fleetHeartbeatAt": "2026-10-31T03:00:08.526Z",
+    "fleetClaimsEnabled": false
+  },
+  "scheduledTasks": {
+    "lastInspected": "Ready; both existing startup actions point to r11",
+    "modified": false
+  },
+  "productionFilesModified": false,
+  "productionRestarted": false,
+  "rollback": {
+    "needed": false,
+    "reason": "No cutover performed; current release intact"
+  },
+  "blocker": {
+    "code": "ADDITIONAL_UNISOLATED_HISTORICAL_READY",
+    "taskId": "55067c65-f421-4510-aeb3-75f793153f06",
+    "readOnlyPackageValidation": "pass",
+    "ownerMapping": "pass",
+    "authorization": "pending"
+  }
+}
