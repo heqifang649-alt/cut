@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-31T03:05:35.936Z",
+  "protectedHashes": {
+    ".env.local": "c114dcfbe8aab517451d65c0c1000d861ad78edf605c7318e38c979df503872d",
+    "config/cutflow-runtime.json": "e01f98270efb7812085ac362a1f2cc9a4975b529d86fb054516afcef799014da",
+    "data/ai-provider-config.json": "45bf08f4896d9ba5c135f4d920c21820935ac41df32ce2e0cb0909a27ddf808c",
+    "data/classic-integration-runtime.json": "bcbf49fbc72eafd170f1b01b634b176c33d4b911eb6944ffeeb5da201f58811d",
+    "data/users.json": "4a58f2aeecf70cfbd46d0c9bbb0e61ea2337696522c7210b5148f352734ba372",
+    "data/templates.json": "6d742975ff4dee84b69c8baf011a94e95d25c28f912a94ca8ea7708c218a46f0",
+    "data/batches.json": "e2423fd0ed86e35934bd56450856faa3b90abdab3188d01024158f39e330e211",
+    "data/classic-multisource-records.json": "0a653f3d43cc08bb5a9acff1974eb44c5f7ac645790374d86a0b30b56719379d"
+  },
+  "historical": {
+    "340aba3a-cbfa-4adf-9458-1d25993afd32": {
+      "inbox/multi-340aba3a-cbfa-4adf-9458-1d25993afd32/manifest.json": "320b0cef0c64c070e2f1a6ca7e9205bcfa17f6f7df93a305c0858435cabf9ed9",
+      "inbox/multi-340aba3a-cbfa-4adf-9458-1d25993afd32/READY": "95af4e170d4d43db5ef09ca1d913bd85bd3da92da1488e3a4eac194c42171d6d",
+      "outbox/340aba3a-cbfa-4adf-9458-1d25993afd32/status.json": null
+    },
+    "c9bac33d-582c-4efc-b92b-a047edb08da3": {
+      "inbox/multi-c9bac33d-582c-4efc-b92b-a047edb08da3/manifest.json": "d339efc62724d8463141d09d9acf6054097ac74b10bac3bb8ef4cc3fa0eb9e79",
+      "inbox/multi-c9bac33d-582c-4efc-b92b-a047edb08da3/READY": "8f927679628a318557bf52b07e3affc5f65982ebb58a75fbf35a83fc6a578abb",
+      "outbox/c9bac33d-582c-4efc-b92b-a047edb08da3/status.json": null
+    },
+    "979812d8-8a1f-440a-8bb5-a59cf7da4afe": {
+      "inbox/multi-979812d8-8a1f-440a-8bb5-a59cf7da4afe/manifest.json": "8e93b64d070770fc3675838b25f26f2edff8ac57dfa8b8723e13dd236d7dd5be",
+      "inbox/multi-979812d8-8a1f-440a-8bb5-a59cf7da4afe/READY": "7019e0a235a20a44609d2dbec18a7ae5f10d41c2ad911aa790370e97d03fe67a",
+      "outbox/979812d8-8a1f-440a-8bb5-a59cf7da4afe/status.json": null
+    },
+    "c3af403a-3918-485f-ae99-0bd506dc7c09": {
+      "inbox/multi-c3af403a-3918-485f-ae99-0bd506dc7c09/manifest.json": "0945adc54a5178e9da1c3d21b2d9e2bf3104d91a37b4004b340bacc99f10a5e4",
+      "inbox/multi-c3af403a-3918-485f-ae99-0bd506dc7c09/READY": "86818307ecf95e0515e7373fc69d38b353303a66a6ad5eda7721253586fce2e3",
+      "outbox/c3af403a-3918-485f-ae99-0bd506dc7c09/status.json": null
+    },
+    "55067c65-f421-4510-aeb3-75f793153f06": {
+      "inbox/multi-55067c65-f421-4510-aeb3-75f793153f06/manifest.json": "5147d0d3345947e6faec4ded8c1ba3564a1748a1483a0ba090bce83ecee70a0f",
+      "inbox/multi-55067c65-f421-4510-aeb3-75f793153f06/READY": "208ec000f82269cbab5830abf09a264f68b4ce5080d79d4f4577ee7f40ab6dde",
+      "outbox/55067c65-f421-4510-aeb3-75f793153f06/status.json": null
+    }
+  }
+}
