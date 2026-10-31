@@ -9,5 +9,9 @@ export async function GET(request: Request, context: { params: Promise<{ taskId:
     if (!config.ready) return NextResponse.json({ error: config.gate }, { status: 503 });
     const { taskId } = await context.params;
     return NextResponse.json(await multisourceStatus(process.cwd(), taskId));
-  } catch { return NextResponse.json({ error: "IMPORT_NOT_FOUND" }, { status: 404 }); }
+  } catch (error) {
+    if (error instanceof Error && error.message === "NOT_FOUND") return NextResponse.json({ error: "IMPORT_NOT_FOUND" }, { status: 404 });
+    const reason = error instanceof Error && /^[A-Z][A-Z0-9_]+$/.test(error.message) ? error.message : "VALIDATION_FAILED";
+    return NextResponse.json({ error: "IMPORT_REJECTED", reason }, { status: 409 });
+  }
 }

@@ -295,13 +295,33 @@ test("orphan NAS completed state is read-only, hash-checked and not requeued", a
   };
   await writeJsonAtomic(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), completed);
   assert.deepEqual(await multisourceStatus(f.root, f.taskId), completed);
+  await writeJsonAtomic(path.join(f.root, "data", "classic-multisource-records.json"), [{
+    ...f.input, batchId: completed.batchId, status: "review", revision: completed.revision,
+  }]);
+  assert.deepEqual(await multisourceStatus(f.root, f.taskId), completed);
+  await writeJsonAtomic(path.join(f.root, "data", "classic-multisource-records.json"), []);
   await assert.rejects(admitMultisource(f.root, f.config, f.input), /NAS_STATUS_WITHOUT_LOCAL_RECORD/);
   await scanMultisourceReady(f.root, f.config);
-  await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+  assert.deepEqual(JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"))), []);
   const rejection = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-rejections", `${f.taskId}.json`), "utf8"));
   assert.equal(rejection.reason, "NAS_STATUS_WITHOUT_LOCAL_RECORD");
   await writeFile(outputPath, "tampered");
   await assert.rejects(multisourceStatus(f.root, f.taskId), /PUBLISHED_OUTPUT_CONFLICT/);
+});
+
+test("shared refIds reject different products, assets, hashes and duplicate source bindings", async () => {
+  for (const kind of ["product", "asset", "hash", "duplicate"]) {
+    const f = await referenceFixture();
+    const [first, second] = f.manifest.productReferences;
+    second.refId = first.refId;
+    f.manifest.sources[1].productReferenceIds = [first.refId];
+    if (kind === "product") f.manifest.sources[1].productId = "other-product";
+    if (kind === "asset") { first.assetId = "asset-one"; second.assetId = "asset-two"; }
+    if (kind === "hash") second.sha256 = "b".repeat(64);
+    if (kind === "duplicate") f.manifest.productReferences.push({ ...first });
+    await f.save();
+    await assert.rejects(admitMultisource(f.root, f.config, f.input), /INVALID_PRODUCT_REFERENCE/);
+  }
 });
 
 test("invalid READY package retains a safe rejection code without claiming work", async () => {
@@ -315,6 +335,27 @@ test("invalid READY package retains a safe rejection code without claiming work"
   const rejection = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-rejections", `${f.taskId}.json`), "utf8"));
   assert.equal(rejection.reason, "PRODUCT_REFERENCE_BINDING_INVALID");
   await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+});
+
+test("orphan null or malformed NAS status never admits a second batch", async () => {
+  for (const content of ["null", "{broken", "{}"] ) {
+    const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1 });
+    const dir = path.join(f.nasRoot, "outbox", f.taskId);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, "status.json"), content);
+    await assert.rejects(admitMultisource(f.root, f.config, f.input));
+    await assert.rejects(readFile(path.join(f.root, "data", "classic-multisource-records.json")), /ENOENT/);
+    assert.equal(await readFile(path.join(dir, "status.json"), "utf8"), content);
+  }
+});
+
+test("orphan GET rejects a status bound to a different manifest", async () => {
+  const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 1 });
+  await writeJsonAtomic(path.join(f.nasRoot, "outbox", f.taskId, "status.json"), {
+    schemaVersion: MULTISOURCE_STATUS_SCHEMA, revision: 3, taskId: f.taskId,
+    handoffKey: f.handoffKey, manifestSha256: "a".repeat(64), batchId: randomUUID(), status: "processing",
+  });
+  await assert.rejects(multisourceStatus(f.root, f.taskId), /MANIFEST_HASH_MISMATCH/);
 });
 
 test("reference tampering, cross-source binding and false MIME cannot be admitted", async () => {
