@@ -309,3 +309,12 @@ test("noninteractive service owner admits legacy single source without employee 
   assert.equal(batches[0].libtvSource.source.user_id, f.descriptor.userId);
   await assert.rejects(importStatus(f.root, f.config, f.descriptor.handoffId, randomUUID(), f.siteId), /RECEIPT_NOT_FOUND/);
 });
+
+test('service owner without a service template preserves legacy mapped and persisted owner bindings', async t=>{
+ const f=await fixture(t);const serviceId=randomUUID();
+ await writeJsonAtomic(path.join(f.root,'data/users.json'),[{id:f.ownerId,status:'active'},{id:serviceId,role:'member',status:'disabled'}]);
+ f.config.serviceOwnerId=serviceId;f.config.serviceTemplateId=null;
+ const first=await enqueueImport(f.root,f.config,f.descriptor);await bridgeTick(f.root,f.config);
+ const batch=(await readJson(path.join(f.root,'data/batches.json')))[0];assert.equal(batch.ownerId,f.ownerId);assert.equal(batch.templateId,f.templateId);
+ f.config.owners={};const again=await importStatus(f.root,f.config,f.descriptor.handoffId,f.descriptor.userId,f.siteId);assert.equal(again.batchId,first.batchId);
+});

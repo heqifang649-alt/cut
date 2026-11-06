@@ -476,3 +476,22 @@ test('persisted API progress and cancellation publish NAS status without waiting
   assert.equal(batch.brandCopyEnabled,true); assert.equal(batch.brandBgmEnabled,true);
   assert.equal(batch.classicBrandActivation.brand,'TT');
  });
+
+test('disabled service owner guided import needs no service template and preserves source binding', async t => {
+  const e = await fixture(t);
+  e.config.serviceOwnerId = e.config.lanOwnerId;
+  e.config.serviceTemplateId = null;
+  await writeJsonAtomic(path.join(e.root,'data/users.json'), [{id:e.config.serviceOwnerId,role:'member',status:'disabled'}]);
+  const beforeEnabled=process.env.CUTFLOW_CLASSIC_SERVICE_OWNER_ENABLED, beforeId=process.env.CUTFLOW_CLASSIC_SERVICE_OWNER_ID;
+  process.env.CUTFLOW_CLASSIC_SERVICE_OWNER_ENABLED='true'; process.env.CUTFLOW_CLASSIC_SERVICE_OWNER_ID=e.config.serviceOwnerId;
+  t.after(()=>{for(const [k,v] of [['CUTFLOW_CLASSIC_SERVICE_OWNER_ENABLED',beforeEnabled],['CUTFLOW_CLASSIC_SERVICE_OWNER_ID',beforeId]]){if(v===undefined)delete process.env[k];else process.env[k]=v;}});
+  const first=await enqueueImport(e.root,e.config,e.input);
+  assert.equal((await enqueueImport(e.root,e.config,e.input)).batchId,first.batchId);
+  await bridgeTick(e.root,e.config);
+  const batch=(await readJson(path.join(e.root,'data/batches.json')))[0];
+  assert.equal(batch.ownerId,e.config.serviceOwnerId); assert.equal(batch.templateId,undefined); assert(isGuidedBatch(batch));
+  assert.equal(batch.libtvSource.source.user_id,e.input.userId);
+  await autoOotdInputs(e.root,batch);
+  await assert.rejects(enqueueImport(e.root,e.config,{...e.input,userId:randomUUID()}),/IMPORT_CONFLICT/);
+  const status=await importStatus(e.root,e.config,e.input.handoffId,e.input.userId);assert.equal(status.batchId,first.batchId);
+});
