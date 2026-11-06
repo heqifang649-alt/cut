@@ -7,7 +7,7 @@ import { resolveBatchFile } from "../lib/tenant-paths.mjs";
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { probeTechnical } from "./ai-video-validator.mjs";
 import { analyzeDeterministicMetadataBudget } from "./deterministic-budget.mjs";
-import { MINIMUM_AD_SECONDS } from "./scheduler-v2-policy.mjs";
+import {MINIMUM_OUTPUT_SECONDS as MINIMUM_AD_SECONDS, capRenderPlanDuration} from "../lib/output-duration.mjs";
 
 const fail = (code) => Object.assign(new Error(code), { code });
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -90,7 +90,9 @@ export function scheduleGuided({ batch, shots, prepared }) {
   if (!used.length) throw fail("SOURCE_INSUFFICIENT");
   const product = batch.productDetection.groups[0];
   const slots = used.map((shot, i) => ({ shot, slot: { id: `segment_${i}`, label: "商品展示", requireTags: [], targetDuration: shot.end - shot.start } }));
-  const availableSafeDuration = slots.reduce((sum, { slot }) => sum + slot.targetDuration, 0);
+  const boundedPlan=capRenderPlanDuration({id:batch.id+'-guided',batchId:batch.id,slots});
+  for(const entry of slots){const kept=boundedPlan.slots.find(s=>s.shot.id===entry.shot.id);const keptDuration=kept?.slot.targetDuration || 0;if(keptDuration<entry.slot.targetDuration)excluded.push({shotId:entry.shot.id,start:entry.shot.start+keptDuration,end:entry.shot.end,reason:'output_duration_limit'});}
+  const availableSafeDuration = boundedPlan.slots.reduce((sum, { slot }) => sum + slot.targetDuration, 0);
   if (availableSafeDuration < MINIMUM_AD_SECONDS - 1e-6) {
     throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), {
       code: "INSUFFICIENT_SAFE_DURATION", retryable: false, availableSafeDuration,
@@ -99,6 +101,6 @@ export function scheduleGuided({ batch, shots, prepared }) {
   }
   return { products: [{ product, sourceNamesByShotId: Object.fromEntries(used.map((s) => [s.id, source[0].relativePath])),
     scheduleResult: { status: "success", actualCutDuration: availableSafeDuration, minimumSafeDuration: MINIMUM_AD_SECONDS,
-      renderPlan: { id: `${batch.id}-guided`, batchId: batch.id, createdAt: new Date().toISOString(), minimumSafeDuration: MINIMUM_AD_SECONDS, transitionProfile: "hard_cut", slots } } }],
-    used: used.map((s) => ({ shotId: s.id, start: s.start, end: s.end, reason: "quality_accepted_product_visible" })), excluded };
+      renderPlan: { id: `${batch.id}-guided`, batchId: batch.id, createdAt: new Date().toISOString(), ...boundedPlan, minimumSafeDuration: MINIMUM_AD_SECONDS, transitionProfile: "hard_cut" } } }],
+    used: boundedPlan.slots.map(({shot:s,slot}) => ({ shotId: s.id, start: s.start, end: s.start+slot.targetDuration, reason: "quality_accepted_product_visible" })), excluded };
 }

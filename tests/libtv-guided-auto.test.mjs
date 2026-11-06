@@ -156,7 +156,7 @@ test("/2 accepts durably without a template; concurrent POST, offline retry, GET
   await rename(`${e.config.nasRoot}-offline`, e.config.nasRoot);
   await bridgeTick(e.root, e.config);
   const batches = await readJson(path.join(e.root, "data/batches.json")); assert.deepEqual(batches[0], peers[0]);
-  assert(isGuidedBatch(batches[1])); assert.equal(batches[1].templateId, undefined); assert.equal(batches[1].durationMax, undefined);
+  assert(isGuidedBatch(batches[1])); assert.equal(batches[1].templateId, undefined); assert.equal(batches[1].durationMax, 18);
   assert.equal(batches[1].productDetection.humanConfirmation, undefined);
   const receipts = await readJson(path.join(e.root, "data/libtv-receipts.json")); receipts[0].status = "queued";
   await writeJsonAtomic(path.join(e.root, "data/libtv-receipts.json"), receipts); await bridgeTick(e.root, e.config);
@@ -465,3 +465,14 @@ test('persisted API progress and cancellation publish NAS status without waiting
  await storeModule.exports.mutateBatch(e.batch.id,b=>{b.status='cancel_requested';});assert.equal((await readJson(statusFile)).status,'cancel_requested');
  await storeModule.exports.mutateBatch(e.batch.id,b=>{b.status='canceled';});assert.equal((await readJson(statusFile)).status,'canceled');
 });
+
+ test('guided scoped brand flags use the shared verified identity policy', async t => {
+  const e = await fixture(t); e.manifest.source.brand_id = 'tokyotiger'; await e.publish();
+  await writeJsonAtomic(path.join(e.root,'config/classic-brand-activation.json'),{schemaVersion:1,enabled:true,mode:'canary',enabledAfter:'2026-01-01T00:00:00Z'});
+  await writeJsonAtomic(path.join(e.root,'config/brand-copy-files.json'),{filesByBrand:{TT:['tt.xlsx']}});
+  await writeJsonAtomic(path.join(e.root,'config/brand-bgm-directories.json'),{TT:'亚文化'});
+  await enqueueImport(e.root,e.config,e.input); await bridgeTick(e.root,e.config);
+  const batch = (await readJson(path.join(e.root,'data/batches.json')))[0];
+  assert.equal(batch.brandCopyEnabled,true); assert.equal(batch.brandBgmEnabled,true);
+  assert.equal(batch.classicBrandActivation.brand,'TT');
+ });

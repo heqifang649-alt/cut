@@ -31,6 +31,8 @@ function groupReferences(record, sources, productReferences) {
   return result;
 }
 
+import {MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
+
 export async function prepareClassicMultisourceAnalyze({
   record, sources, batchDir, ffmpeg, referenceProfile, productReferences, prepare = prepareDeterministicInputs,
 }) {
@@ -44,7 +46,7 @@ export async function prepareClassicMultisourceAnalyze({
     await verifyProductImage(bytes, { mime_type: reference.mimeType, width: reference.width, height: reference.height });
   }
   const batch = { id: record.taskId, ownerId: record.ownerId, storageVersion: 1, referenceProfile,
-    durationMax: Math.min(13, Math.max(1, Number(referenceProfile.duration_seconds) || 13)),
+    durationMax: MAXIMUM_OUTPUT_SECONDS,
     files: sources.map((source) => ({ id: source.id, kind: "products", name: path.basename(source.absolutePath),
       relativePath: source.relativePath, storagePath: source.absolutePath, absolutePath: source.absolutePath,
       sourceType: "upload", sha256: source.sha256 })) };

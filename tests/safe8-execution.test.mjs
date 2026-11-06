@@ -33,17 +33,19 @@ async function loadSource(file, overrides) {
   return loadedModule.exports;
 }
 
-const rawProbe = duration => Buffer.from(JSON.stringify({ format: { duration: 99 }, streams: [{ duration }] }));
+const rawProbe = (duration, containerDuration=duration) => Buffer.from(JSON.stringify({ format: { duration: containerDuration }, streams: [{ duration }] }));
 function probeGate(raw) {
   return { ...durationGate, verifyEncodedSafeDuration: (ffprobe, file) => durationGate.verifyEncodedSafeDuration(ffprobe, file, 8, async (_exe, args) => {
-    assert.ok(args.includes("v:0")); assert.ok(args.includes("stream=duration")); assert.ok(!args.includes("format=duration"));
+    assert.ok(args.includes("v:0")); assert.ok(args.includes("stream=duration:format=duration"));
     if (raw instanceof Error) throw raw;
     return raw;
   }) };
 }
 
 for (const [label, raw, code] of [
-  ["short video with long audio/container", rawProbe(7.9), "INSUFFICIENT_SAFE_DURATION"],
+  ["short video with long audio/container", rawProbe(7.9,99), "INSUFFICIENT_SAFE_DURATION"],
+  ["long container cannot bypass the maximum", rawProbe(18,18.001), "OUTPUT_DURATION_EXCEEDED"],
+  ["exactly 18 seconds", rawProbe(18), null],
   ["exactly 8 seconds", rawProbe(8), null],
   ["missing stream", Buffer.from('{"format":{"duration":99}}'), "OUTPUT_VERIFY_UNAVAILABLE"],
   ["missing duration", rawProbe(undefined), "OUTPUT_VERIFY_UNAVAILABLE"],
@@ -56,7 +58,7 @@ for (const [label, raw, code] of [
   test(`encoded video gate: ${label}`, async () => {
     const result = probeGate(raw).verifyEncodedSafeDuration("fixture-ffprobe", "fixture-output");
     if (code) await assert.rejects(result, e => e.code === code && e.retryable === false);
-    else assert.equal(await result, 8);
+    else assert.equal(await result, Number(JSON.parse(raw).streams[0].duration));
   });
 }
 
@@ -82,6 +84,7 @@ for (const [label, raw, code] of [["short", rawProbe(7.9), "INSUFFICIENT_SAFE_DU
       "./runtime-config.mjs": { loadRuntimeConfig: async () => ({ ffprobeExecutable: "fixture" }) },
       "./resource-governor.mjs": { acquireRenderPermit: async () => ({ state: "acquired", permit: {} }), heartbeatRenderPermit: async () => {}, releaseRenderPermit: async () => calls.push("release") },
       "../lib/classic-multisource.mjs": {
+        completionStatusForContract: () => 'review',
         loadMultisourceExecution: async () => record,
         updateMultisourceStatus: async (_root, _task, state, error) => calls.push([state, error?.code, error?.retryable]),
         recordMultisourceProgress: async () => {}, recordMultisourceVerification: async () => {},
@@ -114,7 +117,7 @@ for (const [label, raw, code] of [["short", rawProbe(7.9), "INSUFFICIENT_SAFE_DU
       "node:fs": { createReadStream: () => Readable.from([bytes]), createWriteStream: () => new Writable({ write(_chunk, _encoding, done) { done(); } }) },
       "node:fs/promises": { mkdir: async () => {}, rename: async () => calls.push("rename"), rm: async () => {}, stat: async () => ({ size: bytes.length }) },
       "node:child_process": { spawn: () => { const child = new EventEmitter(); process.nextTick(() => child.emit("exit", 0)); return child; } },
-      "./atomic-json.mjs": { readJson: async () => [record], withFileLock: async (_file, action) => action(), writeJsonAtomic: async () => calls.push("write") },
+      "./atomic-json.mjs": { readJson: async file => String(file).endsWith('classic-multisource-records.json') ? [record] : null, withFileLock: async (_file, action) => action(), writeJsonAtomic: async () => calls.push("write") },
     });
     const result = published.publishMultisourceResults("D:/fixture", { ready: true, nasRoot: "D:/fixture-nas" }, taskId,
       [{ id, sourcePath: "D:/fixture/output.mp4", sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length, durationSeconds: 99 }],
@@ -124,7 +127,8 @@ for (const [label, raw, code] of [["short", rawProbe(7.9), "INSUFFICIENT_SAFE_DU
       assert.equal(record.status, "editing"); assert.deepEqual(calls, []);
     } else {
       const review = await result; assert.equal(review.status, "review"); assert.equal(review.outputs[0].durationSeconds, 8);
-      assert.equal(calls[0], "rename");
+      // The fixture exposes an already copied output; publication revalidates it.
+      assert.ok(calls.includes("write"));
     }
   });
 }
@@ -167,7 +171,7 @@ for (const reuse of [false, true]) test(`real Renderer rejects a short encoded o
     "./runtime-config.mjs": { loadRenderRuntimeConfig: async () => ({ ffprobeExecutable: "fixture", pythonExecutable: "fixture", subtitleTemplatePath: "D:/fixture/layout.json" }) },
     "../lib/work-paths.mjs": { storedArtifactPath: (_root, file) => file },
     "../lib/brand-copy-library.mjs": { brandCopyEnabled: () => false },
-    "./brand-bgm.mjs": { brandBgmEnabled: () => false },
+    "./brand-bgm.mjs": { brandBgmEnabled: () => false, prepareBrandAudio: async()=>({path:'D:/fixture/music.wav',decision:{brand:null,status:'no_bgm',warnings:['CONTROLLED_AUDIO_FIXTURE']}}) },
   });
   const options = { root: "D:/fixture", batch: { id: "fixture", durationMax: 8, colorStrategy: "none", musicSource: "template", transitionMode: "standard",
     files: [{ kind: "bgm", sourceType: "template", storagePath: "D:/fixture/music.wav" }] },

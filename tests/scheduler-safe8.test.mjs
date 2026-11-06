@@ -30,7 +30,7 @@ test('shortfall is terminal, final minimum is not per shot',()=>{
  for(const n of [1,2,3,5]){ const r=scheduleV2Policy(fixture(n,7.5/n)); assert.equal(r.reason,'INSUFFICIENT_SAFE_DURATION'); assert.equal(r.availableSafeDuration,7.5); assert.equal(r.durationShortfall,.5); assert.equal(r.retryable,false); }
  assert.equal(scheduleV2Policy(fixture(5,1.6)).actualCutDuration,8);
  assert.equal(scheduleV2Policy({...fixture(2,5),targetDuration:3}).actualCutDuration,8);
- assert.equal(scheduleV2Policy({...fixture(2,5),durationCap:7}).durationShortfall,1);
+ assert.equal(scheduleV2Policy({...fixture(2,5),durationCap:7}).status,'success');
 });
 test('reject review wrong sku stay excluded',()=>{
  for(const change of [r=>r.verdict='REJECT',r=>r.verdict='REVIEW',r=>r.wrongSku=true,r=>r.autoUse=false]){
@@ -97,4 +97,12 @@ test('actual encoded video duration gates Review publication at 8 seconds',async
 test('classic multisource publication independently rejects a short probed output',()=>{
  assert.throws(()=>assertMultisourceOutputDuration(7.999),error=>error.code==='INSUFFICIENT_SAFE_DURATION'&&error.retryable===false&&error.durationShortfall>0);
  assert.equal(assertMultisourceOutputDuration(8),8);
+});
+
+test('V2 accepts an 18-second output from a long original despite a 10.47-second legacy cap',()=>{
+ const f=fixture(1,40);f.targetDuration=18;f.durationCap=10.47;
+ const result=scheduleV2Policy(f);
+ assert.equal(result.status,'success');assert.equal(result.actualCutDuration,18);
+ assert.equal(result.renderPlan.slots[0].slot.targetDuration,18);
+ assert.equal(result.renderPlan.slots[0].shot.duration,40);
 });

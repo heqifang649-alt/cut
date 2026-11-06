@@ -1,0 +1,51 @@
+import {mkdir,readFile,writeFile,copyFile,cp,readdir} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {copyHash,readCopyWorkbooks,indexCopyWorkbooks} from '../lib/brand-copy-library.mjs';
+import {selectBrandBgm,BGM_ROOT} from '../worker/brand-bgm.mjs';
+import {renderBatchFromEdl} from '../worker/batch-renderer.mjs';
+const exec=promisify(execFile),repo=process.cwd();
+const root=path.resolve(process.argv[2] || 'E:/cutflow-brand-isolation-20261102');
+await mkdir(root,{recursive:true});
+const json=async p=>JSON.parse(await readFile(p,'utf8'));
+const save=async(p,v)=>{await mkdir(path.dirname(p),{recursive:true});await writeFile(p,JSON.stringify(v,null,2));};
+for(const f of ['worker/render-overlays.py','worker/read-hook-workbooks.py','config/brand-copy-files.json','config/brand-bgm-directories.json']){await mkdir(path.dirname(path.join(root,f)),{recursive:true});await copyFile(path.join(repo,f),path.join(root,f));}
+const runtime=await json(path.join(repo,'config/cutflow-runtime.json'));
+runtime.workRoot=path.join(root,'work');runtime.runtimeTempRoot=path.join(root,'temp');runtime.runtimeCacheRoot=path.join(root,'cache');runtime.deliveryRoot=path.join(root,'delivery');
+await save(path.join(root,'config/cutflow-runtime.json'),runtime);
+const mapping=(await json(path.join(root,'config/brand-copy-files.json'))).filesByBrand;
+const books=await readCopyWorkbooks({root,pythonExecutable:runtime.pythonExecutable,files:Object.values(mapping).flat(),timeoutMs:10000});
+await save(path.join(root,'workbooks.json'),books);
+const index=indexCopyWorkbooks(books,mapping);
+const report={createdAt:new Date().toISOString(),root,productionChanged:false,providerCalls:0,scope:'Shared renderer integration with identical real source/EDL; scene evidence is a controlled fixture, not new product QA or upstream UI acceptance',counts:{},outputs:[]};
+const base=path.join(repo,'.project-governance/evidence/brand-copy-20261020/copy-gc-multi-output');
+process.env.ENABLE_BRAND_BGM='true';
+for(const brand of ['GC','TT','NW']){
+ const dir=path.join(root,brand),edit=path.join(dir,'edit');await mkdir(edit,{recursive:true});
+ const edl=await json(path.join(base,'edit/render-plan-edl.json'));edl.products=edl.products.slice(0,1);
+ const product=edl.products[0];product.segments[0].content_tags=['scene:ootd'];
+ await cp(path.join(base,'edit/clips_graded/P001'),path.join(edit,'clips_graded/P001'),{recursive:true});
+ const edlPath=path.join(edit,'render-plan-edl.json');await save(edlPath,edl);
+ const batch={id:'audit-'+brand,files:[],durationMax:13,targetOutputsPerBatch:1,outputCount:1,colorStrategy:'none',transitionMode:'standard',brandCopyEnabled:true,brandCopyContext:{brandId:brand,provenance:'isolated_canary'}};
+ const evidence={batchId:batch.id,records:[{shotId:product.segments[0].shot_id,status:'scored',result:{usable:true,product_match:1,clothing_visibility:1,shot_type:'overall'}}]};
+ const result=await renderBatchFromEdl({root,batch,batchDir:dir,editDir:edit,edlPath,ffmpeg:runtime.ffmpegExecutable,validateLegacyProductConsistency:false,brandCopyEvidence:evidence,onActivity:async s=>console.log(brand,s)});
+ const record=result.files[0],file=path.resolve(root,record.storagePath);
+ for(const kind of ['hook','cta']){const c=record.brandCopy[kind];if(c.source==='library')assert.ok(index.entries.some(e=>e.brand===brand&&e.id===c.entryId&&e.text===c.text));else assert.equal(c.source,'none');}
+ assert.equal(record.bgm.brand,brand);
+ if(brand!=='NW')assert.equal(record.bgm.status,'no_bgm');else assert.ok(['selected','cached'].includes(record.bgm.status));
+ const run=async args=>exec(runtime.ffmpegExecutable,['-v','error',...args],{windowsHide:true,timeout:60000,maxBuffer:2e6});
+ await run(['-i',file,'-f','null','-']);
+ const audioHash=(await run(['-i',file,'-map','0:a:0','-f','hash','-hash','sha256','-'])).stdout.trim();
+ const frame=path.join(dir,'hook-frame.png');await run(['-y','-ss','0.5','-i',file,'-frames:v','1',frame]);
+ const ctaFrame=path.join(dir,'cta-frame.png');await run(['-y','-ss',String(product.duration_seconds-1),'-i',file,'-frames:v','1',ctaFrame]);
+ const files=await readdir(path.join(BGM_ROOT,({GC:'基督',TT:'亚文化',NW:'暗黑'})[brand]),{recursive:true,withFileTypes:true});
+ report.counts[brand]={hook:index.entries.filter(e=>e.brand===brand&&e.kind==='hook').length,cta:index.entries.filter(e=>e.brand===brand&&e.kind==='cta').length,bgmFiles:files.filter(f=>f.isFile()).length};
+ report.outputs.push({brand,file,frame,ctaFrame,audioHash,sha256:copyHash(await readFile(file)),copy:record.brandCopy,bgm:record.bgm,decode:'pass'});
+ await save(path.join(root,'report.json'),report);
+}
+const prev=report.outputs.find(o=>o.brand==='NW').bgm.bgmFile;
+const next=await selectBrandBgm({root,brand:'NW',ffmpeg:runtime.ffmpegExecutable});
+assert.notEqual(next.bgmFile,prev);report.nwImmediateRepeatAvoided={previous:prev,next:next.bgmFile};
+await save(path.join(root,'report.json'),report);console.log('REPORT',path.join(root,'report.json'));

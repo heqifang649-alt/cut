@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.ts";
 import { renderPlanShortShotQuality, shortShotPenalty } from "../lib/short-shot-quality.mjs";
 
+import {MINIMUM_OUTPUT_SECONDS, capRenderPlanDuration} from '../lib/output-duration.mjs';
 const EPSILON = 1e-9;
-export const MINIMUM_SAFE_DURATION_SECONDS = 8;
+export const MINIMUM_SAFE_DURATION_SECONDS = MINIMUM_OUTPUT_SECONDS;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
@@ -127,9 +128,9 @@ function semanticScore(semantic) {
 }
 
 function compareCandidates(left, right) {
-  if (left.shortShotPenalty !== right.shortShotPenalty) return left.shortShotPenalty - right.shortShotPenalty;
   if (left.preferredTags !== right.preferredTags) return right.preferredTags - left.preferredTags;
   if (Math.abs(left.semanticScore - right.semanticScore) > EPSILON) return right.semanticScore - left.semanticScore;
+  if (left.shortShotPenalty !== right.shortShotPenalty) return left.shortShotPenalty - right.shortShotPenalty;
   if (Math.abs(left.targetDistance - right.targetDistance) > EPSILON) return left.targetDistance - right.targetDistance;
   if (left.shot.source !== right.shot.source) return left.shot.source.localeCompare(right.shot.source);
   return left.shot.id.localeCompare(right.shot.id);
@@ -160,7 +161,6 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
         const adjusted = candidate => candidate.semanticScore
           - (candidate.shot.tags.includes("quality:review") ? 0.1 : 0)
           - (previous && previous.source !== candidate.shot.source ? 0.05 : 0);
-        if (a.shortShotPenalty !== b.shortShotPenalty) return a.shortShotPenalty - b.shortShotPenalty;
         if (a.preferredTags !== b.preferredTags) return b.preferredTags - a.preferredTags;
         if (Math.abs(adjusted(a) - adjusted(b)) > EPSILON) return adjusted(b) - adjusted(a);
         return compareCandidates(a, b);
@@ -186,7 +186,7 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
     ...(transitionProfile ? { transitionProfile } : {}),
   };
   if (!isRenderPlan(renderPlan)) throw new Error("Scheduler produced an invalid RenderPlan");
-  return { status: "success", renderPlan };
+  return { status: "success", renderPlan: capRenderPlanDuration(renderPlan) };
 }
 
 export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
@@ -203,7 +203,8 @@ export function scheduleProductView({ batchId, productView, scriptTemplate, crea
 
 export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAFE_DURATION_SECONDS) {
   if (scheduleResult?.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) return scheduleResult;
-  const availableSafeDuration = Number(scheduleResult.renderPlan.slots.reduce((sum, entry) => {
+  const boundedPlan = capRenderPlanDuration(scheduleResult.renderPlan);
+  const availableSafeDuration = Number(boundedPlan.slots.reduce((sum, entry) => {
     const available = Math.max(0, Math.min(Number(entry.shot.duration), Number(entry.shot.end) - Number(entry.shot.start)));
     return sum + Math.min(available, Number(entry.slot.targetDuration) || available);
   }, 0).toFixed(6));
@@ -215,7 +216,7 @@ export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAF
     ...scheduleResult,
     actualCutDuration: availableSafeDuration,
     minimumSafeDuration: minimum,
-    renderPlan: { ...scheduleResult.renderPlan, minimumSafeDuration: minimum, transitionProfile: "hard_cut" },
+    renderPlan: { ...boundedPlan, minimumSafeDuration: minimum, transitionProfile: "hard_cut" },
   };
 }
 

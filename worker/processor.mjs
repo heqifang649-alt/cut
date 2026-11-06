@@ -1,4 +1,5 @@
 import { syncConfiguredLanStatuses } from "../lib/libtv-bridge.mjs";
+import {MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { scheduleGuided } from "./libtv-guided-auto.mjs";
 import { existsSync } from "node:fs";
@@ -1415,7 +1416,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
     const frameHashesByShot = schedulerMode === "off" ? {} : await readExistingShotFrameHashes(batchDir, productViews.flatMap((view) => view.shots), semanticFrameDir);
     scheduledProducts = productViews.map((productView) => {
       const routed = routeProductSchedule({ batchId: batch.id, productView, scriptTemplate, transitionProfile: legacyTransitionProfileForBatch(batch), semanticEvidence, allowPartial: true,
-        targetDuration: scriptTemplate.totalDuration, durationCap: Math.min(13, Number(batch.durationMax) || 13), upstreamImport, frameHashesByShot,
+        targetDuration: scriptTemplate.totalDuration, durationCap: MAXIMUM_OUTPUT_SECONDS, upstreamImport, frameHashesByShot,
         visualReview: visualEvidence?.cases?.find((entry) => entry.batchId === batch.id && entry.productId === productView.product.id),
       }, { mode: schedulerMode, policyPin: batch.schedulerPolicy });
       return { product: productView.product, sourceNamesByShotId: productView.sourceNamesByShotId, scheduleResult: enforceMinimumSafeDuration(routed.selected),
@@ -1527,7 +1528,7 @@ async function runBatchEdit(batch, { includeAnalyze = true, render = true } = {}
 可选资源目录：${batchDir}
 输出目录：${outputDir}
 
-目标：严格按照product-groups.json逐款剪辑，不要求原素材预先分类。NAS 原片目录只读，禁止移动、重命名、覆盖或写入任何原素材；不得直接读取 NAS。Codex 只可读取 analysis-context.v1.json 标明的当前 Batch 本地代理，代理只用于识别；最终 EDL 必须原样回填其中的 source_name 和 source_original，不能引用其他账号、旧 storage/batches 路径或代理路径。每款输出${batch.outputCount}条，最长${batch.durationMax}秒，所有动作保持1.00×，全批严格复用同一脚本结构、节奏、色彩、Hook安全区和CVR布局。${hookInstruction} ${cvrInstruction} 产品镜头可以不同，但阶段时长与画面功能一致。选镜必须排除抖动、对焦漂移、色调异常和服装主体不清楚的片段；五段结构必须同时覆盖整体上身、正面、工艺细节和背面/最佳补充镜头；主要切点与BGM强拍或能量上升点对齐。
+目标：严格按照product-groups.json逐款剪辑，不要求原素材预先分类。NAS 原片目录只读，禁止移动、重命名、覆盖或写入任何原素材；不得直接读取 NAS。Codex 只可读取 analysis-context.v1.json 标明的当前 Batch 本地代理，代理只用于识别；最终 EDL 必须原样回填其中的 source_name 和 source_original，不能引用其他账号、旧 storage/batches 路径或代理路径。每款输出${batch.outputCount}条，最终成片8.000–${MAXIMUM_OUTPUT_SECONDS}.000秒，模板仅作节奏参考，所有动作保持1.00×，全批严格复用同一脚本结构、节奏、色彩、Hook安全区和CVR布局。${hookInstruction} ${cvrInstruction} 产品镜头可以不同，但阶段时长与画面功能一致。选镜必须排除抖动、对焦漂移、色调异常和服装主体不清楚的片段；五段结构必须同时覆盖整体上身、正面、工艺细节和背面/最佳补充镜头；主要切点与BGM强拍或能量上升点对齐。
 
 ${transitionInstruction}
 

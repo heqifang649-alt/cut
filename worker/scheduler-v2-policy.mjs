@@ -1,15 +1,16 @@
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
 import { eligibleShots, creativePreferences, pairConflict, sourceKey } from "../lib/scheduler-policy-v2.mjs";
 import { digest, validatedDistinctPairs } from "../lib/scheduler-v2-visual-evidence.mjs";
-import { renderPlanShortShotQuality } from "../lib/short-shot-quality.mjs";
+import { renderPlanShortShotQuality, shortShotPenalty } from "../lib/short-shot-quality.mjs";
 
 export const SCHEDULER_V2_POLICY = "scheduler-v2.1-safe8";
 export const MINIMUM_AD_SECONDS = 8;
+import {MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
 const STRUCTURES = { A: ["opening", "product", "detail", "variation", "end"], B: ["opening", "product", "variation", "end"] };
 const durationOf = ({ shot }) => Math.min(shot.duration, shot.end - shot.start);
 const normalized = (s) => String(s).replaceAll("/", "\\").toLowerCase();
 
-export function scheduleV2Policy({ batchId, productView, semanticEvidence, targetDuration = 10, durationCap = 13, createdAt = "1970-01-01T00:00:00.000Z", transitionProfile, visualReview, frameHashesByShot = {}, upstreamImport }) {
+export function scheduleV2Policy({ batchId, productView, semanticEvidence, targetDuration = 10, durationCap = MAXIMUM_OUTPUT_SECONDS, createdAt = "1970-01-01T00:00:00.000Z", transitionProfile, visualReview, frameHashesByShot = {}, upstreamImport }) {
   if (!batchId || !productView?.product?.id || !Array.isArray(productView.shots)) throw new TypeError("Product View required");
   if (![targetDuration, durationCap].every((n) => Number.isFinite(n) && n > 0)) throw new TypeError("Positive target/cap required");
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("Invalid transition profile");
@@ -19,6 +20,8 @@ export function scheduleV2Policy({ batchId, productView, semanticEvidence, targe
   if (!productView.shots.length && upstreamBlocks.length) return { ...base, status: "failed", reason: "UPSTREAM_BLOCKED", upstreamBlocks };
   if (!admission.eligible.length) return { ...base, status: "failed", reason: upstreamBlocks.length ? "UPSTREAM_BLOCKED" : admission.blocked.length ? "QUALITY_BLOCKED" : "ANALYSIS_INCOMPLETE", detail: "no_eligible_shots; upstream_admission_evidence_required", upstreamBlocks };
   const candidates = admission.eligible.filter((e) => durationOf(e) > 0).map((e) => ({ ...e, ...creativePreferences(e) }));
+  const durationPreference = (a, b) => shortShotPenalty(a.shot, { targetDuration: durationOf(a) })
+    - shortShotPenalty(b.shot, { targetDuration: durationOf(b) });
   const candidateSourceCount = new Set(candidates.map((c) => sourceKey(c.shot))).size;
   const distinctPairs = validatedDistinctPairs({ batchId, productId: productView.product.id, eligible: admission.eligible, frameHashesByShot, visualReview });
   const conflicts = [];
@@ -34,6 +37,7 @@ export function scheduleV2Policy({ batchId, productView, semanticEvidence, targe
   const keys = new Set(conflicts.map((p) => [...p.shotIds].sort().join("|")));
   const compatible = (selected, c) => selected.every((s) => s.shot.id !== c.shot.id && !keys.has([s.shot.id, c.shot.id].sort().join("|")));
   // target is a preference, not a ceiling below the minimum viable duration.
+  durationCap = MAXIMUM_OUTPUT_SECONDS; // Final contract, independent of template preference.
   const desired = Math.min(durationCap, Math.max(MINIMUM_AD_SECONDS, targetDuration));
   const safeSourceCount = candidateSourceCount;
   Object.assign(base, { mode: safeSourceCount === 1 ? "single" : "multi", safeSourceCount, minimumSafeDuration: MINIMUM_AD_SECONDS });
@@ -84,13 +88,13 @@ export function scheduleV2Policy({ batchId, productView, semanticEvidence, targe
   };
   const hooks = best.filter(c => c.semantic.hook_value >= 0.5);
   const opening = [...(hooks.length ? hooks : best)].sort((a,b) =>
-    (hooks.length ? b.scores.opening-a.scores.opening : b.scores.product-a.scores.product) || a.shot.id.localeCompare(b.shot.id))[0];
+    (hooks.length ? b.scores.opening-a.scores.opening : b.scores.product-a.scores.product) || durationPreference(a, b) || a.shot.id.localeCompare(b.shot.id))[0];
   const ordered = [opening];
   const remainingCandidates = best.filter(c => c !== opening);
   while (remainingCandidates.length) {
     const seenTypes = new Set(ordered.map(c => c.semantic.shot_type));
     const preference = c => c.scores.product + (seenTypes.has(c.semantic.shot_type) ? 0 : 0.5);
-    remainingCandidates.sort((a,b) => preference(b)-preference(a) || a.shot.id.localeCompare(b.shot.id));
+    remainingCandidates.sort((a,b) => preference(b)-preference(a) || durationPreference(a, b) || a.shot.id.localeCompare(b.shot.id));
     ordered.push(remainingCandidates.shift());
   }
   if (base.mode === "single") ordered.sort((a,b) => a.shot.start-b.shot.start || a.shot.id.localeCompare(b.shot.id));

@@ -1,11 +1,13 @@
+import { enableClassicBrandResources } from '../lib/classic-brand-activation.mjs';
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import { Transform } from "node:stream";
-import { assertOutputDuration, verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
+import { assertOutputDuration, verifyEncodedSafeDuration, MAXIMUM_OUTPUT_SECONDS } from "../lib/output-duration.mjs";
 import { loadRuntimeConfig } from "./runtime-config.mjs";
+import { canonicalBrand, trustedCopyContext } from "../lib/brand-copy-library.mjs";
 import { createProductViews, enforceMinimumSafeDuration, MINIMUM_SAFE_DURATION_SECONDS, partitionScheduledProducts, scheduleProductView } from "./shot-scheduler.mjs";
 import { renderBatchFromRenderPlans } from "./batch-renderer.mjs";
 import { runClassicMultisourceQuality } from "./classic-multisource-quality.mjs";
@@ -55,7 +57,7 @@ function scheduleAvailable(view, record, scriptTemplate, semanticEvidence) {
   const sourceRuns = record.sources.map(source => shots.filter(shot => shot.source === source.id));
   const viableRuns = sourceRuns.filter(run => {
     const duration = run.reduce((sum, shot) => sum + shot.end - shot.start, 0);
-    return duration >= MINIMUM_SAFE_DURATION_SECONDS && duration <= 13;
+    return duration >= MINIMUM_SAFE_DURATION_SECONDS && duration <= MAXIMUM_OUTPUT_SECONDS;
   }).sort((a, b) => a.filter(s => s.tags.includes("quality:review")).length - b.filter(s => s.tags.includes("quality:review")).length);
   if (new Set(shots.map(s => s.source)).size > 1 && viableRuns.length) {
     shots.splice(0, shots.length, ...viableRuns[0]);
@@ -95,6 +97,10 @@ export async function executeClassicMultisource({
     throw new Error("MISSING_TRUSTED_DEPENDENCY");
   }
   const record = await loadMultisourceExecution(root, config, taskId);
+  const scopedBrandResources = await enableClassicBrandResources({ root,
+    context: record.sourceBinding?.kind === 'brand' ? trustedCopyContext({ brandId: record.sourceBinding.value }, 'verified_handoff') : null,
+    taskId: record.taskId, manifestSha256: record.manifestSha256, acceptedAt: record.acceptedAt,
+    sources: record.sourceBinding?.kind === 'brand' ? record.sources : [] });
   await updateMultisourceStatus(root, taskId, "uploading", undefined, config, lease);
   const progress = (stage, value, startAttempt = false) => recordMultisourceProgress(root, config, taskId, { stage, progress: value, startAttempt, lease });
   await progress("analyze", 10, true);
@@ -131,6 +137,7 @@ export async function executeClassicMultisource({
     const { renderable, excludedProducts } = partitionScheduledProducts(scheduledProducts);
     if (!renderable.length) {
       const failed = scheduledProducts.find((item) => item.scheduleResult.status !== "success");
+      if (failed?.scheduleResult.reason === 'INSUFFICIENT_SAFE_DURATION') throw Object.assign(new Error('INSUFFICIENT_SAFE_DURATION'), {code:'INSUFFICIENT_SAFE_DURATION',retryable:false,availableSafeDuration:failed.scheduleResult.availableSafeDuration,durationShortfall:failed.scheduleResult.durationShortfall});
       throw Object.assign(new Error("MULTISOURCE_SCHEDULING_FAILED"), {
         code: "MULTISOURCE_SCHEDULING_FAILED", detailCode: "SCHEDULER_NO_MATCHING_SHOT",
         schedulerDetails: { slotId: failed?.scheduleResult.slotId, reason: failed?.scheduleResult.reason,
@@ -139,10 +146,15 @@ export async function executeClassicMultisource({
     }
 
     const batchDir = path.join(workspaceDir, taskId);
-    const batch = { ...rendererBatch, id: taskId, status: "editing", storageVersion: 1,
-      files: Array.isArray(rendererBatch.files) ? rendererBatch.files : [], durationMax: resolvedTemplate.totalDuration,
+    const boundBrand = record.sourceBinding?.kind === 'brand'
+      ? canonicalBrand(record.sourceBinding.value) || record.sourceBinding.value : null;
+    const batch = { ...rendererBatch,
+      ...(boundBrand ? { brandCopyContext: trustedCopyContext({brandId:boundBrand}, 'verified_handoff') } : {}),
+      id: taskId, status: "editing", storageVersion: 1,
+      files: Array.isArray(rendererBatch.files) ? rendererBatch.files : [], durationMax: MAXIMUM_OUTPUT_SECONDS,
       targetOutputsPerBatch: renderable.length, coveragePolicy: "all_products_required",
       colorStrategy: "none", transitionMode: "standard" };
+    Object.assign(batch, scopedBrandResources);
     stage = "render";
     await progress(stage, 80);
     let renderPermit;

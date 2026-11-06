@@ -1,3 +1,4 @@
+import { classicBrandActivation } from '../lib/classic-brand-activation.mjs';
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { assertGuidedMusic } from "./libtv-guided-auto.mjs";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
@@ -6,7 +7,8 @@ import { createHash, randomInt } from "node:crypto";
 import path from "node:path";
 import { storedArtifactPath } from "../lib/work-paths.mjs";
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
-import { renderPlanShortShotQuality } from "../lib/short-shot-quality.mjs";
+import { renderPlanShortShotQuality, repairShortShotSlots, inspectShortShotTimeline } from "../lib/short-shot-quality.mjs";
+import { repairScheduledInternalCuts } from "../lib/internal-cut-repair.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertLegacyEditPlanReady } from "./edit-plan-readiness.mjs";
 import { resolveStoredWorkspaceFile } from "../lib/tenant-paths.mjs";
@@ -14,7 +16,7 @@ import { loadRenderRuntimeConfig } from "./runtime-config.mjs";
 import { reviewScheduledProductVisualConsistency } from "../lib/product-visual-review.mjs";
 import { resolveOutputAllocation } from "../lib/output-allocation.mjs";
 import { isUsableTransitionPlan, sanitizeTransitionPlan } from "./template-transition-analysis.mjs";
-import { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
+import { verifyEncodedSafeDuration, assertOutputDuration, MAXIMUM_OUTPUT_SECONDS } from "../lib/output-duration.mjs";
 export { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
 import { brandCopyEnabled, ensureBrandCopySnapshot } from "../lib/brand-copy-library.mjs";
 import { prepareOutputBrandCopy } from "./brand-copy-render.mjs";
@@ -358,14 +360,21 @@ export function dryRunRenderPlan(renderPlan) {
   };
 }
 
-export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProducts = [], transitionProfile, featureEnabled = isTemplateTransitionEnabled() }) {
+export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProducts = [], transitionProfile, featureEnabled = isTemplateTransitionEnabled(), shortShotPolicy }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) throw new TypeError("RenderPlan renderer requires scheduled products");
   const selectedProfile = resolvedTransitionProfile(transitionProfile || scheduledProducts[0]?.scheduleResult?.renderPlan?.transitionProfile);
   const products = scheduledProducts.map(({ product, sourceNamesByShotId, scheduleResult }) => {
     if (!product || typeof product.id !== "string" || typeof product.label !== "string" || !Array.isArray(product.files)) throw new TypeError("RenderPlan renderer requires product context");
     if (!scheduleResult || scheduleResult.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) throw new TypeError(`RenderPlan renderer requires a successful schedule for ${product.id}`);
     if (!sourceNamesByShotId || typeof sourceNamesByShotId !== "object") throw new TypeError(`RenderPlan renderer requires source context for ${product.id}`);
-    const rawSegments = scheduleResult.renderPlan.slots.map(({ slot, shot }, index) => {
+    const repairedSlots = repairShortShotSlots(scheduleResult.renderPlan.slots, shortShotPolicy);
+    const repairs = repairedSlots.flatMap((entry, index) => {
+      const original = scheduleResult.renderPlan.slots[index];
+      const before = Math.min(original.shot.end - original.shot.start, original.slot.targetDuration);
+      return Math.abs(entry.slot.targetDuration - before) > 1e-6
+        ? [{ index, severity: "REPAIR", reason: "crop_boundary_redistributed", before, after: entry.slot.targetDuration }] : [];
+    });
+    const rawSegments = repairedSlots.map(({ slot, shot }, index) => {
       const sourceName = sourceNamesByShotId[shot.id];
       if (!sourceName || !product.files.includes(sourceName)) throw new Error(`RenderPlan shot ${shot.id} is outside product context ${product.id}`);
       const availableDuration = Number((shot.end - shot.start).toFixed(6));
@@ -396,12 +405,18 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       } else segments.push({ ...segment });
       return segments;
     }, []);
-    const computedShortShotQuality = renderPlanShortShotQuality(scheduleResult.renderPlan.slots, {
+    const computedShortShotQuality = renderPlanShortShotQuality(mergedSegments.map(segment => ({
+      shot: { start: segment.source_in, end: segment.source_out }, slot: { targetDuration: segment.duration },
+    })), {
+      shortShotPolicy,
       beatCompressionCreatedShortShot: scheduleResult.renderPlan.beatCompressionCreatedShortShot ?? false,
     });
     const productProfile = resolvedTransitionProfile(transitionProfile || scheduleResult.renderPlan.transitionProfile || selectedProfile);
     const minimumSafeDuration = scheduleResult.renderPlan.minimumSafeDuration;
     const timeline = materializeProductTimeline(mergedSegments, master, { transitionProfile: minimumSafeDuration ? "hard_cut" : productProfile, featureEnabled });
+    const shortShotFindings = inspectShortShotTimeline(timeline.segments, shortShotPolicy);
+    if (shortShotFindings.some(finding => finding.severity === "REJECT")) throw new Error("SHORT_SHOT_TECHNICAL_REJECT");
+    if (timeline.durationSeconds > MAXIMUM_OUTPUT_SECONDS) throw Object.assign(new Error("OUTPUT_DURATION_EXCEEDED"), {code:"OUTPUT_DURATION_EXCEEDED",retryable:false,actualDuration:timeline.durationSeconds,maximumOutputDuration:MAXIMUM_OUTPUT_SECONDS});
     if (minimumSafeDuration && timeline.durationSeconds < minimumSafeDuration - 1e-6) throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), { code: "INSUFFICIENT_SAFE_DURATION", retryable: false, availableSafeDuration: timeline.durationSeconds, durationShortfall: minimumSafeDuration - timeline.durationSeconds });
     return {
       product_id: product.id,
@@ -411,11 +426,13 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       ...(minimumSafeDuration ? { minimum_safe_duration: minimumSafeDuration } : {}),
       visual_consistency_verified: true,
       short_shot_quality: {
+        findings: shortShotFindings,
+        repairs,
         shortShotCount: computedShortShotQuality.shortShotCount,
         consecutiveShortShots: computedShortShotQuality.consecutiveShortShots,
         shortestShotDuration: computedShortShotQuality.shortestShotDuration,
         beatCompressionCreatedShortShot: computedShortShotQuality.beatCompressionCreatedShortShot,
-        reviewWarning: computedShortShotQuality.shortShotReviewWarning,
+        reviewWarning: shortShotFindings.some(finding => finding.severity === "WARNING") || computedShortShotQuality.shortShotReviewWarning,
       },
       transition_profile: timeline.transitionProfile,
       applied_transition_profile: timeline.appliedTransitionProfile,
@@ -757,7 +774,7 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
     },
     timeline: {
       canvas: { width: Number(master.width) || 1080, height: Number(master.height) || 1920, fps: Number(master.fps) || 30 },
-      source_audio: record.bgm ? "preserve" : "mute",
+      source_audio: "mute",
       transition_profile: product.transition_profile || batch.transitionProfile || "template",
       applied_transition_profile: product.applied_transition_profile || "hard_cut",
       ending_transition: product.ending_transition || null,
@@ -780,11 +797,11 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
         layout_standard: textLayout,
       },
       music: {
-        source: record.bgm ? record.bgm.path || null : musicPath,
+        source: record.bgm?.status === "no_bgm" ? null : record.bgm?.normalizedPath || musicPath,
         name: record.bgm ? record.bgm.bgmFile : path.basename(musicPath),
         offset_seconds: musicOffset,
-        mute_original_audio: !record.bgm,
-        ...(record.bgm ? { bgm_result: record.bgm, gain:record.bgm.bgmGain,fade_out_seconds:0.8 } : {}),
+        mute_original_audio: true,
+        ...(record.bgm ? { bgm_result: record.bgm, gain:1,fade_out_seconds:0,baked_audio_processing:true } : {}),
       },
     },
     policies: {
@@ -799,11 +816,19 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
   return storedArtifactPath(root, manifestPath);
 }
 
-export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, internalCutRepair = false, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) {
     throw new Error("Render Plan Not Ready: schedule-result.json has no renderable Product View");
   }
   const editDir = suppliedEditDir || path.join(batchDir, "edit");
+  let internalCutEvidence;
+  if (internalCutRepair) {
+    const repaired = await repairScheduledInternalCuts({ scheduledProducts, ffmpeg });
+    internalCutEvidence = repaired.evidence;
+    await mkdir(editDir, { recursive: true });
+    await writeJsonAtomic(path.join(editDir, "internal-cut-repair.v1.json"), repaired.evidence);
+    scheduledProducts = repaired.products;
+  }
   const outputAllocation = resolveOutputAllocation(batch, scheduledProducts);
   const selectedProductIds = new Set(outputAllocation.selectedProductIds);
   const allocatedProducts = scheduledProducts.filter((entry) => selectedProductIds.has(String(entry?.product?.id || entry?.product?.product_id)));
@@ -840,6 +865,17 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDi
   });
   const renderPlanEdlPath = path.join(editDir, "render-plan-edl.json");
   await writeFile(renderPlanEdlPath, JSON.stringify(renderPlanEdl, null, 2), "utf8");
+  if (internalCutEvidence) {
+    const fps = Number(master.fps) || 30;
+    internalCutEvidence.outputMappings = renderPlanEdl.products.flatMap(product => product.segments.flatMap(segment =>
+      (internalCutEvidence.diagnostics.find(d => d.source === segment.source_original)?.candidates || [])
+        .filter(cut => cut.time >= segment.source_in && cut.time < segment.source_out)
+        .map(cut => ({ productId: product.product_id, source: segment.source_original, sourceTime: cut.time,
+          confidence: cut.confidence, plannedOutputSeconds: segment.output_in + (cut.time - segment.source_in) / (segment.speed || 1),
+          plannedOutputFrame: Math.round((segment.output_in + (cut.time - segment.source_in) / (segment.speed || 1)) * fps),
+          frameBasis: "zero_based_planned_position_verify_against_encoded_frames", fps }))));
+    await writeJsonAtomic(path.join(editDir, "internal-cut-repair.v1.json"), internalCutEvidence);
+  }
   const productVisualReview = reviewScheduledProductVisualConsistency({ scheduledProducts: allocatedProducts, semanticEvidence });
   if (productVisualReview.status === "failed") {
     await writeFile(path.join(editDir, "product-visual-review.json"), JSON.stringify(productVisualReview, null, 2), "utf8");
@@ -904,7 +940,14 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
   const lutPath = lutFile ? resolveBatchAsset(lutFile) : runtimeConfig.lutPath;
   const hasLut = colorProcessingEnabled;
   if (hasLut) await requireRenderFile("LUT", lutPath);
-  const useBrandBgm = brandBgmEnabled();
+  if (batch.classicBrandActivation) {
+    const identity = batch.classicBrandActivation;
+    const active = await classicBrandActivation({ root, context: batch.brandCopyContext, ...identity, normalOnly: identity.scope === "normal_gc_tt", allocate: false });
+    batch = { ...batch, brandCopyEnabled: Boolean(active), brandBgmEnabled: Boolean(active) };
+  }
+  // Final audio is brand BGM only. Disabled or unavailable music yields video-only.
+  const brandAudioEnabled = brandBgmEnabled(process.env, batch);
+  const useBrandBgm = true;
   const templateMusicFile = !useBrandBgm && batch.musicSource === "template" ? batch.files.find((file) => file.kind === "bgm" && file.sourceType === "template") : undefined;
   const templateMusicPath = templateMusicFile ? resolveBatchAsset(templateMusicFile) : undefined;
   if (templateMusicPath) await requireRenderFile("template BGM", templateMusicPath);
@@ -951,7 +994,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       ...(timeline.ending_transition ? { ending_transition: timeline.ending_transition } : {}),
     };
     const productDuration = timeline.durationSeconds || Number(product.duration_seconds) || duration;
-    if (productDuration > (Number(batch.durationMax) || duration) + 1e-6) throw new Error(`RenderPlan duration exceeds batch limit for ${product.product_id}`);
+    assertOutputDuration(productDuration);
     const productClips = path.join(clipsDir, product.product_id);
     await mkdir(productClips, { recursive: true });
     const segmentPaths = [];
@@ -1028,11 +1071,11 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     const outputHookOverlay = outputCopy ? outputCopy.hookOverlayPath : hookOverlayPath;
     const outputCvrOverlay = outputCopy ? outputCopy.cvrOverlayPath : cvrOverlayPath;
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
-    const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'v1',context:batch.brandCopyContext} : {}) });
+    const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'only-v1',enabled:brandAudioEnabled,context:batch.brandCopyContext} : {}) });
     const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
-    const brandAudio = useBrandBgm && !canReuseOutput ? await prepareBrandAudio({root,batch,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
+    const brandAudio = useBrandBgm && !canReuseOutput ? await prepareBrandAudio({root,batch,enabled:brandAudioEnabled,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
     const bgmDecision = useBrandBgm ? brandAudio?.decision || savedOutput.bgm : null;
-    const musicPath = brandAudio?.path || savedOutput.musicPath || templateMusicPath || musicPool[currentOutputOrdinal];
+    const musicPath = canReuseOutput ? savedOutput.musicPath : brandAudio?.path || null;
     await assertActive();
     const musicOffset = useBrandBgm ? 0 : Number.isFinite(savedOutput.musicOffset)
       ? savedOutput.musicOffset
@@ -1054,7 +1097,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     if (canReuseOutput) {
       const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
       const record = savedOutput.record || await buildOutputRecord(root, outputPath, {
-        musicName: path.basename(musicPath), beatOffsetSeconds: musicOffset, qualityStatus: "passed", variantIndex: variantIndex + 1, productId: product.product_id, displayName: product.display_name,
+        musicName: musicPath ? path.basename(musicPath) : '', beatOffsetSeconds: musicOffset, qualityStatus: "passed", variantIndex: variantIndex + 1, productId: product.product_id, displayName: product.display_name,
       });
       if (useBrandBgm) {record.bgm=bgmDecision;record.musicName=bgmDecision?.bgmFile || '';}
       if (outputCopy) record.brandCopy = outputCopy.decision;
@@ -1070,16 +1113,17 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
       continue;
     }
-    const audioEnd = Math.max(0, productDuration - 0.03).toFixed(3);
+    const hasBrandAudio = Boolean(musicPath && ['selected','cached'].includes(bgmDecision?.status));
+    const overlayInput = hasBrandAudio ? 2 : 1;
     const overlayWindows = outputCopy?.decision?.windows ? {hookEnd:outputCopy.decision.windows.hookEnd,cvrStart:outputCopy.decision.windows.ctaStart} : overlayWindowsForMaster(master, productDuration);
     const hasOverlays = outputHookOverlay && outputCvrOverlay;
-    const videoGraph = hasOverlays ? `[0:v][2:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][3:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout]` : '[0:v]null[vout]';
-    const graph = `${videoGraph};[1:a]atrim=start=0:end=${productDuration},afade=t=in:st=0:d=0.03,afade=t=out:st=${audioEnd}:d=0.03,asetpts=PTS-STARTPTS[aout]`;
-    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, "-stream_loop", "-1", "-ss", String(musicOffset), "-i", musicPath, ...(hasOverlays ? ["-loop", "1", "-i", outputHookOverlay, "-loop", "1", "-i", outputCvrOverlay] : []), "-filter_complex", graph, "-map", "[vout]", "-map", "[aout]", "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
+    const videoGraph = hasOverlays ? `[0:v][${overlayInput}:v]overlay=0:0:enable='between(t,0,${overlayWindows.hookEnd})'[v1];[v1][${overlayInput + 1}:v]overlay=0:0:enable='between(t,${overlayWindows.cvrStart},${productDuration})'[vout]` : '[0:v]null[vout]';
+    const graph = videoGraph + (hasBrandAudio ? `;[1:a]atrim=duration=${productDuration},asetpts=PTS-STARTPTS[aout]` : "");
+    await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, ...(hasBrandAudio ? ["-i", musicPath] : []), ...(hasOverlays ? ["-loop", "1", "-i", outputHookOverlay, "-loop", "1", "-i", outputCvrOverlay] : []), "-filter_complex", graph, "-map", "[vout]", ...(hasBrandAudio ? ["-map", "[aout]"] : ["-an"]), "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
     const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
     const record = await buildOutputRecord(root, outputPath, {
-      musicName: path.basename(musicPath),
+      musicName: musicPath ? path.basename(musicPath) : '',
       beatOffsetSeconds: musicOffset,
       qualityStatus: "passed",
       variantIndex: variantIndex + 1,

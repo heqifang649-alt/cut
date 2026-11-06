@@ -20,6 +20,15 @@ function fixture(tags=['scene:ootd'],type='overall'){
   {id:'tt',brand:'TT',kind:'hook',text:'Tokyo style, your way',scene:'OOTD',category:'穿搭',sources:[]},
  ]}};
 }
+test('empty or foreign brand library cannot borrow global template copy',()=>{
+ for(const brandId of ['GC','TT','NW','UNKNOWN']){
+  const f=fixture();f.batch.brandCopyContext=trustedCopyContext({brandId},'authenticated_api');
+  f.snapshot.entries=f.snapshot.entries.filter(e=>e.brand!==brandId);
+  f.templateMaster={hook:{text:'Template original'},cvr:{text:'Explore the collection'}};
+  const decision=matchOutputCopy(f);
+  for(const kind of ['hook','cta']){assert.equal(decision[kind].text,'');assert.equal(decision[kind].warning,'BRAND_COPY_NO_MATCH');}
+ }
+});
 test('aliases are upstream-only; unknown and fitness never infer a brand',()=>{
  for(const v of ['GC','GuidingCross'])assert.equal(canonicalBrand(v),'GC');
  for(const v of ['TT','Tokyo-Tiger','TokyoTiger'])assert.equal(canonicalBrand(v),'TT');
@@ -53,7 +62,7 @@ test('foreign/REJECT evidence cannot supply scene tags',()=>{
 test('Hook and CTA separate; locked fields independent; script/template/none fallback',()=>{
  const f=fixture();f.batch.hookText='My locked message';let r=matchOutputCopy(f);assert.equal(r.hook.source,'locked');assert.equal(r.cta.source,'library');
  delete f.batch.hookText;f.snapshot.entries=[];f.batch.brandCopyContext.script={hook:'Original script',cta:'See more'};r=matchOutputCopy(f);assert.equal(r.hook.source,'script');assert.equal(r.cta.source,'script');
- f.batch.brandCopyContext.script={};f.templateMaster={hook:{text:'Template original'}};assert.equal(matchOutputCopy(f).hook.source,'template');assert.equal(matchOutputCopy(f).cta.source,'none');
+  f.batch.brandCopyContext.script={};f.templateMaster={hook:{text:'Template original'}};assert.equal(matchOutputCopy(f).hook.source,'none');assert.equal(matchOutputCopy(f).hook.warning,'BRAND_COPY_NO_MATCH');assert.equal(matchOutputCopy(f).cta.source,'none');
 });
 test('unsupported promotion, claims and outfit counts do not change scheduling or prevent output',()=>{
  const f=fixture();const before=JSON.stringify(f.product);const content=matchOutputCopy(f).content;

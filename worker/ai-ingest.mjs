@@ -1,3 +1,4 @@
+import {MINIMUM_OUTPUT_SECONDS, MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -164,12 +165,9 @@ export function deriveScriptTemplate(batch) {
   const slotIds = FROZEN_SLOT_IDS;
   if (durations.length !== slotIds.length) throw new TypeError("Confirmed reference profile cannot be mapped to the five-slot production contract");
   const total = durations.reduce((sum, value) => sum + value, 0);
-  // A confirmed batch may impose a stricter duration cap than the global
-  // 13-second ceiling. Scale the frozen structure once, deterministically,
-  // instead of generating an edit plan that the renderer must reject later.
-  const batchCap = Number(batch?.durationMax);
-  const durationCap = Number.isFinite(batchCap) && batchCap > 0 ? Math.min(13, batchCap) : 13;
-  const scale = total > durationCap ? durationCap / total : 1;
+  // The template is a rhythm reference; final delivery uses the global contract.
+  const durationCap = MAXIMUM_OUTPUT_SECONDS;
+  const scale = Math.min(durationCap, Math.max(MINIMUM_OUTPUT_SECONDS, total)) / total;
   const slots = slotIds.map((id, index) => ({
     id,
     label: labels[index],

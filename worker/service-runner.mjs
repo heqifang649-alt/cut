@@ -305,7 +305,8 @@ async function handleFailure(task, error) {
     ? Number.isFinite(error?.availableSafeDuration)
       ? `成片实际有效视频时长 ${error.availableSafeDuration.toFixed(3)} 秒，低于最低 8 秒，已拒绝发布。`
       : "成片实际有效视频时长不足8秒，已拒绝发布。"
-    : null;
+    : error?.code === 'OUTPUT_DURATION_EXCEEDED' ? '成片实际时长超过18秒，已拒绝发布。'
+    : error?.code === 'RENDER_PLAN_DURATION_INVALID' ? '剪辑计划时长无效，已拒绝渲染。' : null;
   const automaticBatch = await loadBatch(task.batchId);
   if (automaticBatch?.executionPolicy?.automaticRetry === false) {
     await recordBatchFailure({ root: ROOT, batchId: task.batchId, service: SERVICE,
@@ -314,20 +315,21 @@ async function handleFailure(task, error) {
     if (!(await taskCanFinalize(task))) return { state: "lost", lost: true };
     await update(task.batchId, item => {
       item.status = "failed"; item.error = durationFailureMessage || message;
+      if (durationFailureMessage) item.bridgeErrorCode = error.code;
       item.execution = { state: "failed", stage: task.stage, reason: error.code || "EXECUTION_FAILED", updatedAt: new Date().toISOString() };
     });
     await markFatalFailure({ root: ROOT, batchId: task.batchId, stage: task.stage, message: durationFailureMessage || message });
     return retryStage({ root: ROOT, task, reason: durationFailureMessage || message, maxAttempts: 0 });
   }
   if (automaticBatch?.libtvSource?.editPolicyReceipt?.state === "accepted") {
-    const code = ["INSUFFICIENT_SAFE_DURATION", "SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
+    const code = ["INSUFFICIENT_SAFE_DURATION", "OUTPUT_DURATION_EXCEEDED", "RENDER_PLAN_DURATION_INVALID", "SOURCE_INSUFFICIENT", "QUALITY_REJECTED", "TEMPLATE_NOT_READY", "BGM_MISSING", "SOURCE_SCOPE_INVALID"].includes(error?.code) ? error.code
       : /Schedule Failed:.*(?:schedule:hook|no_matching_shot.*hook)/i.test(message) ? "NO_MATCHING_HOOK"
       : /Schedule Failed:/.test(message) ? "SOURCE_INSUFFICIENT" : null;
     if (code) {
       if (!(await taskCanFinalize(task))) return { state: "lost", lost: true };
       await update(task.batchId, (item) => {
         item.status = "failed"; item.bridgeErrorCode = code;
-        item.error = code === "INSUFFICIENT_SAFE_DURATION"
+        item.error = durationFailureMessage ? durationFailureMessage : code === "INSUFFICIENT_SAFE_DURATION"
           ? durationFailureMessage
           : { INSUFFICIENT_SAFE_DURATION: "成片实际有效视频时长不足8秒，已拒绝发布。", NO_MATCHING_HOOK: "合格素材中没有符合母版的开头镜头。", SOURCE_INSUFFICIENT: "自动检查后合格素材或必要证据不足。",
           QUALITY_REJECTED: "自动质量检查拒绝使用相关素材。", TEMPLATE_NOT_READY: "指定母版不可用或归属已变化。",

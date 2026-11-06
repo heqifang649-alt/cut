@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { admitMultisource, MULTISOURCE_CONTRACT, MULTISOURCE_CONTRACT_V1, multisourceStatus } from "../lib/classic-multisource.mjs";
 import { executeClassicMultisource } from "../worker/classic-multisource-executor.mjs";
+import { renderBatchFromRenderPlans } from "../worker/batch-renderer.mjs";
 
 const run = promisify(execFile);
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -83,6 +84,11 @@ test(`isolated ${contractVersion} ${sourceCount}-source task completes through r
             product: { match: productMatch, wrongSku: "match", productError: "match", graphic_text_logo: "match",
               color: "match", structure: "match", confidence: 0.98 } } }] });
       } },
+    renderer: async options => {
+      assert.equal(options.batch.brandCopyContext.brandId, 'TT');
+      assert.equal(options.batch.brandCopyContext.provenance, 'verified_handoff');
+      return renderBatchFromRenderPlans(options);
+    },
     qualityVerifier: undefined });
 
   assert.equal(result.status, contractVersion === MULTISOURCE_CONTRACT ? "completed" : "review"); assert.equal(result.outputs.length, 1);
