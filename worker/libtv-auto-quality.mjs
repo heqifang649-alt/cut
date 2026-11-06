@@ -1,3 +1,4 @@
+import { classicServiceOwnerConfig, classicServiceOwner } from "../lib/classic-service-owner.mjs";
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { prepareGuidedInputs } from "./libtv-guided-auto.mjs";
 import { createHash } from "node:crypto";
@@ -19,7 +20,9 @@ export async function autoOotdInputs(root, batch) {
   if (!isAutoOotdBatch(batch) && !isGuidedBatch(batch)) throw fail("QUALITY_REJECTED", "source_policy_invalid");
   const users = await readJson(path.join(root, "data/users.json"), []);
   const templates = await readJson(path.join(root, "data/templates.json"), []);
-  if (!users.some((user) => user.id === batch.ownerId && user.status === "active")) throw fail("QUALITY_REJECTED", "owner_inactive");
+  const serviceConfig = classicServiceOwnerConfig(process.env);
+  const serviceOwnerId = serviceConfig.serviceOwnerId === batch.ownerId ? await classicServiceOwner(root, serviceConfig) : null;
+  if (serviceOwnerId !== batch.ownerId && !users.some((user) => user.id === batch.ownerId && user.status === "active")) throw fail("QUALITY_REJECTED", "owner_inactive");
   if (!isGuidedBatch(batch) && !templates.some((template) => template.id === batch.templateId && template.ownerId === batch.ownerId && template.status === "ready"
     && isDeepStrictEqual(template.profile, batch.referenceProfile))) throw fail("TEMPLATE_NOT_READY", "template_not_ready_or_owner_changed");
   const files = batch.files.filter((file) => file.kind === "products");

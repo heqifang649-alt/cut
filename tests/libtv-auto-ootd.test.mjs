@@ -213,3 +213,23 @@ test("five quality frames stay inside the requested source interval", async (t) 
   assert.equal(frames.length, 5); assert(positions.every((time) => time >= 4 && time < 6));
   assert.equal(positions[0], 4); assert.equal(positions[4], 5.96);
 });
+
+
+test("service owner passes downstream identity checks without enabling an interactive session", async t => {
+  const f = await importFixture(t);
+  const users = await readJson(path.join(f.root, "data/users.json"), []);
+  const owner = users.find(user => user.id === f.batch.ownerId);
+  owner.status = "disabled"; owner.role = "member";
+  await writeJsonAtomic(path.join(f.root, "data/users.json"), users);
+  const keys = ["CUTFLOW_CLASSIC_SERVICE_OWNER_ENABLED", "CUTFLOW_CLASSIC_SERVICE_OWNER_ID"];
+  const previous = keys.map(key => process.env[key]);
+  try {
+    process.env[keys[0]] = "true"; process.env[keys[1]] = owner.id;
+    for (const file of f.batch.files) file.storagePath = path.resolve(f.root, file.storagePath);
+    await autoOotdInputs(f.root, f.batch);
+    const { authenticateUser, createSession, getSessionUser } = await import("../lib/auth-core.mjs");
+    assert.equal(await authenticateUser(f.root, owner.username, "irrelevant"), null);
+    const session = await createSession(f.root, owner.id);
+    assert.equal(await getSessionUser(f.root, session.token), null);
+  } finally { keys.forEach((key, i) => { if (previous[i] === undefined) delete process.env[key]; else process.env[key] = previous[i]; }); }
+});

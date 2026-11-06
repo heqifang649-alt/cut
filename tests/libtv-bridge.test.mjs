@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -253,6 +254,7 @@ test("absolute and parent paths are rejected", async (t) => {
 
 test("post-batch crash recovery retains edits and publishes immutable pending-review versions", async (t) => {
   const env = await fixture(t);
+  env.config.maxBytes = 1024 * 1024;
   await enqueueImport(env.root, env.config, env.descriptor);
   await bridgeTick(env.root, env.config);
   const store = path.join(env.root, "data/batches.json");
@@ -260,7 +262,9 @@ test("post-batch crash recovery retains edits and publishes immutable pending-re
   const batch = batches[0];
   const output = path.join(batchWorkspacePath(env.root, batch), "output", "edited.mp4");
   await mkdir(path.dirname(output));
-  await writeFile(output, "isolated-render-output");
+  const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+  await writeJsonAtomic(path.join(env.root, "config/cutflow-runtime.json"), runtime);
+  execFileSync(runtime.ffmpegExecutable, ["-y", "-f", "lavfi", "-i", "color=c=blue:s=160x240:r=24", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", output], { stdio: "ignore" });
   batch.status = "review"; batch.requirements = "User edit preserved";
   batch.files.push({ id: randomUUID(), kind: "output", storagePath: path.relative(env.root, output), qualityStatus: "passed" });
   await writeJsonAtomic(store, batches);
@@ -278,7 +282,7 @@ test("post-batch crash recovery retains edits and publishes immutable pending-re
   await bridgeTick(env.root, env.config);
   assert.equal((await importStatus(env.root, env.config, env.descriptor.handoffId,
     env.descriptor.userId, env.siteId)).outputs.length, 1);
-  await writeFile(output, "isolated-second-revision");
+  execFileSync(runtime.ffmpegExecutable, ["-y", "-f", "lavfi", "-i", "color=c=green:s=160x240:r=24", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", output], { stdio: "ignore" });
   batch.updatedAt = new Date(Date.now() + 1000).toISOString();
   batch.revisionVersion = 2;
   await writeJsonAtomic(store, [batch]);
@@ -286,4 +290,22 @@ test("post-batch crash recovery retains edits and publishes immutable pending-re
   const revised = await importStatus(env.root, env.config, env.descriptor.handoffId, env.descriptor.userId, env.siteId);
   assert.equal(revised.outputs.length, 2);
   assert.notEqual(revised.outputs[0].sha256, revised.outputs[1].sha256);
+});
+
+
+test("noninteractive service owner admits legacy single source without employee mappings", async t => {
+  const f = await fixture(t);
+  f.config.owners = {};
+  f.config.serviceOwnerId = f.ownerId;
+  f.config.serviceTemplateId = f.templateId;
+  await writeJsonAtomic(path.join(f.root, "data/users.json"), [{ id: f.ownerId, status: "disabled", role: "member" }]);
+  const first = await enqueueImport(f.root, f.config, f.descriptor);
+  const second = await enqueueImport(f.root, f.config, f.descriptor);
+  assert.equal(first.batchId, second.batchId);
+  await bridgeTick(f.root, f.config);
+  const batches = await readJson(path.join(f.root, "data/batches.json"), []);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].ownerId, f.ownerId);
+  assert.equal(batches[0].libtvSource.source.user_id, f.descriptor.userId);
+  await assert.rejects(importStatus(f.root, f.config, f.descriptor.handoffId, randomUUID(), f.siteId), /RECEIPT_NOT_FOUND/);
 });

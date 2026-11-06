@@ -51,7 +51,9 @@ test(`isolated ${contractVersion} ${sourceCount}-source task completes through r
     sourceBinding: { kind: "brand", value: brandIdentity, granularity: "brand-profile", productIdProvided: false }, sources };
   const raw = Buffer.from(JSON.stringify(manifest)); const manifestSha256 = sha256(raw);
   await writeFile(path.join(inbox, "manifest.json"), raw); await writeJsonAtomic(path.join(inbox, "READY"), { sha256: manifestSha256 });
-  const config = { ready: true, nasRoot, owners: { [`fixture:${userId}`]: "fixture-owner" },
+  const serviceOwnerId = randomUUID();
+  await writeJsonAtomic(path.join(root, "data/users.json"), [{ id: serviceOwnerId, role: "member", status: "disabled" }]);
+  const config = { ready: true, nasRoot, owners: {}, serviceOwnerId,
     costVerifier: "fixture-cost", qualityVerifier: "fixture-quality", productionEditor: "existing-renderer" };
   await admitMultisource(root, config, { contractVersion, idempotencyKey: `fixture-${taskId}`, taskId,
     handoffKey, idempotencyKey: `fixture-${taskId}`, manifestRelativePath: `inbox/${handoffKey}/manifest.json`, manifestSha256 });

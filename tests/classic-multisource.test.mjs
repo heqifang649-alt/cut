@@ -347,3 +347,38 @@ test('historical V2 review is finalized with the same identities and immutable m
  assert.equal((await stat(media)).mtimeMs,before.mtimeMs);
  assert.deepEqual(await reconcileMultisourceCompletion(f.root,f.config,f.taskId,{ffmpeg,ffprobe:runtime.ffprobeExecutable}),recovered);
 });
+
+
+test("service owner accepts unmapped 1/2/8 source tasks, isolates users/brands and preserves idempotency", async () => {
+  const ownerId = randomUUID();
+  const shared = await fixture({ contractVersion: MULTISOURCE_CONTRACT });
+  await writeJsonAtomic(path.join(shared.root, "data/users.json"), [{ id: ownerId, status: "disabled", role: "member" }]);
+  const config = multisourceConfig({ ...shared.env, LIBTV_BRIDGE_OWNER_MAP: "{}",
+    CUTFLOW_CLASSIC_SERVICE_OWNER_ENABLED: "true", CUTFLOW_CLASSIC_SERVICE_OWNER_ID: ownerId }, shared.root);
+  assert.equal(config.ready, true);
+  const batches = new Set();
+  const sameUser = randomUUID();
+  for (const [index, sourceCount] of [1, 2, 8, 1].entries()) {
+    const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount });
+    const brand = index === 3 ? "TT" : "GC";
+    f.manifest.userId = index >= 2 ? sameUser : f.userId;
+    f.manifest.sourceBinding = { kind: "brand", value: brand, granularity: "brand-profile", productIdProvided: false };
+    f.manifest.sources.forEach(source => { source.productId = null; source.brandIdentity = brand; });
+    const raw = Buffer.from(JSON.stringify(f.manifest)); const digest = hash(raw);
+    await writeFile(path.join(f.dir, "manifest.json"), raw);
+    await writeJsonAtomic(path.join(f.dir, "READY"), { sha256: digest });
+    const { cp } = await import("node:fs/promises");
+    await cp(f.dir, path.join(config.nasRoot, "inbox", f.handoffKey), { recursive: true });
+    const input = { ...f.input, ownerUserId: f.manifest.userId, manifestSha256: digest };
+    const first = await admitMultisource(shared.root, config, input);
+    assert.deepEqual(await admitMultisource(shared.root, config, input), first);
+    assert.equal(batches.has(first.batchId), false); batches.add(first.batchId);
+    await assert.rejects(admitMultisource(shared.root, config, { ...input, ownerUserId: randomUUID() }), /INVALID_MANIFEST/);
+  }
+  const records = JSON.parse(await readFile(path.join(shared.root, "data/classic-multisource-records.json"), "utf8"));
+  assert.equal(records.length, 4);
+  assert.ok(records.every(record => record.ownerId === ownerId));
+  assert.deepEqual(records.filter(record => record.userId === sameUser).map(record => record.sourceBinding.value), ["GC", "TT"]);
+  await writeJsonAtomic(path.join(shared.root, "data/users.json"), [{ id: ownerId, status: "active", role: "member" }]);
+  await assert.rejects(admitMultisource(shared.root, config, shared.input), /SERVICE_OWNER_MUST_BE_NONINTERACTIVE/);
+});
