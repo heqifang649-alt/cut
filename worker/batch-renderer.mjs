@@ -7,7 +7,7 @@ import { createHash, randomInt } from "node:crypto";
 import path from "node:path";
 import { storedArtifactPath } from "../lib/work-paths.mjs";
 import { isRenderPlan, isTransitionProfile } from "../lib/types.ts";
-import { renderPlanShortShotQuality, repairShortShotSlots, inspectShortShotTimeline } from "../lib/short-shot-quality.mjs";
+import { renderPlanShortShotQuality } from "../lib/short-shot-quality.mjs";
 import { repairScheduledInternalCuts } from "../lib/internal-cut-repair.mjs";
 import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { assertLegacyEditPlanReady } from "./edit-plan-readiness.mjs";
@@ -360,21 +360,14 @@ export function dryRunRenderPlan(renderPlan) {
   };
 }
 
-export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProducts = [], transitionProfile, featureEnabled = isTemplateTransitionEnabled(), shortShotPolicy }) {
+export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProducts = [], transitionProfile, featureEnabled = isTemplateTransitionEnabled() }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) throw new TypeError("RenderPlan renderer requires scheduled products");
   const selectedProfile = resolvedTransitionProfile(transitionProfile || scheduledProducts[0]?.scheduleResult?.renderPlan?.transitionProfile);
   const products = scheduledProducts.map(({ product, sourceNamesByShotId, scheduleResult }) => {
     if (!product || typeof product.id !== "string" || typeof product.label !== "string" || !Array.isArray(product.files)) throw new TypeError("RenderPlan renderer requires product context");
     if (!scheduleResult || scheduleResult.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) throw new TypeError(`RenderPlan renderer requires a successful schedule for ${product.id}`);
     if (!sourceNamesByShotId || typeof sourceNamesByShotId !== "object") throw new TypeError(`RenderPlan renderer requires source context for ${product.id}`);
-    const repairedSlots = repairShortShotSlots(scheduleResult.renderPlan.slots, shortShotPolicy);
-    const repairs = repairedSlots.flatMap((entry, index) => {
-      const original = scheduleResult.renderPlan.slots[index];
-      const before = Math.min(original.shot.end - original.shot.start, original.slot.targetDuration);
-      return Math.abs(entry.slot.targetDuration - before) > 1e-6
-        ? [{ index, severity: "REPAIR", reason: "crop_boundary_redistributed", before, after: entry.slot.targetDuration }] : [];
-    });
-    const rawSegments = repairedSlots.map(({ slot, shot }, index) => {
+    const rawSegments = scheduleResult.renderPlan.slots.map(({ slot, shot }, index) => {
       const sourceName = sourceNamesByShotId[shot.id];
       if (!sourceName || !product.files.includes(sourceName)) throw new Error(`RenderPlan shot ${shot.id} is outside product context ${product.id}`);
       const availableDuration = Number((shot.end - shot.start).toFixed(6));
@@ -405,17 +398,12 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       } else segments.push({ ...segment });
       return segments;
     }, []);
-    const computedShortShotQuality = renderPlanShortShotQuality(mergedSegments.map(segment => ({
-      shot: { start: segment.source_in, end: segment.source_out }, slot: { targetDuration: segment.duration },
-    })), {
-      shortShotPolicy,
+    const computedShortShotQuality = renderPlanShortShotQuality(scheduleResult.renderPlan.slots, {
       beatCompressionCreatedShortShot: scheduleResult.renderPlan.beatCompressionCreatedShortShot ?? false,
     });
     const productProfile = resolvedTransitionProfile(transitionProfile || scheduleResult.renderPlan.transitionProfile || selectedProfile);
     const minimumSafeDuration = scheduleResult.renderPlan.minimumSafeDuration;
     const timeline = materializeProductTimeline(mergedSegments, master, { transitionProfile: minimumSafeDuration ? "hard_cut" : productProfile, featureEnabled });
-    const shortShotFindings = inspectShortShotTimeline(timeline.segments, shortShotPolicy);
-    if (shortShotFindings.some(finding => finding.severity === "REJECT")) throw new Error("SHORT_SHOT_TECHNICAL_REJECT");
     if (timeline.durationSeconds > MAXIMUM_OUTPUT_SECONDS) throw Object.assign(new Error("OUTPUT_DURATION_EXCEEDED"), {code:"OUTPUT_DURATION_EXCEEDED",retryable:false,actualDuration:timeline.durationSeconds,maximumOutputDuration:MAXIMUM_OUTPUT_SECONDS});
     if (minimumSafeDuration && timeline.durationSeconds < minimumSafeDuration - 1e-6) throw Object.assign(new Error("INSUFFICIENT_SAFE_DURATION"), { code: "INSUFFICIENT_SAFE_DURATION", retryable: false, availableSafeDuration: timeline.durationSeconds, durationShortfall: minimumSafeDuration - timeline.durationSeconds });
     return {
@@ -426,13 +414,11 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
       ...(minimumSafeDuration ? { minimum_safe_duration: minimumSafeDuration } : {}),
       visual_consistency_verified: true,
       short_shot_quality: {
-        findings: shortShotFindings,
-        repairs,
         shortShotCount: computedShortShotQuality.shortShotCount,
         consecutiveShortShots: computedShortShotQuality.consecutiveShortShots,
         shortestShotDuration: computedShortShotQuality.shortestShotDuration,
         beatCompressionCreatedShortShot: computedShortShotQuality.beatCompressionCreatedShortShot,
-        reviewWarning: shortShotFindings.some(finding => finding.severity === "WARNING") || computedShortShotQuality.shortShotReviewWarning,
+        reviewWarning: computedShortShotQuality.shortShotReviewWarning,
       },
       transition_profile: timeline.transitionProfile,
       applied_transition_profile: timeline.appliedTransitionProfile,
@@ -816,7 +802,7 @@ async function writeChatCutManifest({ root, outputDir, batch, master, product, r
   return storedArtifactPath(root, manifestPath);
 }
 
-export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, internalCutRepair = false, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
+export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, scheduledProducts, excludedProducts = [], semanticEvidence, internalCutRepair = true, preparedBrandAudioByProduct, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0 }) {
   if (!Array.isArray(scheduledProducts) || !scheduledProducts.length) {
     throw new Error("Render Plan Not Ready: schedule-result.json has no renderable Product View");
   }
@@ -826,7 +812,7 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDi
     const repaired = await repairScheduledInternalCuts({ scheduledProducts, ffmpeg });
     internalCutEvidence = repaired.evidence;
     await mkdir(editDir, { recursive: true });
-    await writeJsonAtomic(path.join(editDir, "internal-cut-repair.v1.json"), repaired.evidence);
+    await writeJsonAtomic(path.join(editDir, "internal-cut-repair.v1.json"), internalCutEvidence);
     scheduledProducts = repaired.products;
   }
   const outputAllocation = resolveOutputAllocation(batch, scheduledProducts);
@@ -898,10 +884,11 @@ export async function renderBatchFromRenderPlans({ root, batch, batchDir, editDi
     productVisualReview,
     outputAllocation,
     brandCopyEvidence: semanticEvidence,
+    preparedBrandAudioByProduct,
   });
 }
 
-export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null, outputAllocation: suppliedOutputAllocation = null, brandCopyEvidence }) {
+export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppliedEditDir, outputDir: suppliedOutputDir, ffmpeg, onProgress = async () => {}, onActivity = async () => {}, isCanceled = async () => false, limit = 0, edlPath: suppliedEdlPath, validateLegacyProductConsistency = true, productVisualReview = null, outputAllocation: suppliedOutputAllocation = null, brandCopyEvidence, preparedBrandAudioByProduct }) {
   const assertActive = async () => { if (await isCanceled()) throw new Error("任务已取消"); };
   await assertActive();
   const editDir = suppliedEditDir || path.join(batchDir, "edit");
@@ -1073,7 +1060,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
     const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'only-v1',enabled:brandAudioEnabled,context:batch.brandCopyContext} : {}) });
     const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
-    const brandAudio = useBrandBgm && !canReuseOutput ? await prepareBrandAudio({root,batch,enabled:brandAudioEnabled,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
+    const brandAudio = useBrandBgm && !canReuseOutput ? preparedBrandAudioByProduct?.get(product.product_id) || await prepareBrandAudio({root,batch,enabled:brandAudioEnabled,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
     const bgmDecision = useBrandBgm ? brandAudio?.decision || savedOutput.bgm : null;
     const musicPath = canReuseOutput ? savedOutput.musicPath : brandAudio?.path || null;
     await assertActive();

@@ -1,3 +1,8 @@
+import { chooseGuidedDensity } from './guided-density-v2.mjs';
+import { productionGuidedMode,renderWithGuidedFallback } from './guided-production-policy.mjs';
+import { chooseSafePool } from './guided-safe-pool.mjs';
+import { renderGuidedV22 } from './guided-render-v22.mjs';
+import { collectGuidedEditingEvidence } from './guided-editing-evidence.mjs';
 import { enableClassicBrandResources } from '../lib/classic-brand-activation.mjs';
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
@@ -35,10 +40,13 @@ function productGroups(sources) {
   return [...groups.values()];
 }
 
-export function scheduleClassicMultisource({ record, shotPool, scriptTemplate, semanticEvidence }) {
+export function scheduleClassicMultisource({ record, shotPool, scriptTemplate, semanticEvidence, editingEvidence, selectionMode = process.env.CUTFLOW_GUIDED_SELECTION_MODE || "original" }) {
   const views = createProductViews({ shotPool, productGroups: productGroups(record.sources) });
-  return views.map((view) => ({ product: view.product, sourceNamesByShotId: view.sourceNamesByShotId,
-    scheduleResult: scheduleAvailable(view, record, scriptTemplate, semanticEvidence) }));
+  const scheduled = views.map((view) => ({ product: view.product, sourceNamesByShotId: view.sourceNamesByShotId,
+    scheduleResult: ["fusion-v2", "fusion-v2.1", "fusion-v2.2", "fusion-v2.3", "safe-pool"].includes(selectionMode)
+      ? chooseGuidedDensity({ view, record, semanticEvidence, editingEvidence, compositionRevision: ["fusion-v2.3","safe-pool"].includes(selectionMode) ? "2.3" : undefined, rhythmRevision: ["fusion-v2.1", "fusion-v2.2", "fusion-v2.3", "safe-pool"].includes(selectionMode) ? "2.1" : undefined, baseline: scheduleAvailable(view, record, scriptTemplate, semanticEvidence) })
+      : scheduleAvailable(view, record, scriptTemplate, semanticEvidence) }));
+  return selectionMode === 'safe-pool' ? scheduled.map((p,i)=>({...p,scheduleResult:chooseSafePool({baseline:p.scheduleResult,view:views[i],record,semanticEvidence,editingEvidence})})) : scheduled;
 }
 
 function scheduleAvailable(view, record, scriptTemplate, semanticEvidence) {
@@ -52,16 +60,6 @@ function scheduleAvailable(view, record, scriptTemplate, semanticEvidence) {
     ends.set(s.source, s.end); return true;
   });
   if (!shots.length) return planned;
-  // A failed template fit must not concatenate complete alternative takes.
-  // Prefer an already viable source narrative in the existing fallback only.
-  const sourceRuns = record.sources.map(source => shots.filter(shot => shot.source === source.id));
-  const viableRuns = sourceRuns.filter(run => {
-    const duration = run.reduce((sum, shot) => sum + shot.end - shot.start, 0);
-    return duration >= MINIMUM_SAFE_DURATION_SECONDS && duration <= MAXIMUM_OUTPUT_SECONDS;
-  }).sort((a, b) => a.filter(s => s.tags.includes("quality:review")).length - b.filter(s => s.tags.includes("quality:review")).length);
-  if (new Set(shots.map(s => s.source)).size > 1 && viableRuns.length) {
-    shots.splice(0, shots.length, ...viableRuns[0]);
-  }
   return enforceMinimumSafeDuration({ status: "success", renderPlan: { id: `${record.taskId}-${view.product.id}-continuous`, batchId: record.taskId, createdAt: record.acceptedAt, transitionProfile: "hard_cut", slots: shots.map((shot,i) => ({ shot, slot: { id: `segment_${i}`, label: "商品展示", requireTags: [], targetDuration: shot.end-shot.start } })) } });
 }
 
@@ -97,6 +95,7 @@ export async function executeClassicMultisource({
     throw new Error("MISSING_TRUSTED_DEPENDENCY");
   }
   const record = await loadMultisourceExecution(root, config, taskId);
+  const guidedSelectionMode = await productionGuidedMode({root,config,record,fallback:classicGuidedCanaryMode(record)});
   const scopedBrandResources = await enableClassicBrandResources({ root,
     context: record.sourceBinding?.kind === 'brand' ? trustedCopyContext({ brandId: record.sourceBinding.value }, 'verified_handoff') : null,
     taskId: record.taskId, manifestSha256: record.manifestSha256, acceptedAt: record.acceptedAt,
@@ -128,10 +127,19 @@ export async function executeClassicMultisource({
 
     stage = "scheduler";
     await progress(stage, 70);
-    const scheduledProducts = scheduleClassicMultisource({ record, shotPool: quality.shotPool,
-      scriptTemplate: resolvedTemplate, semanticEvidence: quality.semanticEvidence });
+    let editingEvidence;
+    if(['fusion-v2.1','fusion-v2.2','fusion-v2.3','safe-pool'].includes(guidedSelectionMode) && new Set(quality.shotPool.shots.map(s=>s.source)).size>1){
+      try { editingEvidence = await collectGuidedEditingEvidence({shots:quality.shotPool.shots,ffmpeg,includeInternalCuts:true}); }
+      catch { editingEvidence = {shots:{},warnings:['optional_local_probe_failed']}; }
+    }
+    let scheduledProducts = scheduleClassicMultisource({ record, shotPool: quality.shotPool,editingEvidence,
+      selectionMode: guidedSelectionMode, scriptTemplate: resolvedTemplate, semanticEvidence: quality.semanticEvidence });
+    const legacyProducts = guidedSelectionMode === 'safe-pool' ? scheduleClassicMultisource({record,shotPool:quality.shotPool,
+      selectionMode:'original',scriptTemplate:resolvedTemplate,semanticEvidence:quality.semanticEvidence}) : scheduledProducts;
+    if(guidedSelectionMode==='safe-pool'&&!partitionScheduledProducts(scheduledProducts).renderable.length
+      &&partitionScheduledProducts(legacyProducts).renderable.length)scheduledProducts=legacyProducts;
     await writeJsonAtomic(path.join(workspaceDir, taskId, "edit", "multisource-schedule-result.json"), {
-      taskId, manifestSha256: record.manifestSha256, templateSlots: resolvedTemplate.slots.length,
+      taskId, manifestSha256: record.manifestSha256, guidedSelectionMode, templateSlots: resolvedTemplate.slots.length,
       admittedShots: quality.shotPool.shots.length, scheduledProducts,
     });
     const { renderable, excludedProducts } = partitionScheduledProducts(scheduledProducts);
@@ -169,9 +177,23 @@ export async function executeClassicMultisource({
     renderHeartbeat.unref?.();
     let rendered;
     try {
-      rendered = await renderer({ root, batch, batchDir, editDir: path.join(batchDir, "edit"),
+      const selectedRenderer = ['fusion-v2.2','fusion-v2.3','safe-pool'].includes(guidedSelectionMode) ? async options => {
+        try{return await renderGuidedV22({...options,editingEvidence},renderer);}
+        catch(error){
+          if(error.message==='任务已取消'||!['fusion-v2.3','safe-pool'].includes(guidedSelectionMode))throw error;
+          const fallback=options.scheduledProducts.map(p=>({...p,scheduleResult:p.scheduleResult.compositionFallback || p.scheduleResult}));
+          return renderGuidedV22({...options,scheduledProducts:fallback,editingEvidence},renderer);
+        }
+      } : renderer;
+      const renderOptions = { root, batch, batchDir, editDir: path.join(batchDir, "edit"),
         outputDir: path.join(batchDir, "output"), ffmpeg, scheduledProducts: renderable, excludedProducts,
-        semanticEvidence: quality.semanticEvidence });
+        semanticEvidence: quality.semanticEvidence };
+      rendered = guidedSelectionMode==='safe-pool' && partitionScheduledProducts(legacyProducts).renderable.length
+        ? await renderWithGuidedFallback({options:renderOptions,refined:renderable,legacy:partitionScheduledProducts(legacyProducts).renderable,
+          renderGuided:options=>selectedRenderer(options),renderer,
+          onFallback:error=>writeJsonAtomic(path.join(batchDir,'edit','guided-safe-pool-fallback.json'),{
+            at:new Date().toISOString(),mode:guidedSelectionMode,to:'original',reason:error.code || error.message})})
+        : await selectedRenderer(renderOptions);
     } finally {
       clearInterval(renderHeartbeat);
       await releaseRenderPermit({ root, permit: renderPermit, limit: renderLimit }).catch(() => undefined);
@@ -195,4 +217,24 @@ export async function executeClassicMultisource({
     await updateMultisourceStatus(root, taskId, "failed", error, config, lease).catch(() => undefined);
     throw error;
   }
+}
+
+// One explicitly bound new-task process only. Persistent production defaults
+// and all unmatched, single-source and ordinary-template paths stay original.
+export function classicGuidedCanaryMode(record, env = process.env) {
+  return env.CUTFLOW_GUIDED_CANARY_ONCE === 'true'
+    && ['fusion-v2.1','fusion-v2.2','fusion-v2.3','safe-pool'].includes(env.CUTFLOW_GUIDED_SELECTION_MODE)
+    && record?.contractVersion === 'libtv-cut-lan-multi/2'
+    && record.sources?.length > 1 && record.sources.length <= 8
+    && Number(record.attempt || 0) === 0
+    && /^[0-9a-f-]{36}$/i.test(env.CUTFLOW_GUIDED_CANARY_TASK_ID || '')
+    && record.taskId === env.CUTFLOW_GUIDED_CANARY_TASK_ID
+    && /^[a-f0-9]{64}$/.test(env.CUTFLOW_GUIDED_CANARY_MANIFEST_SHA256 || '')
+    && record.manifestSha256 === env.CUTFLOW_GUIDED_CANARY_MANIFEST_SHA256
+    && Boolean(record.ownerUserId || record.userId)
+    && (record.ownerUserId || record.userId) === env.CUTFLOW_GUIDED_CANARY_OWNER_USER_ID
+    && record.sourceBinding?.kind === 'brand'
+    && Boolean(env.CUTFLOW_GUIDED_CANARY_BRAND)
+    && record.sourceBinding.value === env.CUTFLOW_GUIDED_CANARY_BRAND
+    ? env.CUTFLOW_GUIDED_SELECTION_MODE : 'original';
 }

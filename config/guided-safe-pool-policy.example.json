@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "mode": "safe-pool",
+  "activatedAt": null,
+  "excludedTaskIds": []
+}
