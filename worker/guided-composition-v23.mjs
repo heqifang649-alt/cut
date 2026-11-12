@@ -7,6 +7,12 @@ const clamp=n=>Math.max(0,Math.min(1,n));
 const number=n=>typeof n==='number' && Number.isFinite(n);
 const norm=p=>String(p).replaceAll('\\','/').toLowerCase();
 const unsafe=r=>r?.wrongSku===true || ['reject','wrong_sku'].includes(String(r?.status).toLowerCase()) || r?.result?.usable===false;
+// Information lists are sets: ordering and object key order carry no new claim.
+const canonical=value=>Array.isArray(value)?[...new Set(value.map(v=>JSON.stringify(canonical(v))))].sort()
+  :value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]))
+  :typeof value==='string'?value.trim().toLowerCase():value;
+const informationSet=value=>new Set((Array.isArray(value)?value:[value])
+  .filter(v=>v!==undefined&&v!==null&&v!=='').map(v=>JSON.stringify(canonical(v))));
 
 // Optional bounded comparison of existing safe plans, not a new admission gate.
 // Every entry carries its existing interval unchanged into the V2.2 processor.
@@ -36,7 +42,8 @@ export function chooseGuidedComposition({baseline,candidates=[],view,record,edit
     };
     const differentInformation=(a,b)=>{
       const x=info(a),y=info(b);
-      return Boolean(x.information&&y.information&&JSON.stringify(x.information)!==JSON.stringify(y.information)
+      const before=informationSet(x.information),after=informationSet(y.information);
+      return Boolean(before.size&&after.size&&[...after].some(v=>!before.has(v))
         || x.role&&y.role&&x.role!==y.role);
     };
     const distance=(a,b)=>{
@@ -81,7 +88,14 @@ export function chooseGuidedComposition({baseline,candidates=[],view,record,edit
     function valid(slots){
       if(!slots.length || !sameProduct(slots))return false;
       const selectedIds=new Set(slots.map(e=>e.shot.id));
-      if(continuityBlocks.some(block=>block.length>1 && block.some(e=>selectedIds.has(e.shot.id)) && !block.every(e=>selectedIds.has(e.shot.id))))return false;
+      if(continuityBlocks.some(block=>{
+        if(block.length<2 || !block.some(e=>selectedIds.has(e.shot.id)))return false;
+        const first=slots.findIndex(e=>e.shot.id===block[0].shot.id);
+        return first<0 || !block.every((e,i)=>{
+          const selected=slots[first+i];
+          return selected?.shot.id===e.shot.id && selected.shot.start===e.shot.start && end(selected)===end(e);
+        });
+      }))return false;
       const ids=new Set(),ends=new Map();let total=0;
       for(const e of slots){
         const s=e.shot,o=originals.get(s.id),n=duration(e),media=key(s);

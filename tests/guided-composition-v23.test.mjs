@@ -45,3 +45,18 @@ test('evidenced cross-source repetition is a preference, and new detail survives
  const r=chooseGuidedComposition(x);assert(r.selectionAudit.composition.after.metrics.repeat<r.selectionAudit.composition.before.metrics.repeat);
  assert(r.renderPlan.slots.some(e=>e.shot.id==='d'));
 });
+test('an existing candidate cannot insert another source inside a continuous action',()=>{
+ const x=fixture(),a=entry('a','one',0,.9,'overall'),c=entry('c','one',3,.9,'back_full_body'),b=entry('b','two',0,.2,'detail');
+ x.baseline=plan([a,c,b]);x.view.shots=[a.shot,c.shot,b.shot];
+ x.candidates=[{kind:'split-action',result:plan([a,b,c])}];
+ const r=chooseGuidedComposition(x),ids=r.renderPlan.slots.map(e=>e.shot.id);
+ assert.equal(ids.indexOf('c'),ids.indexOf('a')+1);
+});
+test('reordered product information is not new information',()=>{
+ const x=fixture(),s=[entry('o1','one',0,.8,'overall'),entry('o2','two',0,.8,'overall'),entry('d','one',4,.8,'detail'),entry('back','two',4,.8,'back_full_body')];
+ for(const e of s){e.shot.angle='front';e.shot.action='hold';e.shot.shotScale='medium';}
+ s[0].shot.productInformation=['print','fabric'];s[1].shot.productInformation=['fabric','print'];
+ x.baseline=plan(s);x.view.shots=s.map(e=>e.shot);x.candidates=[{result:plan([s[0],s[2],s[3]])}];
+ const r=chooseGuidedComposition(x);
+ assert(r.selectionAudit.composition.before.metrics.repeat>=1/3);
+});
