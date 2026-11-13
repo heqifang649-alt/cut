@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 
-const DEFAULT_FFMPEG = process.env.FFMPEG_PATH || "D:\\JianyingPro\\11.1.0.14287\\ffmpeg.exe";
 const FRAME_WIDTH = 64;
 const FRAME_HEIGHT = 112;
 const FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT;
@@ -10,12 +9,17 @@ function clamp(value, lower = 0, upper = 1) {
   return Math.min(upper, Math.max(lower, value));
 }
 
-function runSampleDecode(videoPath, { ffmpeg = DEFAULT_FFMPEG, sampleFps = SAMPLE_FPS, signal, start: requestedStart, duration: requestedDuration } = {}) {
-  const fps = Math.max(1, Number(sampleFps) || SAMPLE_FPS);
+function runSampleDecode(videoPath, { ffmpeg, sampleFps = SAMPLE_FPS, signal, start: requestedStart, duration: requestedDuration } = {}) {
+  if (!ffmpeg) throw new Error("ffmpeg executable must come from the Cutflow Runtime Contract");
+  const duration = Number(requestedDuration);
+  // The fps filter can drop every frame in a valid sub-frame-period tail.
+  // Sample short intervals densely enough to observe them without extending
+  // the requested source window or weakening the visibility gate.
+  const fps = Math.max(1, Number(sampleFps) || SAMPLE_FPS,
+    Number.isFinite(duration) && duration > 0 ? Math.ceil(1 / duration) : 0);
   const filter = `fps=${fps},scale=${FRAME_WIDTH}:${FRAME_HEIGHT}:force_original_aspect_ratio=decrease,pad=${FRAME_WIDTH}:${FRAME_HEIGHT}:(ow-iw)/2:(oh-ih)/2,format=gray`;
   return new Promise((resolve, reject) => {
     const start = Math.max(0, Number(requestedStart) || 0);
-    const duration = Number(requestedDuration);
     const range = [
       ...(start > 0 ? ["-ss", String(start)] : []),
       "-i", videoPath,
@@ -107,7 +111,7 @@ export async function analyzeDeterministicMetadataBudget(videoPath, options = {}
   const productVisibility = clamp(visibility);
   const productCentered = centeredRatio >= 0.75;
   const motionEnergy = motion < 0.04 ? "low" : motion < 0.12 ? "medium" : "high";
-  if (productVisibility < 0.12 || centeredRatio < 0.5) {
+  if (!options.allowUnboxingAnalysis && (productVisibility < 0.12 || centeredRatio < 0.5)) {
     const error = new Error(`Deterministic product visibility evidence is insufficient for ${videoPath}`);
     error.code = "METADATA_BUDGET_REVIEW_REQUIRED";
     error.evidence = { sampleCount: metrics.length, productVisibility, centeredRatio, motion, method: "grayscale_foreground_temporal_v1" };

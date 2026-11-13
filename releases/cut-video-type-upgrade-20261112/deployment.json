@@ -1,0 +1,109 @@
+{
+  "root": "D:/CUT-Releases/20261030-production-first-r11",
+  "dist": ".next-video-type-20261112",
+  "oldDist": ".next-owner-20261106",
+  "startedAt": "2026-11-12T11:17:00.345Z",
+  "files": [
+    {
+      "path": "lib/classic-multisource.mjs",
+      "before": "f88c0ecb065255203233a00cc74741bba30475175ef43a8a86cbb616ce3a4fb7",
+      "candidate": "61f09fbc2a34ec371d72891e6269c1f09311d6cc54c4955981deb65da850f69f"
+    },
+    {
+      "path": "lib/libtv-bridge.mjs",
+      "before": "5fa0b67d055bd6a08e5e017d55147bcbd1440aaff34a13b87d6e60872e9dac3c",
+      "candidate": "f664ce001f9e38135975cd5fec97c7fbe28a72764b56d7c36be6580e8cef3a65"
+    },
+    {
+      "path": "lib/types.ts",
+      "before": "e4925626c086893f859d78e2b0435a3c78869b373387b56c23f2ba546bc8c3b5",
+      "candidate": "db5d14ff5d95c5cecdbc3254cf066c5bc0fe832e1cd13ad54b225a2248aa7b83"
+    },
+    {
+      "path": "worker/ai-ingest.mjs",
+      "before": "14de4b10fad4ea896c489d805dde6c2734bb4b1de24391fe132d565f86a368a0",
+      "candidate": "71ce695445dbf5afc54a9ba356fe7f834cdbb7d6958c54d1ad801464b85a26cb"
+    },
+    {
+      "path": "worker/classic-multisource-analyze.mjs",
+      "before": "cbd96facd6de85b8be1873987e8bd515d69b3f4c3a46d03e26c7008a252d4575",
+      "candidate": "a3247b9a3db75e58bd7e676c265db3010d9d1a54de836cbcc4d27e91bd1b225e"
+    },
+    {
+      "path": "worker/classic-multisource-executor.mjs",
+      "before": "789303a27847f41d114bc28ee9be9a78a5570df7b195dd0abed8a63e09477581",
+      "candidate": "6e297710d9f7d777c52ce945e9d7607ed4f0d3a06dd8110e5e49bd5cf2ae8b75"
+    },
+    {
+      "path": "worker/classic-multisource-quality.mjs",
+      "before": "8ec139b719b4b543cdf4c5e8a701e37306e24caa035cdf1361ea0530a32d2cc1",
+      "candidate": "d928f0af66baacb45e7299077cc7f277e07dfae79eed1eb18a1aebf6b476e65b"
+    },
+    {
+      "path": "worker/deterministic-budget.mjs",
+      "before": "b7c210c380dad2184813ba263bf1e64a7f88607f3a766c59979c0b873746c69b",
+      "candidate": "2cd3d178e967de5ecace34ae4f9291ba4ac870fa53f6afaa7cbfc1229fc15a68"
+    },
+    {
+      "path": "worker/libtv-auto-quality.mjs",
+      "before": "fa946f751ba5a7d67b67e5e803f9bff4cee7103078f6ceb7a08aa6faf60e3ecf",
+      "candidate": "7b70be12a1bd6094497c3d0eb335a204b4f39878d3072df85a9feaad4eac4d1e"
+    },
+    {
+      "path": "worker/libtv-guided-auto.mjs",
+      "before": "02dc250ae8d0e4e0fba2baa652760853ec183decd8ae9db1ab029fa943af0999",
+      "candidate": "630de62d2ddb9c456022f7fd1aaa21ea949e952b73849d3706e22abb6d5beba6"
+    },
+    {
+      "path": "worker/quality-gate-v2.mjs",
+      "before": "77f3662e70a7315b12bd910cbaf93b3212ab009b2852b7f075b5f458f921bf76",
+      "candidate": "cb4fc30dd94065726a9236c6ab19ad9f27eb85e1cf2ee203b1d09923ca95884f"
+    },
+    {
+      "path": "lib/video-type.mjs",
+      "before": null,
+      "candidate": "145b58626ee64d801d583376f419d59e02e16d6d947f37ad78756a8c489a391f"
+    }
+  ],
+  "protectedBefore": {
+    "lib/brand-copy-match.mjs": "261cd56bd3ed14d1b55d84d6f0947546f5a6edcceb5bcaee0211172eca8a0394",
+    "lib/brand-copy-history.mjs": "c55d2d663baab0bdde99d50d80e7be7a333807442f450ad683527ee3ed9acc87",
+    "worker/brand-copy-render.mjs": "f8fd768f0a01d6921284f79994fd9e7b6e70e441218b4097bb3c1c463e2250fc",
+    "worker/shot-scheduler.mjs": "037d36f346632f1ce703269040817d953d1c7d3457d8cc142da9a9c75832b9e9",
+    "worker/guided-production-policy.mjs": "30a09896c39c4d12cbb80070042d2f805cf597040b5092bb9deb35a1d6163ddf",
+    "worker/guided-safe-pool.mjs": "b7c6de7b23f9a6ab447d6ffefb535735aaa0b20b08aa5421607a1182167175f6",
+    "worker/guided-render-v22.mjs": "9592a395b87c4f37213bf5b7c13fe24dee24283ffe0debaeaaafa8e96a3c9246",
+    "lib/libtv-guided-policy.mjs": "8fca993448876576d5eb8c7e2090b4df99b144053b782b59bf6756e75f567648",
+    "config/cutflow-runtime.json": "e01f98270efb7812085ac362a1f2cc9a4975b529d86fb054516afcef799014da",
+    "config/classic-brand-activation.json": "0e9a23857add3318c87a31cbc1412f45c4ad8db2bfcf8508061650210ac328f1",
+    "config/brand-copy-files.json": "a52e679d1f8f7e6ea850a7db05aff970aa69160bd5a11cc1c4886d98d903975a",
+    "config/brand-bgm-directories.json": "e7d9601f13dbce6ff5aa8d302b98b14682032bcb956bc61011c1e0e5d7262823"
+  },
+  "status": "installed",
+  "buildId": "boPj6NNvfX6RDEq_W1RKJ",
+  "idleCheckedAt": "2026-11-12T11:17:01.129Z",
+  "dataBefore": {
+    "batches.json": "e2423fd0ed86e35934bd56450856faa3b90abdab3188d01024158f39e330e211",
+    "service-queue.json": "a4f3db531b2fce6c96bfff307892695940dc27c3a40cd03b072a77bc0c996cbc",
+    "classic-multisource-records.json": "d5eb228e8f2e81d1df2b6456c6aeae522688fff13251ecda8e6dc46d5c9a3f86",
+    "libtv-receipts.json": "2a4e1f21e789ee12ff4960446e1608d7d41c3c4828712e9c340271c483f918ce",
+    "users.json": "5e11d52236541d09fb215fcfb8aecc8ade41e826c616dba41445b36f6346df03",
+    "templates.json": "6d742975ff4dee84b69c8baf011a94e95d25c28f912a94ca8ea7708c218a46f0"
+  },
+  "reloadedPids": "{\"pid\":22516,\"parent\":5284}\r\n",
+  "protectedAfter": {
+    "lib/brand-copy-match.mjs": "261cd56bd3ed14d1b55d84d6f0947546f5a6edcceb5bcaee0211172eca8a0394",
+    "lib/brand-copy-history.mjs": "c55d2d663baab0bdde99d50d80e7be7a333807442f450ad683527ee3ed9acc87",
+    "worker/brand-copy-render.mjs": "f8fd768f0a01d6921284f79994fd9e7b6e70e441218b4097bb3c1c463e2250fc",
+    "worker/shot-scheduler.mjs": "037d36f346632f1ce703269040817d953d1c7d3457d8cc142da9a9c75832b9e9",
+    "worker/guided-production-policy.mjs": "30a09896c39c4d12cbb80070042d2f805cf597040b5092bb9deb35a1d6163ddf",
+    "worker/guided-safe-pool.mjs": "b7c6de7b23f9a6ab447d6ffefb535735aaa0b20b08aa5421607a1182167175f6",
+    "worker/guided-render-v22.mjs": "9592a395b87c4f37213bf5b7c13fe24dee24283ffe0debaeaaafa8e96a3c9246",
+    "lib/libtv-guided-policy.mjs": "8fca993448876576d5eb8c7e2090b4df99b144053b782b59bf6756e75f567648",
+    "config/cutflow-runtime.json": "e01f98270efb7812085ac362a1f2cc9a4975b529d86fb054516afcef799014da",
+    "config/classic-brand-activation.json": "0e9a23857add3318c87a31cbc1412f45c4ad8db2bfcf8508061650210ac328f1",
+    "config/brand-copy-files.json": "a52e679d1f8f7e6ea850a7db05aff970aa69160bd5a11cc1c4886d98d903975a",
+    "config/brand-bgm-directories.json": "e7d9601f13dbce6ff5aa8d302b98b14682032bcb956bc61011c1e0e5d7262823"
+  },
+  "finishedAt": "2026-11-12T11:19:08.031Z"
+}

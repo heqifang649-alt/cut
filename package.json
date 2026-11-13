@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -p 3001",
     "worker": "node worker/processor.mjs",
+    "worker:fleet": "node worker/fleet-supervisor.mjs",
     "service:analyze": "node worker/service-runner.mjs --service=analyze",
     "service:clip": "node worker/service-runner.mjs --service=clip",
     "service:render": "node worker/service-runner.mjs --service=render",
@@ -35,7 +36,7 @@
     "check": "next build"
   },
   "dependencies": {
-    "@openai/codex-sdk": "^0.147.0",
+    "@openai/codex-sdk": "^0.146.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"

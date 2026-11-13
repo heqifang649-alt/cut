@@ -1,3 +1,5 @@
+import { sourceVideoType } from "../lib/video-type.mjs";
+import {MINIMUM_OUTPUT_SECONDS, MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -164,12 +166,9 @@ export function deriveScriptTemplate(batch) {
   const slotIds = FROZEN_SLOT_IDS;
   if (durations.length !== slotIds.length) throw new TypeError("Confirmed reference profile cannot be mapped to the five-slot production contract");
   const total = durations.reduce((sum, value) => sum + value, 0);
-  // A confirmed batch may impose a stricter duration cap than the global
-  // 13-second ceiling. Scale the frozen structure once, deterministically,
-  // instead of generating an edit plan that the renderer must reject later.
-  const batchCap = Number(batch?.durationMax);
-  const durationCap = Number.isFinite(batchCap) && batchCap > 0 ? Math.min(13, batchCap) : 13;
-  const scale = total > durationCap ? durationCap / total : 1;
+  // Template duration is a rhythm preference.
+  const durationCap = MAXIMUM_OUTPUT_SECONDS;
+  const scale = Math.min(durationCap, Math.max(MINIMUM_OUTPUT_SECONDS, total)) / total;
   const slots = slotIds.map((id, index) => ({
     id,
     label: labels[index],
@@ -251,7 +250,7 @@ export async function prepareDeterministicInputs({ batch, batchDir, ffmpeg, prob
       await writeJsonAtomic(sidecarPath, sidecar);
       const segments = [];
       for (const segment of candidateSegments(technical.duration, scriptTemplate)) {
-        const quality = await analyzeBudget(videoPath, { ffmpeg, technical, start: segment.start, duration: segment.end - segment.start });
+        const quality = await analyzeBudget(videoPath, { ffmpeg, technical, allowUnboxingAnalysis: sourceVideoType(file) === "unboxing", start: segment.start, duration: segment.end - segment.start });
         segments.push({ ...segment, budget: quality.budget, evidence: quality.evidence });
       }
       sidecars.push({ fileId: file.id, videoPath, sidecarPath, duration: technical.duration, technical, segments });
@@ -280,8 +279,9 @@ export function validateTechnicalCandidate(technical) {
   return failure || { verdict: "accept", artifacts: [] };
 }
 
-export async function importBatchToShotPool({ batch, batchDir, validate, budget, origin = "real", admissionPolicy = "full_validator" }) {
-  if (!new Set(["full_validator", "technical_metadata_shadow"]).has(admissionPolicy)) throw new TypeError("ShotPool admissionPolicy is invalid");
+export async function importBatchToShotPool({ batch, batchDir, validate, validateSegment, budget, origin = "real", admissionPolicy = "full_validator" }) {
+  if (!new Set(["full_validator", "technical_metadata_shadow", "source_policy_segment_quality"]).has(admissionPolicy)) throw new TypeError("ShotPool admissionPolicy is invalid");
+  if (admissionPolicy === "source_policy_segment_quality" && typeof validateSegment !== "function") throw new TypeError("Source policy requires segment quality evidence");
   if (admissionPolicy === "full_validator" && typeof validate !== "function") throw new TypeError("ShotPool full_validator admission requires validate");
   const records = [];
   const shots = [];
@@ -292,10 +292,10 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
     try {
       const prepared = inputByPath.get(videoPath);
       const sidecar = await readMetadataSidecar(videoPath, { sidecarPath: prepared?.sidecarPath });
-      if (admissionPolicy === "technical_metadata_shadow" && (!prepared?.technical || !Array.isArray(prepared?.segments) || !prepared.segments.length)) {
+      if (admissionPolicy !== "full_validator" && (!prepared?.technical || !Array.isArray(prepared?.segments) || !prepared.segments.length)) {
         throw new Error("Technical shadow admission requires prepared deterministic evidence");
       }
-      const validationResult = admissionPolicy === "technical_metadata_shadow"
+      const validationResult = admissionPolicy !== "full_validator"
         ? validateTechnicalCandidate(prepared.technical)
         : await validate(videoPath, { sidecar });
       if (!isValidationResult(validationResult)) throw new TypeError("Validator 返回了无效 ValidationResult");
@@ -307,6 +307,15 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
       for (const segment of segments) {
         const metadataBudget = await computeMetadataBudget(videoPath, { budget: segment?.budget || prepared?.budget, analyze: budget });
         const shot = createShotFromMetadata({ videoPath, sidecar, validationResult, budget: metadataBudget, origin, segment });
+        if (admissionPolicy === "source_policy_segment_quality") {
+          const quality = await validateSegment({ shot, file, segment });
+          if (!isValidationResult(quality)) throw new TypeError("Invalid segment quality result");
+          if (quality.verdict !== "accept") {
+            records.push({ videoPath, shotId: shot.id, segmentId: segment?.id, start: shot.start, end: shot.end,
+              status: quality.verdict, rejectReason: quality.rejectReason, admissionPolicy });
+            continue;
+          }
+        }
         shots.push(shot);
         records.push({ videoPath, status: "imported", shotId: shot.id, segmentId: segment?.id, admissionPolicy });
       }
@@ -314,7 +323,11 @@ export async function importBatchToShotPool({ batch, batchDir, validate, budget,
       records.push({ videoPath, status: "skipped", reason: error?.code || error?.message || String(error) });
     }
   }
-  const pool = shots.length ? await mergeShotsIntoPool(batch.id, batchDir, shots) : await loadShotPool(batch.id, batchDir);
+  let pool;
+  if (admissionPolicy === "source_policy_segment_quality") {
+    pool = { ...emptyPool(batch.id), shots };
+    await withFileLock(poolPathFor(batchDir), () => writeJsonAtomic(poolPathFor(batchDir), pool));
+  } else pool = shots.length ? await mergeShotsIntoPool(batch.id, batchDir, shots) : await loadShotPool(batch.id, batchDir);
   const report = { isolated: true, batchId: batch.id, admissionPolicy, imported: shots.length, records, updatedAt: new Date().toISOString() };
   await mkdir(batchDir, { recursive: true });
   await writeFile(reportPathFor(batchDir), JSON.stringify(report, null, 2), "utf8");

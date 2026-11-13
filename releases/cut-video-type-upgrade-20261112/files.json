@@ -1,0 +1,14 @@
+[
+  "lib/classic-multisource.mjs",
+  "lib/libtv-bridge.mjs",
+  "lib/types.ts",
+  "worker/ai-ingest.mjs",
+  "worker/classic-multisource-analyze.mjs",
+  "worker/classic-multisource-executor.mjs",
+  "worker/classic-multisource-quality.mjs",
+  "worker/deterministic-budget.mjs",
+  "worker/libtv-auto-quality.mjs",
+  "worker/libtv-guided-auto.mjs",
+  "worker/quality-gate-v2.mjs",
+  "lib/video-type.mjs"
+]

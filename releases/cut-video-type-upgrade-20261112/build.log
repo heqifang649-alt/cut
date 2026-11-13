@@ -1,0 +1,79 @@
+▲ Next.js 16.2.6 (webpack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 27.9s
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- include was updated to add '.next-video-type-20261112/types/**/*.ts'
+  	- include was updated to add '.next-video-type-20261112/dev/types/**/*.ts'
+
+  Finished TypeScript in 10.2s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/11) ...
+  Generating static pages using 11 workers (2/11) 
+  Generating static pages using 11 workers (5/11) 
+  Generating static pages using 11 workers (8/11) 
+✓ Generating static pages using 11 workers (11/11) in 1089ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/admin/ai-provider
+├ ƒ /api/admin/ai-provider/discover
+├ ƒ /api/admin/ai-provider/test
+├ ƒ /api/admin/archive
+├ ƒ /api/admin/archive/transfer
+├ ƒ /api/admin/codex/reconnect
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/reset-password
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/batches
+├ ƒ /api/batches/[id]/approve
+├ ƒ /api/batches/[id]/approve-profile
+├ ƒ /api/batches/[id]/artifact-review
+├ ƒ /api/batches/[id]/attach-nas
+├ ƒ /api/batches/[id]/cancel
+├ ƒ /api/batches/[id]/chatcut/[fileId]/manifest
+├ ƒ /api/batches/[id]/chatcut/[fileId]/retry
+├ ƒ /api/batches/[id]/command
+├ ƒ /api/batches/[id]/delete
+├ ƒ /api/batches/[id]/demo-mode
+├ ƒ /api/batches/[id]/diagnostics
+├ ƒ /api/batches/[id]/group-evidence
+├ ƒ /api/batches/[id]/group-evidence/[asset]
+├ ƒ /api/batches/[id]/media/[fileId]
+├ ƒ /api/batches/[id]/outputs/[fileId]/report
+├ ƒ /api/batches/[id]/queue-reference
+├ ƒ /api/batches/[id]/recovery
+├ ƒ /api/batches/[id]/regroup
+├ ƒ /api/batches/next-name
+├ ƒ /api/benchmark/quality-gate-v2/pilot
+├ ƒ /api/benchmark/quality-gate-v2/pilot/[id]/media
+├ ƒ /api/dashboard
+├ ƒ /api/health
+├ ƒ /api/integrations/libtv
+├ ƒ /api/integrations/libtv-multisource
+├ ƒ /api/integrations/libtv-multisource/[taskId]
+├ ƒ /api/integrations/libtv/[handoffId]
+├ ƒ /api/nas/directories
+├ ƒ /api/nas/scan
+├ ƒ /api/template-uploads
+├ ƒ /api/templates
+├ ƒ /api/templates/[id]/media
+├ ƒ /api/templates/[id]/queue
+├ ƒ /api/uploads
+└ ○ /benchmark-labeling
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

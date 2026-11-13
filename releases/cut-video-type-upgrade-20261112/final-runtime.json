@@ -1,0 +1,84 @@
+{
+  "at": "2026-11-12T11:22:17.150Z",
+  "moduleHashesMatch": true,
+  "protectedUnchanged": true,
+  "dataUnchanged": true,
+  "webStatus": 200,
+  "servedBuildMatches": true,
+  "buildId": "boPj6NNvfX6RDEq_W1RKJ",
+  "healthStatus": 401,
+  "workers": [
+    {
+      "workerId": "analyze-1",
+      "pid": 104412,
+      "at": "2026-11-12T11:22:13.900Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "analyze-2",
+      "pid": 119740,
+      "at": "2026-11-12T11:22:14.330Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "analyze-3",
+      "pid": 124540,
+      "at": "2026-11-12T11:22:14.224Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "clip-1",
+      "pid": 47636,
+      "at": "2026-11-12T11:22:14.023Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "clip-2",
+      "pid": 103140,
+      "at": "2026-11-12T11:22:14.239Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "clip-3",
+      "pid": 115732,
+      "at": "2026-11-12T11:22:14.255Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "render-1",
+      "pid": 89908,
+      "at": "2026-11-12T11:22:13.916Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "render-2",
+      "pid": 97488,
+      "at": "2026-11-12T11:22:13.976Z",
+      "claimsEnabled": false
+    },
+    {
+      "workerId": "render-3",
+      "pid": 86280,
+      "at": "2026-11-12T11:22:14.240Z",
+      "claimsEnabled": false
+    }
+  ],
+  "auxiliary": [
+    {
+      "name": "classic-multisource-heartbeat.json",
+      "pid": 133940,
+      "at": "2026-11-12T11:22:13.269Z",
+      "gate": "OPEN"
+    },
+    {
+      "name": "libtv-bridge-heartbeat.json",
+      "pid": 131792,
+      "at": "2026-11-12T11:22:17.144Z"
+    }
+  ],
+  "fleet": {
+    "pid": 11020,
+    "claimsEnabled": false
+  },
+  "rollbackBytesVerified": true
+}

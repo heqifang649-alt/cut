@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
 import { isRenderPlan, isShot, isSlot, isTransitionProfile } from "../lib/types.ts";
+import { renderPlanShortShotQuality, shortShotPenalty } from "../lib/short-shot-quality.mjs";
 
+import {MINIMUM_OUTPUT_SECONDS, capRenderPlanDuration} from '../lib/output-duration.mjs';
 const EPSILON = 1e-9;
+export const MINIMUM_SAFE_DURATION_SECONDS = MINIMUM_OUTPUT_SECONDS;
 
 export const isNewSchedulerEnabled = (env = process.env) => env.ENABLE_NEW_SCHEDULER === "true";
 export const SEMANTIC_SCHEDULER_POLICY = "v0-pilot";
+const MIN_PARTIAL_SLOTS = 2;
 
 function isAcceptShot(shot) {
   return isShot(shot) && shot.reject === false && shot.rejectReason === undefined;
@@ -31,7 +35,7 @@ function groupForProductView(group) {
   if (!group || typeof group !== "object" || typeof group.id !== "string" || group.id.length === 0 || typeof group.label !== "string" || !Array.isArray(group.files) || !group.files.every((file) => typeof file === "string" && file.length > 0)) {
     throw new TypeError("Product View requires a confirmed product group");
   }
-  return { id: group.id, label: group.label, files: [...group.files] };
+  return { id: group.id, label: group.label, files: [...group.files], ...(group.productKey ? { productKey: group.productKey } : {}) };
 }
 
 function matchingGroupFile(shotPath, group) {
@@ -70,7 +74,8 @@ function validateProductView(productView) {
 
 function matchesSlot(shot, slot) {
   if (!slot.requireTags.every((tag) => shot.tags.includes(tag))) return false;
-  if (slot.minDuration !== undefined && shot.duration + EPSILON < slot.minDuration) return false;
+  // minDuration is a ranking preference, not an eligibility gate. Source
+  // footage can be shorter than the template ideal and remains renderable.
   if (slot.maxDuration !== undefined && shot.duration - EPSILON > slot.maxDuration) return false;
   if (slot.minProductVisibility !== undefined && shot.productVisibility + EPSILON < slot.minProductVisibility) return false;
   if (slot.requireProductCentered === true && shot.productCentered !== true) return false;
@@ -81,14 +86,16 @@ function matchesSlot(shot, slot) {
 function rankCandidate(shot, slot) {
   const preferredTags = slot.preferTags?.reduce((count, tag) => count + (shot.tags.includes(tag) ? 1 : 0), 0) || 0;
   const targetDistance = Math.abs(shot.duration - slot.targetDuration);
-  return { shot, preferredTags, targetDistance };
+  return { shot, preferredTags, targetDistance, shortShotPenalty: shortShotPenalty(shot, slot) };
 }
 
 function semanticRecordMap(semanticEvidence) {
   if (semanticEvidence === undefined) return null;
   if (!semanticEvidence || typeof semanticEvidence !== "object" || !Array.isArray(semanticEvidence.records)) throw new TypeError("semanticEvidence.records is required");
   return new Map(semanticEvidence.records
-    .filter((record) => record && typeof record.shotId === "string" && record.result && typeof record.result === "object")
+    .filter((record) => record && typeof record.shotId === "string"
+      && !["review", "reject", "evidence_insufficient", "wrong_sku", "unavailable_for_auto"].includes(String(record.status || "").toLowerCase())
+      && record.autoUse !== false && record.wrongSku !== true && record.result && typeof record.result === "object")
     .map((record) => [record.shotId, record.result]));
 }
 
@@ -121,6 +128,7 @@ function semanticScore(semantic) {
 }
 
 function compareCandidates(left, right) {
+  if (left.shortShotPenalty !== right.shortShotPenalty) return left.shortShotPenalty - right.shortShotPenalty;
   if (left.preferredTags !== right.preferredTags) return right.preferredTags - left.preferredTags;
   if (Math.abs(left.semanticScore - right.semanticScore) > EPSILON) return right.semanticScore - left.semanticScore;
   if (Math.abs(left.targetDistance - right.targetDistance) > EPSILON) return left.targetDistance - right.targetDistance;
@@ -134,31 +142,40 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const semanticByShotId = semanticRecordMap(semanticEvidence);
   const semanticRequired = semanticByShotId !== null;
   const selected = [];
   const usedShotIds = new Set();
+  let firstMissingSlotId = null;
   for (const slot of scriptTemplate.slots) {
     const candidates = shots
-      .filter((shot) => !usedShotIds.has(shot.id) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
+      .filter((shot) => !usedShotIds.has(shot.id) && (!preserveSourceOrder || selected.every((entry) => entry.shot.source !== shot.source || shot.start >= entry.shot.end)) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
-      .sort(compareCandidates);
+      .sort((a, b) => preserveSourceOrder ? a.shot.start - b.shot.start || compareCandidates(a, b) : compareCandidates(a, b));
     const best = candidates[0]?.shot;
-    if (!best) return { status: "failed", reason: "no_matching_shot", slotId: slot.id };
+    if (!best) {
+      firstMissingSlotId ||= slot.id;
+      if (!allowPartial) return { status: "failed", reason: "no_matching_shot", slotId: slot.id };
+      continue;
+    }
     usedShotIds.add(best.id);
     selected.push({ slot, shot: best });
+  }
+  if (!selected.length || (!allowPartial && firstMissingSlotId && selected.length < MIN_PARTIAL_SLOTS)) {
+    return { status: "failed", reason: "no_matching_shot", slotId: firstMissingSlotId || scriptTemplate.slots[0]?.id || "unknown" };
   }
   const renderPlan = {
     id: planIdFor(batchId, scriptTemplate, selected, contextKey, transitionProfile),
     batchId,
     slots: selected,
     createdAt,
+    ...renderPlanShortShotQuality(selected),
     ...(transitionProfile ? { transitionProfile } : {}),
   };
   if (!isRenderPlan(renderPlan)) throw new Error("Scheduler produced an invalid RenderPlan");
-  return { status: "success", renderPlan };
+  return { status: "success", renderPlan: capRenderPlanDuration(renderPlan) };
 }
 
 export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
@@ -166,11 +183,30 @@ export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt 
   return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile, semanticEvidence });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial, preserveSourceOrder });
+}
+
+export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAFE_DURATION_SECONDS) {
+  if (scheduleResult?.status !== "success" || !isRenderPlan(scheduleResult.renderPlan)) return scheduleResult;
+  const boundedPlan = capRenderPlanDuration(scheduleResult.renderPlan);
+  const availableSafeDuration = Number(boundedPlan.slots.reduce((sum, entry) => {
+    const available = Math.max(0, Math.min(Number(entry.shot.duration), Number(entry.shot.end) - Number(entry.shot.start)));
+    return sum + Math.min(available, Number(entry.slot.targetDuration) || available);
+  }, 0).toFixed(6));
+  if (availableSafeDuration < minimum - EPSILON) return {
+    status: "failed", reason: "INSUFFICIENT_SAFE_DURATION", retryable: false,
+    availableSafeDuration, durationShortfall: Number((minimum - availableSafeDuration).toFixed(6)),
+  };
+  return {
+    ...scheduleResult,
+    actualCutDuration: availableSafeDuration,
+    minimumSafeDuration: minimum,
+    renderPlan: { ...boundedPlan, minimumSafeDuration: minimum, transitionProfile: "hard_cut" },
+  };
 }
 
 export function partitionScheduledProducts(scheduledProducts) {

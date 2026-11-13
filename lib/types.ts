@@ -30,6 +30,7 @@ export type BatchFile = {
   musicName?: string;
   beatOffsetSeconds?: number;
   qualityStatus?: "passed" | "failed";
+  qualityIssue?: { reason: string; reportedAt: string; source: "human_review" };
   productId?: string;
   displayName?: string;
   variantIndex?: number;
@@ -65,8 +66,9 @@ export type ReferenceProfile = {
 export type ProductGroup = {
   id: string;
   label: string;
+  productKey?: string;
   signature: string;
-  confidence: number;
+  confidence: number | null;
   files: string[];
   notes: string;
   // Present only for deterministic product-directory grouping. Existing AI and
@@ -81,10 +83,31 @@ export type ProductDetection = {
   summary: string;
   groups: ProductGroup[];
   unassigned: string[];
-  confidence: number;
+  confidence: number | null;
+  normalization?: {
+    mode: "flexible_product_groups_v1";
+    version: number;
+    rawResponseHash: string | null;
+    originalFieldNames: Array<{ path: string; fields: string[] }>;
+    actions: Array<Record<string, string | number>>;
+    manualConfirmationRequired: boolean;
+    normalizedAt: string;
+  };
   groupingMethod?: ProductGroupingMethod;
   autoApproved?: boolean;
   reasons?: string[];
+  // Files the human explicitly excluded during reference_ready confirmation.
+  excluded?: string[];
+  targetOutputAdjustment?: { from: number; to: number; reason: string; at: string };
+  // Audit trail written by the approve-profile route. Never mutates AI confidence.
+  humanConfirmation?: {
+    at: string;
+    by?: string;
+    sourceVersion: number;
+    assignments: Array<{ file: string; groupId: string | null }>;
+  };
+  sourcePolicy?: { version: string; confirmation: "source_policy"; requestedBy: string; handoffId: string;
+    manifestSha256: string; sourceVersion: number; previousWorkflowVersion: number | null; at: string };
 };
 
 export type ProductGroupEvidence = {
@@ -123,6 +146,10 @@ export type TransitionMode = (typeof TRANSITION_MODES)[number];
 export const STABLE_TRANSITION_TYPES = ["hard_cut", "fade", "fadeblack", "dissolve", "slideleft", "slideright", "wipeleft", "wiperight", "pixelize"] as const;
 export type StableTransitionType = (typeof STABLE_TRANSITION_TYPES)[number];
 
+export const COVERAGE_POLICIES = ["all_products_required", "best_products_allowed"] as const;
+export type CoveragePolicy = (typeof COVERAGE_POLICIES)[number];
+export type BatchExecutionState = "queued" | "running" | "backpressured" | "waiting_continuation" | "retry_wait" | "manual_hold" | "review_ready";
+
 export type SampleTemplate = {
   id: string;
   ownerId: string;
@@ -145,7 +172,20 @@ export type SampleTemplate = {
   recoveryAttempts?: number;
 };
 
+export type BrandCopyContext = {
+  brandId: string;
+  provenance: string;
+  libraryFiles?: string[];
+  locked?: { hook?: string; cta?: string };
+  script?: { hook?: string; cta?: string; description?: string; shots?: Array<{ shotId: string; description?: string }> };
+  product?: { garment?: string };
+  products?: Record<string, Record<string, unknown>>;
+  claims?: Record<string, unknown>;
+};
+
 export type Batch = {
+  brandCopyContext?: BrandCopyContext;
+  brandCopyEnabled?: boolean;
   id: string;
   taskNumber?: string;
   ownerId: string;
@@ -157,9 +197,14 @@ export type Batch = {
   workflowVersion?: number;
   revisionVersion?: number;
   name: string;
+  demoMode?: { enabled: boolean; createdAt: string; log?: Array<{ at: string; action: string }> };
   requirements: string;
   durationMax: number;
   outputCount: number;
+  // Legacy meaning is intentionally retained: variants for every Product.
+  // New Batches prefer a Batch-wide target with an explicit coverage policy.
+  targetOutputsPerBatch?: number;
+  coveragePolicy?: CoveragePolicy;
   cvrText?: string;
   hookText?: string;
   colorStrategy?: "none" | "sample" | "lut";
@@ -185,6 +230,27 @@ export type Batch = {
   groupCommands: Array<{ text: string; createdAt: string }>;
   error?: string;
   renderingLabel?: string;
+  semanticProgress?: {
+    processed?: number;
+    completed?: number;
+    total?: number;
+    succeeded?: number;
+    failed?: number;
+    unavailable?: number;
+    autoReady?: boolean;
+    decision?: "partial_degraded" | "blocked";
+    state?: string;
+    stopReason?: string | null;
+    updatedAt?: string;
+  };
+  execution?: {
+    state: BatchExecutionState;
+    stage?: "analyze" | "clip" | "render";
+    reason?: string;
+    queueHoldReason?: "canary_scope";
+    retryAt?: string;
+    updatedAt: string;
+  };
   lastWorkerActivityAt?: string;
   recoveryAttempts?: number;
   delivery?: {
@@ -195,8 +261,12 @@ export type Batch = {
   };
   renderSummary?: {
     renderedProducts: number;
+    renderedProductCount?: number;
+    requestedOutputs?: number;
+    renderedOutputs?: number;
     excludedProducts: Array<{ product_id: string; reason: string }>;
     qualityGates: Record<string, string>;
+    productVisualReview?: { status: "passed" | "failed" | "not_run"; threshold?: number; products?: Array<{ product_id: string; reviewed_segments: number; passed_segments: number; min_product_match?: number | null }>; failures?: Array<{ product_id: string; shot_id?: string | null; reason: string }> };
     transitionProfile?: TransitionProfile;
     transitions?: Array<{ type: StableTransitionType; durationSeconds: number; count: number }>;
   };
@@ -250,11 +320,15 @@ export const REJECT_REASONS = [
   "scene:lighting_shift",
   "scene:text_artifact",
   "review:low_confidence",
+  "quality_v2:review",
+  "quality_v2:reject",
 ] as const;
 
 export type RejectReason = (typeof REJECT_REASONS)[number];
 
 export type Shot = {
+  videoType?: "ootd" | "unboxing";
+  unboxingAction?: { action: string; confidence: number; evidence_frames: number[] };
   id: string;
   source: string;
   path: string;
@@ -320,11 +394,17 @@ export type MetadataSidecar = {
 };
 
 export type RenderPlan = {
+  minimumSafeDuration?: 8;
   id: string;
   batchId: string;
   slots: Array<{ slot: Slot; shot: Shot }>;
   createdAt: string;
   transitionProfile?: TransitionProfile;
+  shortShotCount?: number;
+  consecutiveShortShots?: number;
+  shortestShotDuration?: number;
+  beatCompressionCreatedShortShot?: boolean;
+  shortShotReviewWarning?: boolean;
 };
 
 export type ScheduleResult =
@@ -347,8 +427,10 @@ export const isTransitionMode = (value: unknown): value is TransitionMode => TRA
 
 export function isShot(value: unknown): value is Shot {
   if (!isRecord(value)) return false;
-  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy"])
+  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy", "videoType", "unboxingAction"])
     && isString(value.id)
+    && (value.videoType === undefined || value.videoType === "ootd" || value.videoType === "unboxing")
+    && (value.unboxingAction === undefined || isRecord(value.unboxingAction) && isString(value.unboxingAction.action) && isNonNegativeNumber(value.unboxingAction.confidence) && value.unboxingAction.confidence <= 1 && Array.isArray(value.unboxingAction.evidence_frames) && value.unboxingAction.evidence_frames.every(n => Number.isInteger(n) && n >= 0 && n <= 4))
     && isString(value.source)
     && isString(value.path)
     && isNonNegativeNumber(value.start)
@@ -412,9 +494,15 @@ export function isMetadataSidecar(value: unknown): value is MetadataSidecar {
 }
 
 export function isRenderPlan(value: unknown): value is RenderPlan {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (!isRecord(value) || !hasOnlyKeys(value, ["id", "batchId", "slots", "createdAt", "transitionProfile", "minimumSafeDuration", "shortShotCount", "consecutiveShortShots", "shortestShotDuration", "beatCompressionCreatedShortShot", "shortShotReviewWarning"]) || !isString(value.id) || !isString(value.batchId) || !isString(value.createdAt) || !Array.isArray(value.slots)) return false;
+  if (value.minimumSafeDuration !== undefined && value.minimumSafeDuration !== 8) return false;
   if (value.transitionProfile !== undefined && !isTransitionProfile(value.transitionProfile)) return false;
-  return value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
+  return (value.shortShotCount === undefined || (typeof value.shortShotCount === "number" && Number.isInteger(value.shortShotCount) && value.shortShotCount >= 0))
+    && (value.consecutiveShortShots === undefined || (typeof value.consecutiveShortShots === "number" && Number.isInteger(value.consecutiveShortShots) && value.consecutiveShortShots >= 0))
+    && (value.shortestShotDuration === undefined || isNonNegativeNumber(value.shortestShotDuration))
+    && (value.beatCompressionCreatedShortShot === undefined || typeof value.beatCompressionCreatedShortShot === "boolean")
+    && (value.shortShotReviewWarning === undefined || typeof value.shortShotReviewWarning === "boolean")
+    && value.slots.every((entry) => isRecord(entry) && hasOnlyKeys(entry, ["slot", "shot"]) && isSlot(entry.slot) && isShot(entry.shot));
 }
 
 export function isScheduleResult(value: unknown): value is ScheduleResult {

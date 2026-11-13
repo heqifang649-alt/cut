@@ -1,0 +1,320 @@
+import { execFileSync } from "node:child_process";
+import assert from "node:assert/strict";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { authenticateBridge, bridgeConfig, bridgeTick, enqueueImport, hashFile, importStatus, sharedPath, writeBridgeHeartbeat } from "../lib/libtv-bridge.mjs";
+import { readJson, writeJsonAtomic } from "../lib/atomic-json.mjs";
+import { batchWorkspacePath } from "../lib/tenant-paths.mjs";
+
+async function fixture(t) {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-libtv-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const nasRoot = path.join(root, "nas");
+  await mkdir(nasRoot);
+  const ownerId = randomUUID(); const userId = randomUUID();
+  const siteId = "51000000-0000-5000-8000-000000000001"; const templateId = randomUUID();
+  const config = { nasRoot, token: "isolated-test-token",
+    owners: { [`${siteId}:${userId}`]: { userId, siteId, ownerId, templateId } }, maxBytes: 1024 };
+  await writeJsonAtomic(path.join(root, "data/users.json"), [{ id: ownerId, status: "active" }]);
+  await writeJsonAtomic(path.join(root, "data/templates.json"), [
+    { id: templateId, ownerId, status: "ready", profile: { duration_seconds: 10 } },
+  ]);
+  const handoffId = `handoff-${randomUUID()}`;
+  const base = path.join(nasRoot, "inbox", handoffId);
+  await mkdir(path.join(base, "assets"), { recursive: true });
+  const video = path.join(base, "assets", "video.mp4");
+  await writeFile(video, "test-fixture-media");
+  const raw = JSON.stringify({ schema_version: "libtv-to-cutflow/1.1", handoff_id: handoffId,
+    source: { user_id: userId, site_id: siteId, site_profile_id: "example-brand",
+      site_profile_version: "1.0.0", site_url: "https://shop.example.test/", title: "Isolated handoff" },
+    assets: [{ asset_id: randomUUID(), relative_path: "assets/video.mp4", sha256: await hashFile(video),
+      size_bytes: (await readFile(video)).length, role: "generated_video", order: 1 }] });
+  const manifestSha256 = createHash("sha256").update(raw).digest("hex");
+  await writeFile(path.join(base, "manifest.json"), raw);
+  await writeJsonAtomic(path.join(base, "READY"), { sha256: manifestSha256 });
+  return { root, config, base, descriptor: { handoffId, userId, siteId, manifestSha256 }, video,
+    ownerId, templateId, siteId };
+}
+
+test("bridge defaults off and service token is required", () => {
+  assert.throws(() => bridgeConfig({}), /DISABLED/);
+  const config = { token: "test-secret" };
+  assert(authenticateBridge("Bearer test-secret", config));
+  assert(!authenticateBridge("Bearer wrong", config));
+  assert(!authenticateBridge(null, config));
+});
+
+test("LAN receipt reports completed only after a Review output is published", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-lan-status-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const handoffId = `handoff-${randomUUID()}`;
+  const batchId = randomUUID();
+  await writeJsonAtomic(path.join(root, "data/libtv-receipts.json"), [{
+    contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256: "a".repeat(64), batchId,
+    status: "ready", outputs: [{ id: "output-1", relative_path: "outputs/output-1.mp4" }], errorCode: null,
+  }]);
+  await writeJsonAtomic(path.join(root, "data/batches.json"), [{ id: batchId, status: "review" }]);
+  const status = await importStatus(root, {}, handoffId, "", "");
+  assert.equal(status.status, "completed");
+  assert.equal(status.outputs.length, 1);
+});
+
+test("LAN retry resolves a durable receipt while NAS is unavailable and rejects changed identity", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cutflow-lan-retry-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const handoffId = `handoff-${randomUUID()}`;
+  const manifestSha256 = "a".repeat(64);
+  const batchId = randomUUID();
+  await writeJsonAtomic(path.join(root, "data/libtv-receipts.json"), [{
+    contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256, batchId, status: "queued",
+  }]);
+  const accepted = await enqueueImport(root, { nasRoot: path.join(root, "missing-nas") },
+    { contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256 });
+  assert.equal(accepted.batchId, batchId);
+  await assert.rejects(enqueueImport(root, { nasRoot: path.join(root, "missing-nas") },
+    { contractVersion: "libtv-cut-lan/1", handoffId, manifestSha256: "b".repeat(64) }), /IMPORT_CONFLICT/);
+});
+
+test("parallel requests produce one tenant batch and materialize local SSD media", async (t) => {
+  const env = await fixture(t);
+  await Promise.all(Array.from({ length: 10 }, () => enqueueImport(env.root, env.config, env.descriptor)));
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), [])).length, 1);
+  await bridgeTick(env.root, env.config);
+  const batches = await readJson(path.join(env.root, "data/batches.json"), []);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].ownerId, env.ownerId);
+  assert.equal(batches[0].templateId, env.templateId);
+  assert.equal(batches[0].libtvSource.source.site_id, env.siteId);
+  assert.equal(batches[0].libtvSource.source.site_profile_id, "example-brand");
+  assert.equal(batches[0].libtvSource.source.site_profile_version, "1.0.0");
+  assert.equal(batches[0].libtvSource.source.site_url, "https://shop.example.test/");
+  assert.equal(batches[0].status, "uploading");
+  assert.deepEqual(batches[0].referenceProfile, { duration_seconds: 10 });
+  assert.equal(await readFile(path.join(env.root, batches[0].files[0].storagePath), "utf8"), "test-fixture-media");
+  assert.equal(batches[0].files[0].sourceType, "upload");
+  assert.equal((await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId)).batchId, batches[0].id);
+});
+
+test("accepted receipt survives worker exit and a later worker imports the same batch", async (t) => {
+  const env = await fixture(t);
+  const accepted = await enqueueImport(env.root, env.config, env.descriptor);
+  const persisted = (await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0];
+  assert.equal(accepted.status, "queued");
+  assert.equal(persisted.batchId, accepted.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/batches.json"), [])).length, 0);
+  await bridgeTick(env.root, env.config);
+  const recovered = (await readJson(path.join(env.root, "data/batches.json"), []))[0];
+  assert.equal(recovered.id, persisted.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0].status, "ready");
+});
+
+test("duplicate POST is idempotent and identity conflicts are rejected", async (t) => {
+  const env = await fixture(t);
+  const first = await enqueueImport(env.root, env.config, env.descriptor);
+  const second = await enqueueImport(env.root, env.config, env.descriptor);
+  assert.equal(second.batchId, first.batchId);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), [])).length, 1);
+  await assert.rejects(enqueueImport(env.root, env.config,
+    { ...env.descriptor, manifestSha256: "b".repeat(64) }), /MANIFEST_HASH_MISMATCH|IMPORT_CONFLICT/);
+});
+
+test("temporary NAS outage retains a queued receipt and recovers without a second POST", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  const unavailable = `${env.config.nasRoot}-offline`;
+  await rename(env.config.nasRoot, unavailable);
+  await bridgeTick(env.root, env.config);
+  let receipt = (await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0];
+  assert.equal(receipt.status, "queued");
+  assert.equal(receipt.errorCode, "NAS_UNAVAILABLE");
+  await rename(unavailable, env.config.nasRoot);
+  const receiptsPath = path.join(env.root, "data/libtv-receipts.json");
+  receipt.nextRunAt = new Date(0).toISOString();
+  await writeJsonAtomic(receiptsPath, [receipt]);
+  await bridgeTick(env.root, env.config);
+  receipt = (await readJson(receiptsPath, []))[0];
+  assert.equal(receipt.status, "ready");
+  assert.equal(receipt.errorCode, null);
+  assert.equal((await readJson(path.join(env.root, "data/batches.json"), [])).length, 1);
+});
+
+test("diagnostics expose real heartbeat freshness, stable progress, and scope mismatch", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await writeBridgeHeartbeat(env.root, { ...env.config, allowedHandoffIds: [env.descriptor.handoffId] });
+  const healthy = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(healthy.diagnostics.schemaVersion, "cutflow-diagnostics/1");
+  assert.equal(healthy.diagnostics.workerAlive, true);
+  assert.deepEqual(healthy.diagnostics.workerHandoffIds, [env.descriptor.handoffId]);
+  assert.equal(healthy.diagnostics.blockerCode, null);
+  const again = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(again.diagnostics.progressRevision, healthy.diagnostics.progressRevision);
+  await writeBridgeHeartbeat(env.root, { ...env.config, allowedHandoffIds: [`handoff-${randomUUID()}`] });
+  const mismatch = await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId);
+  assert.equal(mismatch.diagnostics.workerAlive, true);
+  assert.equal(mismatch.diagnostics.blockerCode, "WORKER_SCOPE_MISMATCH");
+});
+
+test("unmapped users, changed owner and conflicting manifest cannot claim another batch", async (t) => {
+  const env = await fixture(t);
+  await assert.rejects(enqueueImport(env.root, env.config, { ...env.descriptor, userId: randomUUID() }), /OWNER_NOT_MAPPED/);
+  await assert.rejects(enqueueImport(env.root, env.config, { ...env.descriptor, siteId: randomUUID() }), /OWNER_NOT_MAPPED/);
+  await assert.rejects(enqueueImport(env.root, env.config, { ...env.descriptor, siteId: undefined }), /INVALID_DESCRIPTOR/);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await assert.rejects(enqueueImport(env.root, env.config, { ...env.descriptor, manifestSha256: "a".repeat(64) }), /MANIFEST_HASH_MISMATCH/);
+  await assert.rejects(importStatus(env.root, env.config, env.descriptor.handoffId, randomUUID(), env.siteId), /OWNER_NOT_MAPPED/);
+  await assert.rejects(importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, randomUUID()), /OWNER_NOT_MAPPED/);
+});
+
+test("status refuses a batch whose persisted tenant or manifest identity was changed", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await bridgeTick(env.root, env.config);
+  const store = path.join(env.root, "data/batches.json");
+  const batches = await readJson(store, []);
+  batches[0].libtvSource.source.site_id = randomUUID();
+  batches[0].status = "review";
+  const output = path.join(batchWorkspacePath(env.root, batches[0]), "output", "tampered.mp4");
+  await mkdir(path.dirname(output), { recursive: true });
+  await writeFile(output, "test-output");
+  batches[0].files.push({ id: randomUUID(), kind: "output", qualityStatus: "passed",
+    storagePath: path.relative(env.root, output) });
+  await writeJsonAtomic(store, batches);
+  await assert.rejects(importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId), /IMPORT_OWNERSHIP_MISMATCH/);
+  await bridgeTick(env.root, env.config);
+  assert.equal(await readJson(path.join(env.config.nasRoot, "outbox", env.descriptor.handoffId, "manifest.json"), null), null);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), []))[0].errorCode,
+    "IMPORT_OWNERSHIP_MISMATCH");
+});
+
+test("missing or cross-site manifest identity is rejected before receipt creation", async (t) => {
+  const env = await fixture(t);
+  const rewriteManifest = async (source) => {
+    const file = path.join(env.base, "assets/video.mp4");
+    const raw = JSON.stringify({ schema_version: "libtv-to-cutflow/1.1", handoff_id: env.descriptor.handoffId,
+      source, assets: [{ asset_id: randomUUID(), relative_path: "assets/video.mp4", sha256: await hashFile(file),
+        size_bytes: (await readFile(file)).length, role: "generated_video", order: 1 }] });
+    const manifestSha256 = createHash("sha256").update(raw).digest("hex");
+    await writeFile(path.join(env.base, "manifest.json"), raw);
+    await writeJsonAtomic(path.join(env.base, "READY"), { sha256: manifestSha256 });
+    env.descriptor.manifestSha256 = manifestSha256;
+  };
+  await rewriteManifest({ user_id: env.descriptor.userId, title: "Missing site" });
+  await assert.rejects(enqueueImport(env.root, env.config, env.descriptor), /MANIFEST_IDENTITY_MISMATCH/);
+  await rewriteManifest({ user_id: env.descriptor.userId, site_id: randomUUID(), title: "Other site" });
+  await assert.rejects(enqueueImport(env.root, env.config, env.descriptor), /MANIFEST_IDENTITY_MISMATCH/);
+  const wrongUserId = randomUUID();
+  env.config.owners[`${env.siteId}:${wrongUserId}`] = {
+    userId: wrongUserId, siteId: env.siteId, ownerId: env.ownerId, templateId: env.templateId,
+  };
+  await rewriteManifest({ user_id: env.descriptor.userId, site_id: env.siteId, title: "Restore identity" });
+  await assert.rejects(enqueueImport(env.root, env.config,
+    { ...env.descriptor, userId: wrongUserId }), /MANIFEST_IDENTITY_MISMATCH/);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), [])).length, 0);
+});
+
+test("wrong CUT owner/template binding is rejected", async (t) => {
+  const env = await fixture(t);
+  const otherOwner = randomUUID();
+  await writeJsonAtomic(path.join(env.root, "data/users.json"), [
+    { id: env.ownerId, status: "active" }, { id: otherOwner, status: "active" },
+  ]);
+  env.config.owners[`${env.siteId}:${env.descriptor.userId}`] = {
+    userId: env.descriptor.userId, siteId: env.siteId, ownerId: otherOwner, templateId: env.templateId,
+  };
+  await assert.rejects(enqueueImport(env.root, env.config, env.descriptor), /TEMPLATE_OWNER_MISMATCH/);
+  assert.equal((await readJson(path.join(env.root, "data/libtv-receipts.json"), [])).length, 0);
+});
+
+test("hash mismatch never creates an editable batch", async (t) => {
+  const env = await fixture(t);
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await writeFile(env.video, "tampered-video");
+  await bridgeTick(env.root, env.config);
+  assert.equal((await readJson(path.join(env.root, "data/batches.json"), [])).length, 0);
+  const receipts = await readJson(path.join(env.root, "data/libtv-receipts.json"), []);
+  assert.equal(receipts[0].errorCode, "HASH_MISMATCH");
+});
+
+test("absolute and parent paths are rejected", async (t) => {
+  const env = await fixture(t);
+  for (const relative of ["../outside", "/absolute", "C:/windows", "a\\b", "a/../b"]) {
+    await assert.rejects(sharedPath(env.config.nasRoot, relative), /UNSAFE_PATH/);
+  }
+});
+
+test("post-batch crash recovery retains edits and publishes immutable pending-review versions", async (t) => {
+  const env = await fixture(t);
+  env.config.maxBytes = 1024 * 1024;
+  await enqueueImport(env.root, env.config, env.descriptor);
+  await bridgeTick(env.root, env.config);
+  const store = path.join(env.root, "data/batches.json");
+  const batches = await readJson(store, []);
+  const batch = batches[0];
+  const output = path.join(batchWorkspacePath(env.root, batch), "output", "edited.mp4");
+  await mkdir(path.dirname(output));
+  const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
+  await writeJsonAtomic(path.join(env.root, "config/cutflow-runtime.json"), runtime);
+  execFileSync(runtime.ffmpegExecutable, ["-y", "-f", "lavfi", "-i", "color=c=blue:s=160x240:r=24", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", output], { stdio: "ignore" });
+  batch.status = "review"; batch.requirements = "User edit preserved";
+  batch.files.push({ id: randomUUID(), kind: "output", storagePath: path.relative(env.root, output), qualityStatus: "passed" });
+  await writeJsonAtomic(store, batches);
+  const receiptsFile = path.join(env.root, "data/libtv-receipts.json");
+  const receipts = await readJson(receiptsFile, []);
+  receipts[0].status = "queued";
+  await writeJsonAtomic(receiptsFile, receipts);
+  await bridgeTick(env.root, env.config);
+  assert.equal((await readJson(store, []))[0].requirements, "User edit preserved");
+  await bridgeTick(env.root, env.config);
+  const status = await importStatus(env.root, env.config, env.descriptor.handoffId, env.descriptor.userId, env.siteId);
+  assert.equal(status.outputs.length, 1);
+  assert.equal(status.outputs[0].review_status, "PENDING");
+  assert.equal(status.outputs[0].sha256, await hashFile(output));
+  await bridgeTick(env.root, env.config);
+  assert.equal((await importStatus(env.root, env.config, env.descriptor.handoffId,
+    env.descriptor.userId, env.siteId)).outputs.length, 1);
+  execFileSync(runtime.ffmpegExecutable, ["-y", "-f", "lavfi", "-i", "color=c=green:s=160x240:r=24", "-t", "8", "-c:v", "libx264", "-pix_fmt", "yuv420p", output], { stdio: "ignore" });
+  batch.updatedAt = new Date(Date.now() + 1000).toISOString();
+  batch.revisionVersion = 2;
+  await writeJsonAtomic(store, [batch]);
+  await bridgeTick(env.root, env.config);
+  const revised = await importStatus(env.root, env.config, env.descriptor.handoffId, env.descriptor.userId, env.siteId);
+  assert.equal(revised.outputs.length, 2);
+  assert.notEqual(revised.outputs[0].sha256, revised.outputs[1].sha256);
+});
+
+
+test("noninteractive service owner admits legacy single source without employee mappings", async t => {
+  const f = await fixture(t);
+  f.config.owners = {};
+  f.config.serviceOwnerId = f.ownerId;
+  f.config.serviceTemplateId = f.templateId;
+  await writeJsonAtomic(path.join(f.root, "data/users.json"), [{ id: f.ownerId, status: "disabled", role: "member" }]);
+  const first = await enqueueImport(f.root, f.config, f.descriptor);
+  const second = await enqueueImport(f.root, f.config, f.descriptor);
+  assert.equal(first.batchId, second.batchId);
+  await bridgeTick(f.root, f.config);
+  const batches = await readJson(path.join(f.root, "data/batches.json"), []);
+  assert.equal(batches.length, 1);
+  assert.equal(batches[0].ownerId, f.ownerId);
+  assert.equal(batches[0].libtvSource.source.user_id, f.descriptor.userId);
+  await assert.rejects(importStatus(f.root, f.config, f.descriptor.handoffId, randomUUID(), f.siteId), /RECEIPT_NOT_FOUND/);
+});
+
+test('service owner without a service template preserves legacy mapped and persisted owner bindings', async t=>{
+ const f=await fixture(t);const serviceId=randomUUID();
+ await writeJsonAtomic(path.join(f.root,'data/users.json'),[{id:f.ownerId,status:'active'},{id:serviceId,role:'member',status:'disabled'}]);
+ f.config.serviceOwnerId=serviceId;f.config.serviceTemplateId=null;
+ const first=await enqueueImport(f.root,f.config,f.descriptor);await bridgeTick(f.root,f.config);
+ const batch=(await readJson(path.join(f.root,'data/batches.json')))[0];assert.equal(batch.ownerId,f.ownerId);assert.equal(batch.templateId,f.templateId);
+ f.config.owners={};const again=await importStatus(f.root,f.config,f.descriptor.handoffId,f.descriptor.userId,f.siteId);assert.equal(again.batchId,first.batchId);
+});
