@@ -1,0 +1,615 @@
+{
+  "at": "2026-11-19T14:29:44.534Z",
+  "observationStart": "2026-11-19T13:31:43.777Z",
+  "observationEnd": "2026-11-19T14:29:44.534Z",
+  "postDeploymentSamples": 40,
+  "postDeploymentDurationMinutes": 40.084133333333334,
+  "postDeploymentPids": [
+    62276
+  ],
+  "postDeploymentRestartCounts": [
+    62
+  ],
+  "postDeploymentNewLockFailureSamples": 0,
+  "priorConflicts": [
+    {
+      "taskId": "8fc30d9a-fe54-4433-b343-7d72bf9db38b",
+      "acceptedAt": "2026-10-30T11:29:24.504Z",
+      "updatedAt": "2026-10-30T11:29:59.914Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "17547a6f-3fb2-4cce-a38c-ce16c7efa486",
+      "acceptedAt": "2026-11-02T02:55:53.441Z",
+      "updatedAt": "2026-11-02T03:04:16.526Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "1006d4a7-866a-4d7b-ac7d-efeace36995f",
+      "acceptedAt": "2026-11-17T01:42:54.289Z",
+      "updatedAt": "2026-11-17T02:06:26.359Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "68cb2f35-8f6d-4e20-b14d-277b6148e11e",
+      "acceptedAt": "2026-11-17T01:45:05.468Z",
+      "updatedAt": "2026-11-17T02:06:26.153Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "3a855c39-9e3d-4b49-80e2-74fdb5a643ed",
+      "acceptedAt": "2026-11-17T01:47:43.799Z",
+      "updatedAt": "2026-11-17T02:06:26.451Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "e3ea0994-7948-4a62-968d-1f354d4c41d2",
+      "acceptedAt": "2026-11-19T11:49:42.324Z",
+      "updatedAt": "2026-11-19T12:01:48.204Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "e8d7d978-c381-42fe-b25f-3fbb189d38cf",
+      "acceptedAt": "2026-11-19T11:50:34.016Z",
+      "updatedAt": "2026-11-19T12:01:47.252Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    },
+    {
+      "taskId": "6377ebc7-c53b-469f-83db-7088193599a5",
+      "acceptedAt": "2026-11-19T12:54:47.476Z",
+      "updatedAt": "2026-11-19T12:59:14.893Z",
+      "status": "failed",
+      "stage": "source_revalidation",
+      "attempt": 1,
+      "revision": 3,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0
+    }
+  ],
+  "historical": {
+    "total": 13,
+    "completed": 13,
+    "backendVerified": 13,
+    "queued": 0,
+    "failed": 0,
+    "tasks": [
+      {
+        "taskId": "0f42bc4f-149a-4281-a239-bf0594968fb8",
+        "acceptedAt": "2026-11-19T09:45:38.548Z",
+        "updatedAt": "2026-11-19T13:39:43.927Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "e98f1fba-a089-4ac5-8186-f4eb789e668f",
+        "acceptedAt": "2026-11-19T09:45:45.727Z",
+        "updatedAt": "2026-11-19T13:39:12.210Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "b7423d3c-ead8-4354-935e-44eea3011df1",
+        "acceptedAt": "2026-11-19T09:46:41.978Z",
+        "updatedAt": "2026-11-19T13:44:45.772Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "e8f44a6f-4545-4744-b456-2437a69c19a3",
+        "acceptedAt": "2026-11-19T09:52:25.276Z",
+        "updatedAt": "2026-11-19T13:46:18.173Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "0eb80a34-1efe-46e6-ba34-ea68d0c760c1",
+        "acceptedAt": "2026-11-19T09:58:03.222Z",
+        "updatedAt": "2026-11-19T13:39:17.330Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "81953e40-e70f-49a3-a336-d54e84c40e85",
+        "acceptedAt": "2026-11-19T10:02:19.285Z",
+        "updatedAt": "2026-11-19T14:03:30.484Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "73bbe430-6600-4faf-ac36-8451fc23030c",
+        "acceptedAt": "2026-11-19T10:02:36.736Z",
+        "updatedAt": "2026-11-19T14:01:42.950Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "e5f8431a-790a-4576-8879-222b227a1a97",
+        "acceptedAt": "2026-11-19T10:12:45.581Z",
+        "updatedAt": "2026-11-19T14:17:24.604Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "13b2b2b5-f699-4f81-81c0-2ba8ece1cc10",
+        "acceptedAt": "2026-11-19T10:13:51.428Z",
+        "updatedAt": "2026-11-19T14:17:26.735Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "7b8cc7a0-716e-44fb-9405-829f62d4816d",
+        "acceptedAt": "2026-11-19T10:17:07.730Z",
+        "updatedAt": "2026-11-19T14:18:31.895Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "fb2f8afc-398b-401b-aa6f-33f10f0120b0",
+        "acceptedAt": "2026-11-19T10:18:43.924Z",
+        "updatedAt": "2026-11-19T14:17:21.891Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "6e00f280-dd86-41cf-abef-a09b629599b7",
+        "acceptedAt": "2026-11-19T10:20:55.763Z",
+        "updatedAt": "2026-11-19T14:17:57.252Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      },
+      {
+        "taskId": "acff0762-ae83-48c6-a69d-4a051c985722",
+        "acceptedAt": "2026-11-19T10:27:55.363Z",
+        "updatedAt": "2026-11-19T14:22:16.874Z",
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "revision": 3,
+        "hasLease": false,
+        "pending": false,
+        "outputCount": 1,
+        "allweConsumptionVerified": true
+      }
+    ]
+  },
+  "controlledPostPatchHistory": [
+    {
+      "taskId": "81953e40-e70f-49a3-a336-d54e84c40e85",
+      "acceptedAt": "2026-11-19T10:02:19.285Z",
+      "updatedAt": "2026-11-19T14:03:30.484Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "73bbe430-6600-4faf-ac36-8451fc23030c",
+      "acceptedAt": "2026-11-19T10:02:36.736Z",
+      "updatedAt": "2026-11-19T14:01:42.950Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "e5f8431a-790a-4576-8879-222b227a1a97",
+      "acceptedAt": "2026-11-19T10:12:45.581Z",
+      "updatedAt": "2026-11-19T14:17:24.604Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "13b2b2b5-f699-4f81-81c0-2ba8ece1cc10",
+      "acceptedAt": "2026-11-19T10:13:51.428Z",
+      "updatedAt": "2026-11-19T14:17:26.735Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "7b8cc7a0-716e-44fb-9405-829f62d4816d",
+      "acceptedAt": "2026-11-19T10:17:07.730Z",
+      "updatedAt": "2026-11-19T14:18:31.895Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "fb2f8afc-398b-401b-aa6f-33f10f0120b0",
+      "acceptedAt": "2026-11-19T10:18:43.924Z",
+      "updatedAt": "2026-11-19T14:17:21.891Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "6e00f280-dd86-41cf-abef-a09b629599b7",
+      "acceptedAt": "2026-11-19T10:20:55.763Z",
+      "updatedAt": "2026-11-19T14:17:57.252Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "acff0762-ae83-48c6-a69d-4a051c985722",
+      "acceptedAt": "2026-11-19T10:27:55.363Z",
+      "updatedAt": "2026-11-19T14:22:16.874Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    }
+  ],
+  "naturalPostPatch": [
+    {
+      "taskId": "0d8223e3-39b2-4aab-9be8-9d5002f1a1ce",
+      "acceptedAt": "2026-11-19T13:50:09.410Z",
+      "updatedAt": "2026-11-19T13:57:14.649Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "d1f958e4-988e-4c23-a6be-2ec6fe015af0",
+      "acceptedAt": "2026-11-19T14:02:45.441Z",
+      "updatedAt": "2026-11-19T14:13:09.128Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "e6f610a7-974d-475f-b1dc-6ba90efac192",
+      "acceptedAt": "2026-11-19T14:05:03.080Z",
+      "updatedAt": "2026-11-19T14:24:43.854Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "b7afbc87-1799-44fe-ab91-de537024b830",
+      "acceptedAt": "2026-11-19T14:08:14.640Z",
+      "updatedAt": "2026-11-19T14:22:55.412Z",
+      "status": "completed",
+      "stage": "completed",
+      "attempt": 1,
+      "revision": 3,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 1,
+      "allweConsumptionVerified": true
+    },
+    {
+      "taskId": "8e78cde3-bc5f-451f-8953-6a95d2429286",
+      "acceptedAt": "2026-11-19T14:20:33.496Z",
+      "updatedAt": "2026-11-19T14:24:46.987Z",
+      "status": "uploading",
+      "stage": "quality",
+      "attempt": 1,
+      "revision": 2,
+      "hasLease": true,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "09085cf9-dc99-4f3f-86fc-e39d646be784",
+      "acceptedAt": "2026-11-19T14:20:46.407Z",
+      "updatedAt": "2026-11-19T14:24:47.289Z",
+      "status": "uploading",
+      "stage": "quality",
+      "attempt": 1,
+      "revision": 2,
+      "hasLease": true,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "efb4f0af-3ac4-4afa-a0cb-158485acd9f3",
+      "acceptedAt": "2026-11-19T14:22:44.515Z",
+      "updatedAt": "2026-11-19T14:24:47.838Z",
+      "status": "uploading",
+      "stage": "quality",
+      "attempt": 1,
+      "revision": 2,
+      "hasLease": true,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "8d24029a-0b4f-47c3-9ae6-6f6ff48f67d1",
+      "acceptedAt": "2026-11-19T14:23:30.893Z",
+      "updatedAt": "2026-11-19T14:24:45.945Z",
+      "status": "uploading",
+      "stage": "quality",
+      "attempt": 1,
+      "revision": 2,
+      "hasLease": true,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "6ececed7-d5c3-4e9b-8593-7ab7e224928b",
+      "acceptedAt": "2026-11-19T14:23:38.953Z",
+      "updatedAt": "2026-11-19T14:24:47.502Z",
+      "status": "uploading",
+      "stage": "quality",
+      "attempt": 1,
+      "revision": 2,
+      "hasLease": true,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "d842c20c-bf66-49f6-b0ac-d4fb9a721284",
+      "acceptedAt": "2026-11-19T14:24:25.895Z",
+      "status": "queued",
+      "stage": "queued",
+      "attempt": 0,
+      "revision": 1,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    },
+    {
+      "taskId": "8c4e503b-1772-4e3b-8ef5-34af6d22cfc4",
+      "acceptedAt": "2026-11-19T14:24:30.660Z",
+      "status": "queued",
+      "stage": "queued",
+      "attempt": 0,
+      "revision": 1,
+      "hasLease": false,
+      "pending": false,
+      "outputCount": 0,
+      "allweConsumptionVerified": false
+    }
+  ],
+  "verifiedDeliveries": 21,
+  "queue": {
+    "total": 294,
+    "counts": {
+      "failed": 43,
+      "review": 5,
+      "completed": 239,
+      "uploading": 5,
+      "queued": 2
+    },
+    "leases": 5,
+    "pending": 0,
+    "queuedIsolated": 0
+  },
+  "worker": {
+    "ProcessId": 62276,
+    "ParentProcessId": 23336,
+    "CreationDate": "/Date(1795096179867)/"
+  },
+  "runtime": {
+    "pid": 62276,
+    "restartCount": 62,
+    "lastStartedAt": "2026-11-19T13:49:39.871Z",
+    "lastFailureAt": "2026-11-19T12:58:25.118Z",
+    "lastFailureReason": "file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208 if (Date.now() >= deadline) throw new Error(`等待数据锁超时：${path.basename(file)}`); ^ Error: 等待数据锁超时：classic-multisource-records.json at acquireTokenLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208:41) at async withFileLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:282:12) at async runClaimed (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:38:19) at async Promise.all (index 0) at async runMultisourceTick (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:57:11) at async withMultisourceHeartbeat (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:19:16) at async file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:71:20 Node.js v24.22.3"
+  },
+  "locks": []
+}
+

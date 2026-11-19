@@ -1,0 +1,87 @@
+{
+  "recordedAt": "2026-11-19T14:29:45.047Z",
+  "method": "Manual inspection of sampled contact sheets, separate from pipeline scores. Not full-motion independent reviewer acceptance.",
+  "samples": [
+    {
+      "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+      "fps": 4,
+      "observation": "Blue sweater wide/front detail/back. Compared both product reference images; front YOLO/LOL, JK. BRB. and back BE RIGHT BACK/HE IS RISEN artwork consistent in sampled frames."
+    },
+    {
+      "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+      "fps": 4,
+      "observation": "Red sweater front/back/detail consistent with both reference images. Similar frontal coverage; no confirmed repeated source interval from images alone."
+    },
+    {
+      "taskId": "48850837-7b48-492b-933f-8151d5391d41",
+      "fps": 1,
+      "observation": "White penguin tee front/detail consistent in sampled frames."
+    },
+    {
+      "taskId": "4d8f40b1-7c42-4164-9320-64e8dceeb890",
+      "fps": 1,
+      "observation": "White crow/lights/red-star tee front/detail consistent in sampled frames."
+    },
+    {
+      "taskId": "0f42bc4f-149a-4281-a239-bf0594968fb8",
+      "fps": 4,
+      "observation": "Purple Mongo tee front/detail then outdoor back; sampled product identity consistent."
+    },
+    {
+      "taskId": "73bbe430-6600-4faf-ac36-8451fc23030c",
+      "fps": 4,
+      "observation": "White/green MIGHT HAVE TO CALL IN SILLY TODAY sweater front/detail/wide consistent. No back visible in sample; cannot accept back coverage."
+    },
+    {
+      "taskId": "0d8223e3-39b2-4aab-9be8-9d5002f1a1ce",
+      "fps": 4,
+      "observation": "Natural post-patch task: front candle graphic / back THE LIGHT SHINES, JOHN 1:5 consistent across angles. Back appears twice; EDL shows separate non-overlapping source ranges, review tags retained."
+    },
+    {
+      "taskId": "e5f8431a-790a-4576-8879-222b227a1a97",
+      "fps": 4,
+      "observation": "Green bookstore cardigan front/detail/wide; lettering and house/shop artwork consistent. No back shown; mirrors in footage are not sufficient evidence of a wrong product."
+    },
+    {
+      "taskId": "7b8cc7a0-716e-44fb-9405-829f62d4816d",
+      "fps": 4,
+      "observation": "Purple Mongo sweater front/detail/outdoor back; same cat/dinosaur and MONGO IS APPALLED artwork. Long continuous blocks at sampled resolution, no isolated residual shot observed."
+    }
+  ],
+  "limitations": [
+    "250ms or 1s sampling cannot exclude all flashes or assess real-time movement, sound or beat timing.",
+    "Consumer review remains PENDING.",
+    "No full independent third-party reviewer signoff."
+  ],
+  "localImages": [
+    {
+      "name": "qa-4fps-0d8223e3-39b2-4aab-9be8-9d5002f1a1ce.jpg",
+      "sha256": "bb6b4a969112f015f422fcaff07886a6387d41ec9bb7aae2f1030bdf06b38a26"
+    },
+    {
+      "name": "qa-4fps-0f42bc4f-149a-4281-a239-bf0594968fb8.jpg",
+      "sha256": "8f90c12f2d301a165ac65d35f01f8b67e59e1563de950ddc72cfb931786da79a"
+    },
+    {
+      "name": "qa-4fps-4ee904b6-e73f-40b0-8777-d61e67e92811.jpg",
+      "sha256": "21c8edd7427aa1d66e67c4a26bc7552398eba2723a010b578039b7fe8f86ddbb"
+    },
+    {
+      "name": "qa-4fps-73bbe430-6600-4faf-ac36-8451fc23030c.jpg",
+      "sha256": "7acb0b43ddee314fcfe9380b08529dfe86bf509dd638b7bc4aa8cb2b614eb4c2"
+    },
+    {
+      "name": "qa-4fps-7b8cc7a0-716e-44fb-9405-829f62d4816d.jpg",
+      "sha256": "62c90b8a443215d66275af9386601edf8dbbd934a8448f9bcddc61d9f4de14e0"
+    },
+    {
+      "name": "qa-4fps-c54e0067-28e6-428a-9b69-1ef91708a30f.jpg",
+      "sha256": "bd023b0a8e2df68391e2c05e570e780c058b31d72f29bdc6ae77ed6aeae8fcab"
+    },
+    {
+      "name": "qa-4fps-e5f8431a-790a-4576-8879-222b227a1a97.jpg",
+      "sha256": "cdbfb3f450550c6c5fbc868c4ca8397a8d086166a0b378645c607319e7edb785"
+    }
+  ]
+}
+
