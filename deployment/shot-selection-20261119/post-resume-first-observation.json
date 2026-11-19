@@ -1,0 +1,155 @@
+{
+  "at": "2026-11-19T12:47:17.317Z",
+  "services": [
+    {
+      "file": "analyze-analyze-1.json",
+      "pid": 343508,
+      "at": "2026-11-19T12:47:13.064Z",
+      "ageSeconds": 4.256,
+      "claimsEnabled": false
+    },
+    {
+      "file": "analyze-analyze-2.json",
+      "pid": 389476,
+      "at": "2026-11-19T12:47:16.849Z",
+      "ageSeconds": 0.471,
+      "claimsEnabled": false
+    },
+    {
+      "file": "analyze-analyze-3.json",
+      "pid": 255596,
+      "at": "2026-11-19T12:47:16.277Z",
+      "ageSeconds": 1.043,
+      "claimsEnabled": false
+    },
+    {
+      "file": "analyze-analyze-56932.json",
+      "pid": 56932,
+      "at": "2026-08-06T10:37:46.228Z",
+      "ageSeconds": 9079771.098
+    },
+    {
+      "file": "analyze-cutflow-link-only-97334adf.json",
+      "pid": 102980,
+      "at": "2026-10-16T02:17:58.342Z",
+      "ageSeconds": 2975358.991,
+      "claimsEnabled": true
+    },
+    {
+      "file": "clip-clip-1.json",
+      "pid": 45032,
+      "at": "2026-11-19T12:47:14.884Z",
+      "ageSeconds": 2.45,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-2.json",
+      "pid": 391356,
+      "at": "2026-11-19T12:47:13.374Z",
+      "ageSeconds": 3.96,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-3.json",
+      "pid": 237844,
+      "at": "2026-11-19T12:47:15.987Z",
+      "ageSeconds": 1.348,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-5980.json",
+      "pid": 5980,
+      "at": "2026-08-06T10:37:46.331Z",
+      "ageSeconds": 9079771.011
+    },
+    {
+      "file": "clip-cutflow-link-only-97334adf.json",
+      "pid": 34300,
+      "at": "2026-10-16T02:18:18.745Z",
+      "ageSeconds": 2975338.603,
+      "claimsEnabled": true
+    },
+    {
+      "file": "render-render-1.json",
+      "pid": 279928,
+      "at": "2026-11-19T12:47:13.251Z",
+      "ageSeconds": 4.098,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-2.json",
+      "pid": 190244,
+      "at": "2026-11-19T12:47:16.849Z",
+      "ageSeconds": 0.5,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-3.json",
+      "pid": 370864,
+      "at": "2026-11-19T12:47:16.848Z",
+      "ageSeconds": 0.502,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-59852.json",
+      "pid": 59852,
+      "at": "2026-08-06T10:37:46.439Z",
+      "ageSeconds": 9079770.917
+    }
+  ],
+  "servicesNoClaimPass": false,
+  "http": {
+    "/": 200,
+    "/api/health": 401
+  },
+  "heartbeat": {
+    "schemaVersion": 1,
+    "at": "2026-11-19T12:47:15.107Z",
+    "pid": 371720,
+    "busy": true,
+    "gate": "OPEN"
+  },
+  "heartbeatAgeSeconds": 3.323,
+  "processes": {
+    "ProcessId": 371720,
+    "ParentProcessId": 23336,
+    "CreationDate": "/Date(1795092424769)/",
+    "CommandLine": "C:\\Users\\����\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe D:\\CUT-Releases\\20261030-production-first-r11\\worker\\classic-multisource-runner.mjs"
+  },
+  "runtime": {
+    "schemaVersion": 1,
+    "worker": "multisource",
+    "restartCount": 57,
+    "status": "running",
+    "claimsEnabled": false,
+    "runtimeProfile": "cutflow-hybrid-pilot",
+    "runtimeRevision": "2026-10-07.1",
+    "runtimeConfigHash": "bdf8fd04e33a1c1379e15a36a1efb489b5328b5c920724986374696d852697e5",
+    "updatedAt": "2026-11-19T12:47:04.772Z",
+    "lastStartedAt": "2026-11-19T12:47:04.770Z",
+    "lastFailureReason": "file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208 if (Date.now() >= deadline) throw new Error(`等待数据锁超时：${path.basename(file)}`); ^ Error: 等待数据锁超时：classic-multisource-records.json at acquireTokenLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208:41) at async withFileLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:282:12) at async runClaimed (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:38:19) at async Promise.all (index 0) at async runMultisourceTick (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:57:11) at async withMultisourceHeartbeat (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:19:16) at async file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:71:20 Node.js v24.22.3",
+    "lastFailureAt": "2026-11-19T12:45:28.642Z",
+    "unavailable": [
+      "ffmpeg",
+      "ffprobe"
+    ],
+    "failureStage": "preflight",
+    "detectedAt": "2026-11-03T06:15:32.325Z",
+    "pid": 371720
+  },
+  "lock": null,
+  "isolationHash": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+  "queue": {
+    "total": 282,
+    "counts": {
+      "failed": 43,
+      "review": 5,
+      "completed": 219,
+      "queued": 15
+    },
+    "leases": 0,
+    "pendingCompletions": 0,
+    "queuedAllIsolated": true
+  },
+  "limitation": "Observed subsequent process turnover and lock timeout after the recorded successful resume; current stability requires observation. No task, lease, receipt, lock or configuration mutation by this observer."
+}
