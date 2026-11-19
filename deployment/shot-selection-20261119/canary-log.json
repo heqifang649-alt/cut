@@ -1,0 +1,112 @@
+{
+  "at": "2026-11-19T12:48:44.385Z",
+  "canaries": [
+    {
+      "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+      "startedAt": "2026-11-19T12:29:59.963Z",
+      "finishedAt": "2026-11-19T12:32:28.986Z",
+      "pid": 76664,
+      "result": {
+        "accepted": 0,
+        "executed": 1,
+        "failed": 0,
+        "gate": "OPEN",
+        "claimsEnabled": true
+      },
+      "historicalRecordsUnchanged": true,
+      "record": {
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "batchId": "2aed4e30-664f-445b-a1bc-3eab01405de7",
+        "outputs": [
+          {
+            "id": "8d15ed79-c19a-4db0-a750-fd9059c666cd",
+            "relativePath": "outbox/c54e0067-28e6-428a-9b69-1ef91708a30f/8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+            "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+            "size": 11317613,
+            "durationSeconds": 10.033333
+          }
+        ],
+        "leasePresent": false,
+        "pendingCompletion": false
+      }
+    },
+    {
+      "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+      "startedAt": "2026-11-19T12:32:57.285Z",
+      "finishedAt": "2026-11-19T12:39:02.519Z",
+      "pid": 223520,
+      "result": {
+        "accepted": 0,
+        "executed": 1,
+        "failed": 0,
+        "gate": "OPEN",
+        "claimsEnabled": true
+      },
+      "historicalRecordsUnchanged": true,
+      "record": {
+        "status": "completed",
+        "stage": "completed",
+        "attempt": 1,
+        "batchId": "198a468f-980f-4e36-ad86-eabdc5068c81",
+        "outputs": [
+          {
+            "id": "eee491d2-c054-40bf-beb5-bd10bbed95e3",
+            "relativePath": "outbox/4ee904b6-e73f-40b0-8777-d61e67e92811/eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+            "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+            "size": 10595778,
+            "durationSeconds": 9.4
+          }
+        ],
+        "leasePresent": false,
+        "pendingCompletion": false
+      }
+    }
+  ],
+  "maintenance": {
+    "pid": 23336,
+    "held": false,
+    "completed": true,
+    "newWorkerPid": 134928
+  },
+  "historicalRecordProtection": true,
+  "earlierFailures": [
+    {
+      "taskId": "e3ea0994-7948-4a62-968d-1f354d4c41d2",
+      "status": "failed",
+      "acceptedAt": "2026-11-19T11:49:42.324Z",
+      "updatedAt": "2026-11-19T12:01:48.204Z",
+      "attempt": 1,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "lease": false,
+      "pending": false,
+      "sourceCount": 2,
+      "videoType": "ootd",
+      "batchId": "df9086eb-08f4-4f79-b0dc-a3f7647d69f4"
+    },
+    {
+      "taskId": "e8d7d978-c381-42fe-b25f-3fbb189d38cf",
+      "status": "failed",
+      "acceptedAt": "2026-11-19T11:50:34.016Z",
+      "updatedAt": "2026-11-19T12:01:47.252Z",
+      "attempt": 1,
+      "error": {
+        "code": "STATUS_REVISION_CONFLICT",
+        "message": "Multisource execution failed; inspect the recorded error code and server-side evidence.",
+        "stage": "source_revalidation",
+        "detailCode": "STATUS_REVISION_CONFLICT"
+      },
+      "lease": false,
+      "pending": false,
+      "sourceCount": 2,
+      "videoType": "ootd",
+      "batchId": "842ddecd-a3c1-414a-ac46-9a758dab5fce"
+    }
+  ]
+}
