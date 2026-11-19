@@ -1,13 +1,13 @@
 # CUT 镜头优先选镜升级 · 生产恢复验收
 
-审计截止：2026-11-19T12:48:44.385Z。**两条真实 Canary 渲染及 NAS 验证通过，用户确认 ALLWE 已回传；Classic 已恢复，保留全部历史隔离。完整独立生产验收仍有限制。**
+审计截止：2026-11-19T12:50:54.714Z。**两条真实 Canary 渲染及 NAS 验证通过，用户确认 ALLWE 已回传；Classic 已恢复，保留全部历史隔离。完整独立生产验收仍有限制。**
 
 - CODE_INSTALLED: PASS
 - WORKER_LOADED: PASS_OBSERVED
 - CANARY_RENDER_PASS: PASS_TECHNICAL
 - NAS_DELIVERY_PASS: PASS
 - ALLWE_CALLBACK_PASS: PASS_USER_CONFIRMED
-- CLASSIC_RESUMED: RESUMED_WITH_POST_RESUME_INSTABILITY
+- CLASSIC_RESUMED: PASS_BOUNDED_STABILITY_OBSERVED
 - PRODUCTION_RECOVERED: NOT_FULLY_INDEPENDENTLY_VERIFIED
 
 四模块当前 SHA256 与安装清单一致。实际 Classic PID171916 的 Debugger.getScriptSource 与四个磁盘文件逐字节一致，证明已加载。未修改算法或生产代码，未执行回滚，未开启全局 claims。
@@ -35,6 +35,8 @@ ALLWE：用户在本轮对两条 Canary 的回执核验请求明确回复“已�
 
 恢复后补充观察：Classic 后续出现进程更替及 records 数据锁超时；原 supervisor 自动重试后再次运行，见 post-resume-observation.json。134928仅为恢复当时PID，不代表当前持续健康。当前运行稳定性待确认，不能据此声明生产恢复成功。
 
-用户随后明确确认“有其他操作方正在操作”。本轮停止所有生产变更，保留并发操作背景及现场；不能把后续进程更替归因于四模块，也不能声明当前独占或稳定验收通过。
+用户随后明确确认“有其他操作方正在操作”，并进一步指示“别停止，你的优先级高”。本轮继续主导只读核验和回执更新，避免不必要的生产重启；不能把后续进程更替归因于四模块，也不能声明独占控制。
+
+最终有界观察：当前PID371720四模块加载哈希再次通过；216秒观察窗口内PID和restartCount相同，零lease/pending、15条queued全部保持隔离，九个普通服务claims=false、HTTP200/401。早先锁超时保留，不将短观察窗口当长期稳定性或完整业务验收。
 
 CODE READY：四模块原检查完成；DEPLOY PENDING：四模块无待安装，生产恢复验收待完成；DEPLOYED：四模块实际安装及加载已确认；VERIFIED：两条真实渲染/NAS技术验收；ALLWE由用户确认，独立全链/视觉验收及恢复后运行稳定性未完成。
