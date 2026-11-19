@@ -1,67 +1,67 @@
 {
-  "at": "2026-11-19T12:47:44.868Z",
+  "at": "2026-11-19T12:50:53.301Z",
   "services": [
     {
       "file": "analyze-analyze-1.json",
       "pid": 343508,
-      "at": "2026-11-19T12:47:43.137Z",
-      "ageSeconds": 1.734,
+      "at": "2026-11-19T12:50:48.423Z",
+      "ageSeconds": 4.882,
       "claimsEnabled": false
     },
     {
       "file": "analyze-analyze-2.json",
       "pid": 389476,
-      "at": "2026-11-19T12:47:41.900Z",
-      "ageSeconds": 2.971,
+      "at": "2026-11-19T12:50:52.159Z",
+      "ageSeconds": 1.147,
       "claimsEnabled": false
     },
     {
       "file": "analyze-analyze-3.json",
       "pid": 255596,
-      "at": "2026-11-19T12:47:41.309Z",
-      "ageSeconds": 3.562,
+      "at": "2026-11-19T12:50:51.570Z",
+      "ageSeconds": 1.736,
       "claimsEnabled": false
     },
     {
       "file": "clip-clip-1.json",
       "pid": 45032,
-      "at": "2026-11-19T12:47:39.918Z",
-      "ageSeconds": 4.954,
+      "at": "2026-11-19T12:50:50.255Z",
+      "ageSeconds": 3.052,
       "claimsEnabled": false
     },
     {
       "file": "clip-clip-2.json",
       "pid": 391356,
-      "at": "2026-11-19T12:47:43.416Z",
-      "ageSeconds": 1.456,
+      "at": "2026-11-19T12:50:48.670Z",
+      "ageSeconds": 4.637,
       "claimsEnabled": false
     },
     {
       "file": "clip-clip-3.json",
       "pid": 237844,
-      "at": "2026-11-19T12:47:41.050Z",
-      "ageSeconds": 3.823,
+      "at": "2026-11-19T12:50:51.385Z",
+      "ageSeconds": 1.923,
       "claimsEnabled": false
     },
     {
       "file": "render-render-1.json",
       "pid": 279928,
-      "at": "2026-11-19T12:47:43.307Z",
-      "ageSeconds": 1.566,
+      "at": "2026-11-19T12:50:48.638Z",
+      "ageSeconds": 4.67,
       "claimsEnabled": false
     },
     {
       "file": "render-render-2.json",
       "pid": 190244,
-      "at": "2026-11-19T12:47:41.870Z",
-      "ageSeconds": 3.003,
+      "at": "2026-11-19T12:50:52.128Z",
+      "ageSeconds": 1.181,
       "claimsEnabled": false
     },
     {
       "file": "render-render-3.json",
       "pid": 370864,
-      "at": "2026-11-19T12:47:41.888Z",
-      "ageSeconds": 2.986,
+      "at": "2026-11-19T12:50:52.191Z",
+      "ageSeconds": 1.118,
       "claimsEnabled": false
     }
   ],
@@ -72,15 +72,12 @@
   },
   "heartbeat": {
     "schemaVersion": 1,
-    "at": "2026-11-19T12:47:40.608Z",
+    "at": "2026-11-19T12:50:49.736Z",
     "pid": 371720,
-    "accepted": 0,
-    "executed": 0,
-    "failed": 0,
-    "gate": "OPEN",
-    "claimsEnabled": true
+    "busy": true,
+    "gate": "OPEN"
   },
-  "heartbeatAgeSeconds": 5.381,
+  "heartbeatAgeSeconds": 4.719,
   "processes": {
     "ProcessId": 371720,
     "ParentProcessId": 23336,
@@ -108,7 +105,10 @@
     "detectedAt": "2026-11-03T06:15:32.325Z",
     "pid": 371720
   },
-  "lock": null,
+  "lock": {
+    "pid": 371720,
+    "createdAt": "2026-11-19T12:50:53.236Z"
+  },
   "isolationHash": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
   "queue": {
     "total": 282,
