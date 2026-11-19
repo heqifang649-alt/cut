@@ -1,0 +1,130 @@
+{
+  "at": "2026-11-19T12:39:48.756Z",
+  "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+  "cutDetection": [
+    {
+      "sourceId": "33cb9087-7111-5781-8a30-498a7b2b4440",
+      "state": "detected",
+      "cuts": [
+        2.875,
+        5.583333
+      ],
+      "candidates": 4
+    }
+  ],
+  "candidateBoundsPass": true,
+  "quality": {
+    "generatedAt": "2026-11-19T12:32:13.163Z",
+    "sources": [
+      {
+        "sourceId": "33cb9087-7111-5781-8a30-498a7b2b4440",
+        "productId": null,
+        "bindingKey": "guidingcross",
+        "state": "REVIEW",
+        "reasons": [
+          "artifact:hand",
+          "artifact:face"
+        ]
+      }
+    ],
+    "counts": {
+      "REVIEW": 4
+    },
+    "admittedCount": 4,
+    "reviewWarning": true
+  },
+  "edl": {
+    "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f/edit/render-plan-edl.json",
+    "duration": 10.04,
+    "cuts": [
+      2.875,
+      5.583333,
+      7.811666
+    ]
+  },
+  "render": {
+    "renderedAt": "2026-11-19T12:32:24.971Z",
+    "route": {
+      "state": "legacy",
+      "requestedTemplateId": null,
+      "reason": null
+    },
+    "finalShotCheck": null,
+    "qualityGates": {
+      "productConsistency": "passed",
+      "originalSpeed": "passed",
+      "decodeCheck": "passed",
+      "outputDuration": "passed",
+      "uniqueMusic": "passed",
+      "shortShotReview": "passed"
+    },
+    "shortShotQuality": {
+      "products": [],
+      "reviewWarnings": []
+    },
+    "productVisualReview": {
+      "status": "not_run",
+      "reason": "semantic_evidence_unavailable",
+      "threshold": 0.5,
+      "products": [],
+      "failures": []
+    }
+  },
+  "evidence": [
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\analyze\\source-cut-candidates.v1.json",
+      "sha256": "900cd5eba14040a3c17081f4f5cf59278e96012908f7200d8a771f7f7c72ae03"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\quality\\classic-multisource-quality.v1.json",
+      "sha256": "a2fa3f0a536d810ae25e568f967d6edb2e4f1d0b9f5e62c20269eefcd27d32fc"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\edit\\render-plan-edl.json",
+      "sha256": "6fbb19faef830b86273fc4b2e853d5c2c50d1b81b600aafb386d4d31e1e2ab1a"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\edit\\multisource-schedule-result.json",
+      "sha256": "bbe255d89654a221ee83498685e8e7edb2004b15cdd5a2d96cbc1495396f26ba"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\output\\render-manifest.json",
+      "sha256": "94b582322b16887f2f61e968363f187f076c557f2e2e02c21f3532061be8edf7"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+      "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+      "size": 11317613,
+      "fullDecodePass": true,
+      "decodeStderr": "",
+      "duration": 10.033333,
+      "streams": [
+        {
+          "type": "video",
+          "codec": "h264",
+          "width": 1080,
+          "height": 1920,
+          "fps": "30/1"
+        },
+        {
+          "type": "audio",
+          "codec": "aac",
+          "fps": "0/0"
+        }
+      ]
+    }
+  ],
+  "nasStatus": {
+    "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\status.json",
+    "sha256": "0e00c10e64b1878746213c7361406f540c1947c0773232ea0dd0e746df639a32",
+    "status": "completed",
+    "revision": 3
+  },
+  "ALLWE_CALLBACK_PASS": "UNCONFIRMED",
+  "limitations": [
+    "Completion and technical decode do not independently prove visual acceptance.",
+    "No live short-shot warning case or true wrong-SKU/insufficient negative sample has been established by these successful samples."
+  ]
+}
