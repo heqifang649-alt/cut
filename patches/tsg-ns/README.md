@@ -1,0 +1,7 @@
+# TSG and NS brand resource patch
+
+`candidate.patch` contains the seven source changes against the CUT production maintenance baseline `20261030-production-first-r11`. The GitHub development branch lacks parts of that baseline, including the shared BGM identity module and the Classic BGM resolver. This directory archives the candidate separately from the development runtime.
+
+To inspect or apply the patch, use an isolated copy of the maintenance baseline. Verify the seven original SHA-256 values against `manifest.json`, then normalize those files to LF. From the isolated baseline root, run `git apply --check -p2 <path-to-candidate.patch>` and `git apply -p2 <path-to-candidate.patch>`. To reproduce the candidate byte hashes in `manifest.json`, use CRLF for the seven results except lines 1, 160, 161, and 172 of `lib/classic-multisource.mjs`, which use LF. Reapplying the normalized patch and restoring these line endings reproduced all seven candidate hashes.
+
+The isolated receiver regression can run with Node's test runner and `CUT_BRAND_RECEIVER_ROOT` pointing to a complete candidate runtime. The BGM regression is designed to run from that runtime's `tests` directory with its local FFmpeg and FFprobe configuration. The receiver regression passed once and the BGM suite passed all 12 tests against the staged candidate at upload time. The receiver test's optional live NAS checks require a local runtime configuration and were separate from this upload check.

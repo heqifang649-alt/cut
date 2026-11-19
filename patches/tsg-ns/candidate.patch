@@ -1,0 +1,184 @@
+diff --git a/before/config/brand-bgm-directories.json b/after/config/brand-bgm-directories.json
+index e9be2e5..36d32da 100644
+--- a/before/config/brand-bgm-directories.json
++++ b/after/config/brand-bgm-directories.json
+@@ -8,3 +8,4 @@
+   "PPH": "魔法",
+-  "PW": "泛读书"
++  "PW": "泛读书",
++  "NS": "护士"
+ }
+diff --git a/before/config/brand-copy-files.json b/after/config/brand-copy-files.json
+index 44520df..13f7dcc 100644
+--- a/before/config/brand-copy-files.json
++++ b/after/config/brand-copy-files.json
+@@ -2,6 +2,19 @@
+   "filesByBrand": {
+-    "GC": ["基督.xlsx"],
+-    "TT": ["亚文化.xlsx"],
+-    "NW": ["暗黑.xlsx"]
+-  }
++    "GC": [
++      "基督.xlsx"
++    ],
++    "TT": [
++      "亚文化.xlsx"
++    ],
++    "NW": [
++      "暗黑.xlsx"
++    ],
++    "TSG": [
++      "Teachersgram_教师.xlsx"
++    ],
++    "NS": [
++      "护士通用hook与文案.docx"
++    ]
++  },
++  "tsgNsHookEnabledAfter": "2026-11-18T00:00:00+08:00"
+ }
+diff --git a/before/lib/brand-bgm-identity.mjs b/after/lib/brand-bgm-identity.mjs
+index 3a874c6..680761b 100644
+--- a/before/lib/brand-bgm-identity.mjs
++++ b/after/lib/brand-bgm-identity.mjs
+@@ -2,5 +2,5 @@
+ export const BRAND_BGM_DIRECTORIES = Object.freeze({
+-  NW: '暗黑', IP: '健身', GC: '基督', TT: '亚文化', GK: '极客', TSG: '教师', PPH: '魔法', PW: '泛读书',
++  NW: '暗黑', IP: '健身', GC: '基督', TT: '亚文化', GK: '极客', TSG: '教师', PPH: '魔法', PW: '泛读书', NS: '护士',
+ });
+-const aliases = {nw:'NW',nerdywave:'NW',ip:'IP',ironpandafit:'IP',gc:'GC',guidingcross:'GC',tt:'TT',tokyotiger:'TT',gk:'GK',geeksoutfit:'GK',tsg:'TSG',teachersgram:'TSG',pph:'PPH',purplehecate:'PPH',pw:'PW',pagewings:'PW'};
++const aliases = {nw:'NW',nerdywave:'NW',ip:'IP',ironpandafit:'IP',gc:'GC',guidingcross:'GC',tt:'TT',tokyotiger:'TT',gk:'GK',geeksoutfit:'GK',tsg:'TSG',teachersgram:'TSG',pph:'PPH',purplehecate:'PPH',pw:'PW',pagewings:'PW',ns:'NS',nursehutshop:'NS'};
+ export function canonicalBgmBrand(value) {
+diff --git a/before/lib/brand-copy-library.mjs b/after/lib/brand-copy-library.mjs
+index 323d06d..ef5627f 100644
+--- a/before/lib/brand-copy-library.mjs
++++ b/after/lib/brand-copy-library.mjs
+@@ -5,2 +5,4 @@ import { readJson, writeJsonAtomic, withFileLock } from './atomic-json.mjs';
+ 
++import { canonicalBgmBrand } from './brand-bgm-identity.mjs';
++
+ export const BRAND_COPY_VERSION = 'brand-copy.v1';
+@@ -11,2 +13,4 @@ const norm = value => String(value ?? '').normalize('NFKC').replace(/[’‘]/g,
+ export function canonicalBrand(value) {
++  const brand = canonicalBgmBrand(value);
++  if (brand === 'TSG' || brand === 'NS') return brand;
+   const key = String(value || '').toLowerCase().replace(/[\s_-]/g,'');
+@@ -35,3 +39,3 @@ export function indexCopyWorkbooks(workbooks, files = DEFAULT_COPY_FILES) {
+         const values = Object.entries(row.cells || {});
+-        const english = values.find(([,v])=>/^(?:英文\s*)?(?:hook|cta)(?:\s*文案)?$|^推荐文案$|^暗黑(?:标题|引导语)$/i.test(String(v).trim()));
++        const english = values.find(([,v])=>/^(?:(?:英文|English)\s*)?(?:hook|cta)(?:\s*文案)?$|^推荐文案$|^暗黑(?:标题|引导语)$/i.test(String(v).trim()));
+         if (english) {
+@@ -82,3 +86,3 @@ export async function ensureBrandCopySnapshot({root=process.cwd(),batch,batchDir
+     const registry=await readJson(path.join(root,'config/brand-copy-files.json'),null).catch(()=>null);
+-    for(const [brand,names] of Object.entries(registry?.filesByBrand||{}))if(Array.isArray(names)&&names.every(n=>typeof n==='string'&&path.basename(n)===n&&n.endsWith('.xlsx')))files[brand]=names;
++    for(const [brand,names] of Object.entries(registry?.filesByBrand||{}))if(Array.isArray(names)&&names.every(n=>typeof n==='string'&&path.basename(n)===n&&/\.(xlsx|docx)$/i.test(n)))files[brand]=names;
+     const context=batch.brandCopyContext;
+@@ -87,3 +91,3 @@ export async function ensureBrandCopySnapshot({root=process.cwd(),batch,batchDir
+         const brand=canonicalBrand(item.brandId)||item.brandId;
+-        if(brand&&Array.isArray(item.libraryFiles)&&item.libraryFiles.every(n=>typeof n==='string'&&path.basename(n)===n&&n.endsWith('.xlsx')))files[brand]=item.libraryFiles;
++        if(brand&& !['TSG','NS'].includes(brand) && Array.isArray(item.libraryFiles)&&item.libraryFiles.every(n=>typeof n==='string'&&path.basename(n)===n&&/\.(xlsx|docx)$/i.test(n)))files[brand]=item.libraryFiles;
+       }
+diff --git a/before/lib/classic-brand-activation.mjs b/after/lib/classic-brand-activation.mjs
+index 221b693..033d362 100644
+--- a/before/lib/classic-brand-activation.mjs
++++ b/after/lib/classic-brand-activation.mjs
+@@ -13,3 +13,3 @@ export async function classicBrandActivation({ root, context, taskId, manifestSh
+     const brand = context?.provenance === 'verified_handoff' && canonicalBrand(context.brandId);
+-    if (!brand || !/^[0-9a-f-]{36}$/i.test(taskId || '') || !/^[0-9a-f]{64}$/i.test(manifestSha256 || '')) return null;
++    if (!brand || ['TSG','NS'].includes(brand) || !/^[0-9a-f-]{36}$/i.test(taskId || '') || !/^[0-9a-f]{64}$/i.test(manifestSha256 || '')) return null;
+     if (Object.values(context.products || {}).some(p => p.brandId && canonicalBrand(p.brandId) !== brand)) return null;
+@@ -48,3 +48,3 @@ export async function enableClassicBrandResources(options) {
+   const brand = context?.provenance === 'verified_handoff' && canonicalBgmBrand(context.brandId);
+-  if (!['IP','GK','TSG','PPH','PW'].includes(brand) || !/^[0-9a-f-]{36}$/i.test(taskId || '')
++  if (!['IP','GK','TSG','PPH','PW','NS'].includes(brand) || !/^[0-9a-f-]{36}$/i.test(taskId || '')
+     || !/^[0-9a-f]{64}$/i.test(manifestSha256 || '') || !Number.isFinite(Date.parse(acceptedAt))
+@@ -54,3 +54,9 @@ export async function enableClassicBrandResources(options) {
+   if (music?.[brand] !== BRAND_BGM_DIRECTORIES[brand]) return {};
+-  return {brandBgmEnabled:true,brandBgmContext:{brandId:brand,provenance:'verified_handoff'}};
++  const resources = {brandBgmEnabled:true,brandBgmContext:{brandId:brand,provenance:'verified_handoff'}};
++  if (!['TSG','NS'].includes(brand) || !sources?.length) return resources;
++  const copy = await readJson(path.join(root,'config/brand-copy-files.json'),null).catch(()=>null);
++  if (Date.parse(acceptedAt) > Date.parse(copy?.tsgNsHookEnabledAfter) && copy?.filesByBrand?.[brand]?.length) {
++    return {...resources,brandCopyEnabled:true};
++  }
++  return resources;
+ }
+diff --git a/before/lib/classic-multisource.mjs b/after/lib/classic-multisource.mjs
+index b5e8fd6..571a399 100644
+--- a/before/lib/classic-multisource.mjs
++++ b/after/lib/classic-multisource.mjs
+@@ -1 +1,2 @@
++import { canonicalBgmBrand } from "./brand-bgm-identity.mjs";
+ import { sourceVideoType, normalizeVideoType } from "./video-type.mjs";
+@@ -158,2 +159,4 @@ function validateManifest(manifest, descriptor) {
+   const orders = new Set(); const ids = new Set();
++  const bindingBrand = binding.kind === "brand" ? canonicalBgmBrand(binding.value) : null;
++  const allowBrandAlias = bindingBrand === "TSG" || bindingBrand === "NS";
+   const sources = manifest.sources.map((source) => ({ ...source,
+@@ -168,3 +171,4 @@ function validateManifest(manifest, descriptor) {
+       || orders.has(source.order) || (binding.kind === "product" && (typeof source.productId !== "string" || !source.productId.trim()))
+-      || (binding.kind === "brand" && (source.productId !== null || source.brandIdentity !== binding.value))
++      || (binding.kind === "brand" && (source.productId !== null || (source.brandIdentity !== binding.value
++        && !(allowBrandAlias && canonicalBgmBrand(source.brandIdentity) === bindingBrand))))
+       || !HASH.test(source.sha256 || "") || !Number.isSafeInteger(source.sizeBytes) || source.sizeBytes < 1) throw new Error("INVALID_SOURCE");
+diff --git a/before/worker/read-hook-workbooks.py b/after/worker/read-hook-workbooks.py
+index e12436b..ddc5b78 100644
+--- a/before/worker/read-hook-workbooks.py
++++ b/after/worker/read-hook-workbooks.py
+@@ -6,2 +6,3 @@ import pathlib
+ import posixpath
++import re
+ import sys
+@@ -13,2 +14,45 @@ NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+ 
++def read_document(file):
++    raw = file.read_bytes()
++    if len(raw) > 16 * 1024 * 1024:
++        raise ValueError("document_too_large")
++    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
++        if sum(x.file_size for x in archive.infolist()) > 64 * 1024 * 1024:
++            raise ValueError("expanded_document_too_large")
++        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
++        body = ET.fromstring(archive.read("word/document.xml"))
++        hook_rows = []
++        found_hook_header = False
++        for table in body.findall(".//w:tbl", ns):
++            records = [
++                ["".join(t.text or "" for t in cell.findall(".//w:t", ns)).strip()
++                 for cell in row.findall("w:tc", ns)]
++                for row in table.findall("w:tr", ns)
++            ]
++            if records and records[0] == ["#", "方向", "Hook", "文案（CTA）"]:
++                found_hook_header = True
++                records = records[1:]
++            if found_hook_header:
++                hook_rows.extend({"row": int(row[0]), "cells": {"A": row[2]}}
++                                 for row in records if len(row) == 4 and row[0].isdigit())
++        if found_hook_header:
++            return {"filename": file.name, "sha256": hashlib.sha256(raw).hexdigest(),
++                    "sheets": [{"name": "Hook", "rows": [
++                        {"row": 0, "cells": {"A": "英文 Hook"}}, *hook_rows]}]}
++        if file.name == "护士通用hook与文案.docx":
++            raise ValueError("unrecognized_hook_table")
++        rows = [{"row": 0, "cells": {"A": "英文 Hook"}}]
++        for number, paragraph in enumerate(body.findall('.//w:p', ns), 1):
++            text = ''.join(t.text or '' for t in paragraph.findall('.//w:t', ns)).strip()
++            # The maintained document ends with recommendations and purchase CTAs.
++            # Only standalone English Hook paragraphs preceding that commentary are data.
++            if text.startswith('我特别建议'):
++                break
++            text = re.sub(r'^\d+[.、]\s*', '', text)
++            if re.fullmatch(r"[\x20-\x7e\u2010-\u2026]+", text or '') and re.search(r'[A-Za-z]', text) and text != '英文 Hook':
++                rows.append({"row": number, "cells": {"A": text}})
++        return {"filename": file.name, "sha256": hashlib.sha256(raw).hexdigest(),
++                "sheets": [{"name": "document", "rows": rows}]}
++
++
+ def read_workbook(file):
+@@ -63,5 +107,5 @@ def main():
+         try:
+-            if pathlib.Path(name).name != name or not name.lower().endswith(".xlsx"):
++            if pathlib.Path(name).name != name or not name.lower().endswith((".xlsx", ".docx")):
+                 raise ValueError("invalid_filename")
+-            results.append(read_workbook(directory / name))
++            results.append((read_document if name.lower().endswith('.docx') else read_workbook)(directory / name))
+         except Exception as error:
