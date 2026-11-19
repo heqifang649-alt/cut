@@ -1,0 +1,81 @@
+{
+  "startedAt": "2026-11-19T12:41:22.248Z",
+  "authorization": "User instructed conditional Classic recovery after real canaries and confirmed ALLWE return. Preserve all historical isolation and ordinary NoClaim.",
+  "storesUnchanged": true,
+  "isolationHashBefore": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+  "oldProcess": {
+    "pid": 171916,
+    "resources": [
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqPromise",
+      "FSReqPromise",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqPromise",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "FSReqCallback",
+      "PipeWrap"
+    ]
+  },
+  "oldProcessExit": "Controlled exit0 after tick complete, zero leases, all four locks held; not an in-flight task termination.",
+  "resumed": {
+    "pid": 23336,
+    "childPid": 134928,
+    "held": false
+  },
+  "heartbeat": {
+    "schemaVersion": 1,
+    "at": "2026-11-19T12:41:25.431Z",
+    "pid": 134928,
+    "busy": true,
+    "gate": "OPEN"
+  },
+  "loaded": [
+    {
+      "file": "lib/cut-aware-source-segments.mjs",
+      "pid": 134928,
+      "sha256": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+    },
+    {
+      "file": "worker/classic-multisource-analyze.mjs",
+      "pid": 134928,
+      "sha256": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+    },
+    {
+      "file": "worker/ootd-min-shot.mjs",
+      "pid": 134928,
+      "sha256": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+    },
+    {
+      "file": "worker/ootd-template-render.mjs",
+      "pid": 134928,
+      "sha256": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+    }
+  ],
+  "isolationHashAfter": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+  "maintenanceCompletion": {
+    "pid": 23336,
+    "completed": true
+  },
+  "finishedAt": "2026-11-19T12:41:26.119Z",
+  "status": "CLASSIC_RESUMED_EXISTING_ISOLATION_PRESERVED"
+}
