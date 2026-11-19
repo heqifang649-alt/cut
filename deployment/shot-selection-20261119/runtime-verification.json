@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-19T12:48:44.385Z",
+  "at": "2026-11-19T12:50:54.714Z",
   "root": "D:/CUT-Releases/20261030-production-first-r11",
   "status": {
     "CODE_INSTALLED": "PASS",
@@ -7,7 +7,7 @@
     "CANARY_RENDER_PASS": "PASS_TECHNICAL",
     "NAS_DELIVERY_PASS": "PASS",
     "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED",
-    "CLASSIC_RESUMED": "RESUMED_WITH_POST_RESUME_INSTABILITY",
+    "CLASSIC_RESUMED": "PASS_BOUNDED_STABILITY_OBSERVED",
     "PRODUCTION_RECOVERED": "NOT_FULLY_INDEPENDENTLY_VERIFIED"
   },
   "files": [
@@ -723,69 +723,69 @@
     "manualReadyLeaseReceiptEdits": false
   },
   "postResumeObservation": {
-    "at": "2026-11-19T12:47:44.868Z",
+    "at": "2026-11-19T12:50:53.301Z",
     "services": [
       {
         "file": "analyze-analyze-1.json",
         "pid": 343508,
-        "at": "2026-11-19T12:47:43.137Z",
-        "ageSeconds": 1.734,
+        "at": "2026-11-19T12:50:48.423Z",
+        "ageSeconds": 4.882,
         "claimsEnabled": false
       },
       {
         "file": "analyze-analyze-2.json",
         "pid": 389476,
-        "at": "2026-11-19T12:47:41.900Z",
-        "ageSeconds": 2.971,
+        "at": "2026-11-19T12:50:52.159Z",
+        "ageSeconds": 1.147,
         "claimsEnabled": false
       },
       {
         "file": "analyze-analyze-3.json",
         "pid": 255596,
-        "at": "2026-11-19T12:47:41.309Z",
-        "ageSeconds": 3.562,
+        "at": "2026-11-19T12:50:51.570Z",
+        "ageSeconds": 1.736,
         "claimsEnabled": false
       },
       {
         "file": "clip-clip-1.json",
         "pid": 45032,
-        "at": "2026-11-19T12:47:39.918Z",
-        "ageSeconds": 4.954,
+        "at": "2026-11-19T12:50:50.255Z",
+        "ageSeconds": 3.052,
         "claimsEnabled": false
       },
       {
         "file": "clip-clip-2.json",
         "pid": 391356,
-        "at": "2026-11-19T12:47:43.416Z",
-        "ageSeconds": 1.456,
+        "at": "2026-11-19T12:50:48.670Z",
+        "ageSeconds": 4.637,
         "claimsEnabled": false
       },
       {
         "file": "clip-clip-3.json",
         "pid": 237844,
-        "at": "2026-11-19T12:47:41.050Z",
-        "ageSeconds": 3.823,
+        "at": "2026-11-19T12:50:51.385Z",
+        "ageSeconds": 1.923,
         "claimsEnabled": false
       },
       {
         "file": "render-render-1.json",
         "pid": 279928,
-        "at": "2026-11-19T12:47:43.307Z",
-        "ageSeconds": 1.566,
+        "at": "2026-11-19T12:50:48.638Z",
+        "ageSeconds": 4.67,
         "claimsEnabled": false
       },
       {
         "file": "render-render-2.json",
         "pid": 190244,
-        "at": "2026-11-19T12:47:41.870Z",
-        "ageSeconds": 3.003,
+        "at": "2026-11-19T12:50:52.128Z",
+        "ageSeconds": 1.181,
         "claimsEnabled": false
       },
       {
         "file": "render-render-3.json",
         "pid": 370864,
-        "at": "2026-11-19T12:47:41.888Z",
-        "ageSeconds": 2.986,
+        "at": "2026-11-19T12:50:52.191Z",
+        "ageSeconds": 1.118,
         "claimsEnabled": false
       }
     ],
@@ -796,15 +796,12 @@
     },
     "heartbeat": {
       "schemaVersion": 1,
-      "at": "2026-11-19T12:47:40.608Z",
+      "at": "2026-11-19T12:50:49.736Z",
       "pid": 371720,
-      "accepted": 0,
-      "executed": 0,
-      "failed": 0,
-      "gate": "OPEN",
-      "claimsEnabled": true
+      "busy": true,
+      "gate": "OPEN"
     },
-    "heartbeatAgeSeconds": 5.381,
+    "heartbeatAgeSeconds": 4.719,
     "processes": {
       "ProcessId": 371720,
       "ParentProcessId": 23336,
@@ -832,7 +829,10 @@
       "detectedAt": "2026-11-03T06:15:32.325Z",
       "pid": 371720
     },
-    "lock": null,
+    "lock": {
+      "pid": 371720,
+      "createdAt": "2026-11-19T12:50:53.236Z"
+    },
     "isolationHash": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
     "queue": {
       "total": 282,
@@ -853,5 +853,43 @@
     "source": "User reply in this chat",
     "statement": "有其他操作方正在操作",
     "action": "Stop further production mutations; retain canary evidence; current runtime stability not independently established"
+  },
+  "currentWorkerLoaded": {
+    "at": "2026-11-19T12:50:24.187Z",
+    "pid": 371720,
+    "loaded": [
+      {
+        "file": "lib/cut-aware-source-segments.mjs",
+        "pid": 371720,
+        "sha256": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+      },
+      {
+        "file": "worker/classic-multisource-analyze.mjs",
+        "pid": 371720,
+        "sha256": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+      },
+      {
+        "file": "worker/ootd-min-shot.mjs",
+        "pid": 371720,
+        "sha256": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+      },
+      {
+        "file": "worker/ootd-template-render.mjs",
+        "pid": 371720,
+        "sha256": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+      }
+    ],
+    "pass": true,
+    "scope": "Current live production Classic source hashes; no restart, configuration, task, lease or receipt mutation."
+  },
+  "runtimeStabilityObservation": {
+    "at": "2026-11-19T12:50:53.301Z",
+    "from": "2026-11-19T12:47:17.317Z",
+    "to": "2026-11-19T12:50:53.301Z",
+    "windowSeconds": 216,
+    "pid": 371720,
+    "restartCount": 57,
+    "pass": true,
+    "limitation": "Two bounded snapshots and current source inspection; prior lock timeout retained, not proof of long-term stability or independent full business acceptance"
   }
 }
