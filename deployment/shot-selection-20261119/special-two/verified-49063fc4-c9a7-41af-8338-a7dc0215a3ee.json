@@ -1,0 +1,306 @@
+{
+  "at": "2026-11-19T13:18:59.818Z",
+  "taskId": "49063fc4-c9a7-41af-8338-a7dc0215a3ee",
+  "cutDetection": [
+    {
+      "sourceId": "947816a2-7b81-5616-8769-1d80c1bfc158",
+      "state": "detected",
+      "cuts": [
+        3.333333,
+        6.541667
+      ],
+      "candidates": 6
+    },
+    {
+      "sourceId": "37b2e7e2-bfc8-56cd-84a9-18f0cbefa284",
+      "state": "detected",
+      "cuts": [
+        6.875
+      ],
+      "candidates": 5
+    }
+  ],
+  "candidateBoundsPass": true,
+  "quality": {
+    "generatedAt": "2026-11-19T12:26:13.786Z",
+    "sources": [
+      {
+        "sourceId": "947816a2-7b81-5616-8769-1d80c1bfc158",
+        "productId": null,
+        "bindingKey": "tokyotiger",
+        "state": "REVIEW",
+        "reasons": [
+          "automatic_checks_passed",
+          "artifact:hand"
+        ]
+      },
+      {
+        "sourceId": "37b2e7e2-bfc8-56cd-84a9-18f0cbefa284",
+        "productId": null,
+        "bindingKey": "tokyotiger",
+        "state": "REVIEW",
+        "reasons": [
+          "automatic_checks_passed",
+          "automatic_evidence_unconfirmed",
+          "artifact:hand"
+        ]
+      }
+    ],
+    "counts": {
+      "READY": 8,
+      "REVIEW": 3
+    },
+    "admittedCount": 11,
+    "reviewWarning": true
+  },
+  "edl": {
+    "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee/edit/render-plan-edl.json",
+    "duration": 8.566667,
+    "cuts": [
+      2.266667,
+      3.766667,
+      5.5,
+      7
+    ]
+  },
+  "render": {
+    "renderedAt": "2026-11-19T12:28:01.879Z",
+    "route": {
+      "revision": "classic-website-template/20261113-r1",
+      "state": "website_template",
+      "requestedTemplateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+      "reason": null,
+      "templateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+      "profileSha256": "83769cac7b05fa8629c53df67d53997453a0a269afd7981324f653a6815a596c",
+      "entrypoints": [
+        "deriveScriptTemplate",
+        "routeProductSchedule",
+        "scheduleProductView",
+        "renderBatchFromRenderPlans"
+      ]
+    },
+    "finalShotCheck": {
+      "reports": [
+        {
+          "output": "tokyotiger.mp4",
+          "duration": 8.6,
+          "fps": 30,
+          "timeBase": 0.00006510416666666667,
+          "plans": [
+            {
+              "segmentId": "tokyotiger-S01",
+              "plannedTime": 0,
+              "frame": 0,
+              "encodedCount": 68
+            },
+            {
+              "segmentId": "tokyotiger-S02",
+              "plannedTime": 2.266667,
+              "frame": 68,
+              "encodedCount": 45
+            },
+            {
+              "segmentId": "tokyotiger-S03",
+              "plannedTime": 3.766667,
+              "frame": 113,
+              "encodedCount": 52
+            },
+            {
+              "segmentId": "tokyotiger-S04",
+              "plannedTime": 5.5,
+              "frame": 165,
+              "encodedCount": 45
+            },
+            {
+              "segmentId": "tokyotiger-S05",
+              "plannedTime": 7,
+              "frame": 210,
+              "encodedCount": 48
+            }
+          ],
+          "encodedLayoutProven": true,
+          "boundaries": [
+            0,
+            68,
+            113,
+            165,
+            210,
+            258
+          ],
+          "shots": [
+            {
+              "startFrame": 0,
+              "endFrame": 68,
+              "start": 0,
+              "end": 2.2666666666666666,
+              "duration": 2.2666666666666666,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-49063fc4-c9a7-41af-8338-a7dc0215a3ee\\sources\\02-0142bae4-edab-4569-a280-d9ef26027f4b.mp4"
+            },
+            {
+              "startFrame": 68,
+              "endFrame": 113,
+              "start": 2.2666666666666666,
+              "end": 3.7666666666666666,
+              "duration": 1.5,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-49063fc4-c9a7-41af-8338-a7dc0215a3ee\\sources\\01-06aaa09b-4346-4787-afcc-2e5178c0ce66.mp4"
+            },
+            {
+              "startFrame": 113,
+              "endFrame": 165,
+              "start": 3.7666666666666666,
+              "end": 5.5,
+              "duration": 1.7333333333333334,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-49063fc4-c9a7-41af-8338-a7dc0215a3ee\\sources\\01-06aaa09b-4346-4787-afcc-2e5178c0ce66.mp4"
+            },
+            {
+              "startFrame": 165,
+              "endFrame": 210,
+              "start": 5.5,
+              "end": 7,
+              "duration": 1.5,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-49063fc4-c9a7-41af-8338-a7dc0215a3ee\\sources\\02-0142bae4-edab-4569-a280-d9ef26027f4b.mp4"
+            },
+            {
+              "startFrame": 210,
+              "endFrame": 258,
+              "start": 7,
+              "end": 8.6,
+              "duration": 1.5999999999999996,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-49063fc4-c9a7-41af-8338-a7dc0215a3ee\\sources\\02-0142bae4-edab-4569-a280-d9ef26027f4b.mp4"
+            }
+          ],
+          "terminalPadding": {
+            "frames": 1,
+            "meanDifference": 0.07747395833333333,
+            "maxDifference": 1,
+            "reason": "verified_repeated_final_frame_after_cfr_duration_rounding"
+          },
+          "cuts": [
+            {
+              "time": 2.266667,
+              "nativeFrameSeconds": 0.033333333333333215,
+              "confidence": "high",
+              "evidence": {
+                "normalizedDifference": 0.26426679860070107,
+                "localMotionRatio": 6.400146823267638,
+                "spatialCoverage": 1,
+                "persistence": 0.26517853636454564,
+                "brightnessOffsetRemoved": true
+              },
+              "frame": 68
+            },
+            {
+              "time": 3.766667,
+              "nativeFrameSeconds": 0.033333333333333215,
+              "confidence": "high",
+              "evidence": {
+                "normalizedDifference": 0.2619221465923996,
+                "localMotionRatio": 28.18049395541422,
+                "spatialCoverage": 1,
+                "persistence": 0.2620724524980884,
+                "brightnessOffsetRemoved": true
+              },
+              "frame": 113
+            },
+            {
+              "time": 5.5,
+              "nativeFrameSeconds": 0.033333333333333215,
+              "confidence": "high",
+              "evidence": {
+                "normalizedDifference": 0.27128309777619003,
+                "localMotionRatio": 99.25946299068093,
+                "spatialCoverage": 1,
+                "persistence": 0.2739503687330058,
+                "brightnessOffsetRemoved": true
+              },
+              "frame": 165
+            }
+          ],
+          "pass": true,
+          "shortShotReviewWarning": false,
+          "shortShotIntervals": []
+        }
+      ]
+    },
+    "qualityGates": {
+      "productConsistency": "passed",
+      "originalSpeed": "passed",
+      "decodeCheck": "passed",
+      "outputDuration": "passed",
+      "uniqueMusic": "passed",
+      "shortShotReview": "passed"
+    },
+    "shortShotQuality": {
+      "products": [],
+      "reviewWarnings": []
+    },
+    "productVisualReview": {
+      "status": "not_run",
+      "reason": "semantic_evidence_unavailable",
+      "threshold": 0.5,
+      "products": [],
+      "failures": []
+    }
+  },
+  "evidence": [
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\analyze\\source-cut-candidates.v1.json",
+      "sha256": "c68a1d53ef8820d2471fc8286156b03af4c2700068b45a4b3915a3a253b4e9fc"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\quality\\classic-multisource-quality.v1.json",
+      "sha256": "9dcb57f98f7db5cb3ab4735b4ef29ec4b7a9a324324e7bc1ada6b90fd4a50d39"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\edit\\render-plan-edl.json",
+      "sha256": "c162a085b3cbf1181423cd0348218c4078a25bee524b1974c2d3e7edf5fee207"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\edit\\multisource-schedule-result.json",
+      "sha256": "d0b7075df2049ea2f6b9e1d40f3e9914b03cc0f2e1e52d5872407006a28daf2d"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\output\\render-manifest.json",
+      "sha256": "fcc1474291f92f7b612a1215388c1d35d93b1f2b614286341de67f689eddfc61"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\49063fc4-c9a7-41af-8338-a7dc0215a3ee/edit/ootd-final-shot-check.json",
+      "sha256": "acf7c3a79e5bab43e016c2c498e0cb712c769ad60d6a031b9c9c501e575748b9"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\3bd51888-1542-4310-b970-82b4c1343c82.mp4",
+      "sha256": "ce962683277a5ef5e16deeb2d84c16e8f2eda77015d32f80e55074c850967a62",
+      "size": 9722994,
+      "fullDecodePass": true,
+      "decodeStderr": "",
+      "duration": 8.6,
+      "streams": [
+        {
+          "type": "video",
+          "codec": "h264",
+          "width": 1080,
+          "height": 1920,
+          "fps": "30/1"
+        },
+        {
+          "type": "audio",
+          "codec": "aac",
+          "fps": "0/0"
+        }
+      ]
+    }
+  ],
+  "nasStatus": {
+    "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\49063fc4-c9a7-41af-8338-a7dc0215a3ee\\status.json",
+    "sha256": "89a09ec18545133a594143a2a6dc1d4974f1abc7e806cacf7a27970da0ee14fd",
+    "status": "completed",
+    "revision": 6
+  },
+  "ALLWE_CALLBACK_PASS": "UNCONFIRMED",
+  "limitations": [
+    "Completion and technical decode do not independently prove visual acceptance.",
+    "No live short-shot warning case or true wrong-SKU/insufficient negative sample has been established by these successful samples."
+  ]
+}
