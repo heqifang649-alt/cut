@@ -1,0 +1,116 @@
+{
+  "at": "2026-11-19T13:18:22.190Z",
+  "taskId": "f3707bc9-c8af-4795-beb8-decded19430c",
+  "originalFailureAt": "2026-11-19T09:01:52.866Z",
+  "originalFailure": "Old selected intervals crossed confirmed cuts and selected_interval_not_ready_for_automatic_repair; failure predates four-module install",
+  "sources": [
+    {
+      "sourceId": "3c5560a2-18bd-5f32-8761-66d9bab6cf9d",
+      "sha256": "02b99a4d02fa2fdccb1196f3f17efe22a393944014113e4df64e0197bfa511d7",
+      "detectedCuts": [
+        3,
+        6.875
+      ],
+      "segments": [
+        {
+          "id": "scene-1-1",
+          "start": 0,
+          "end": 3,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-2-1",
+          "start": 3,
+          "end": 4.9375,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-2-2",
+          "start": 4.9375,
+          "end": 6.875,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-3-1",
+          "start": 6.875,
+          "end": 8.458334,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-3-2",
+          "start": 8.458334,
+          "end": 10.041667,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        }
+      ],
+      "safeCandidateSeconds": 10.041667
+    },
+    {
+      "sourceId": "b3721844-0a45-5032-8bb3-919ef7c529ab",
+      "sha256": "8906c81108d2c11ead6330581d27c46612cec3861db0eb2d691052e36149e8de",
+      "detectedCuts": [
+        2.708333,
+        6.958333
+      ],
+      "segments": [
+        {
+          "id": "scene-1-1",
+          "start": 0,
+          "end": 2.708333,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-2-1",
+          "start": 2.708333,
+          "end": 4.833333,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-2-2",
+          "start": 4.833333,
+          "end": 6.958333,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-3-1",
+          "start": 6.958333,
+          "end": 8.5,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        },
+        {
+          "id": "scene-3-2",
+          "start": 8.5,
+          "end": 10.041667,
+          "tags": [
+            "scene:cut_bounded"
+          ]
+        }
+      ],
+      "safeCandidateSeconds": 10.041667
+    }
+  ],
+  "sourceIntegrityPass": true,
+  "newCutBoundedCandidatesPass": true,
+  "totalCandidateSeconds": 20.083334,
+  "retryLimit": 1,
+  "qualityGate": "Retain current real Quality gate and product references; candidate duration is not proof of quality acceptance",
+  "backup": "D:/自动剪辑网站/.project-governance/evidence/shot-selection-20261119/special-two-20261119/original-failed-workspace"
+}
