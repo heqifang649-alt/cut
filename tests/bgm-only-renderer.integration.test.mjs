@@ -102,6 +102,7 @@ test(`disabled BGM renderer removes original 997Hz audio ${brand} ${sourceCount}
       for(const item of rendered.files){const p=JSON.parse((await run(projectRuntime.ffprobeExecutable,['-v','error','-show_entries','stream=codec_type','-of','json',path.resolve(root,item.storagePath)],{windowsHide:true})).stdout);assert.equal(p.streams.filter(s=>s.codec_type==='audio').length,0);}
       for (const f of rendered.files) {
         assert.equal(f.bgm.brand,brand); assert.equal(f.bgm.status,'no_bgm');
+        assert.equal(f.bgm.reason,'bgm_disabled');assert.equal(f.bgm.selectionAttempted,false);
         assert.ok(!f.musicName.includes('template-bgm'));
 
       }

@@ -1,4 +1,9 @@
+import { sourceVideoType, selectUnboxingShots } from "../lib/video-type.mjs";
+import { chooseGuidedDensity } from './guided-density-v2.mjs';
+import { collectGuidedEditingEvidence } from './guided-editing-evidence.mjs';
+import { chooseGuidedFusion } from './guided-selection-fusion.mjs';
 import { enableClassicBrandResources } from '../lib/classic-brand-activation.mjs';
+import { classicMultisourceBgm } from './classic-multisource-bgm.mjs';
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
@@ -35,16 +40,27 @@ function productGroups(sources) {
   return [...groups.values()];
 }
 
-export function scheduleClassicMultisource({ record, shotPool, scriptTemplate, semanticEvidence }) {
+export function scheduleClassicMultisource({ record, shotPool, scriptTemplate, semanticEvidence, editingEvidence, selectionMode = process.env.CUTFLOW_GUIDED_SELECTION_MODE || "original" }) {
+  if (record.sources.some(s => sourceVideoType(s, record.videoType) === "unboxing")) {
+    const typeFor = shot => sourceVideoType(record.sources.find(s => s.id === shot.source) || {}, record.videoType);
+    const views = createProductViews({ shotPool, productGroups: productGroups(record.sources) });
+    for (const view of views) view.shots = selectUnboxingShots(view.shots, typeFor);
+    return views.map(view => ({ product: view.product, sourceNamesByShotId: view.sourceNamesByShotId,
+      scheduleResult: scheduleAvailable(view, record, scriptTemplate, semanticEvidence, true) }));
+  }
   const views = createProductViews({ shotPool, productGroups: productGroups(record.sources) });
   return views.map((view) => ({ product: view.product, sourceNamesByShotId: view.sourceNamesByShotId,
-    scheduleResult: scheduleAvailable(view, record, scriptTemplate, semanticEvidence) }));
+    scheduleResult: ["fusion-v2", "fusion-v2.1"].includes(selectionMode)
+      ? chooseGuidedDensity({ view, record, semanticEvidence, editingEvidence, rhythmRevision: selectionMode === 'fusion-v2.1' ? '2.1' : undefined, baseline: scheduleAvailable(view, record, scriptTemplate, semanticEvidence) })
+      : selectionMode === "fusion"
+      ? chooseGuidedFusion({ view, record, semanticEvidence, baseline: scheduleAvailable(view, record, scriptTemplate, semanticEvidence) })
+      : scheduleAvailable(view, record, scriptTemplate, semanticEvidence) }));
 }
 
-function scheduleAvailable(view, record, scriptTemplate, semanticEvidence) {
+function scheduleAvailable(view, record, scriptTemplate, semanticEvidence, unboxing = false) {
   const planned = enforceMinimumSafeDuration(scheduleProductView({ batchId: record.taskId, productView: view, scriptTemplate,
       createdAt: record.acceptedAt, semanticEvidence, allowPartial: true, preserveSourceOrder: true }));
-  if (new Set(view.shots.map(s => s.source)).size > 1 && planned.status === "success") return planned;
+  if (!unboxing && new Set(view.shots.map(s => s.source)).size > 1 && planned.status === "success") return planned;
   const sourceOrder = new Map(record.sources.map((s,i) => [s.id, s.order ?? i]));
   const ends = new Map();
   const shots = [...view.shots].filter(s => !s.reject && !(semanticEvidence?.records || []).some(r => r.shotId === s.id && (r.wrongSku === true || ["reject", "wrong_sku"].includes(String(r.status).toLowerCase()) || r.result?.usable === false))).sort((a,b) => (sourceOrder.get(a.source) ?? 0)-(sourceOrder.get(b.source) ?? 0) || a.start-b.start).filter(s => {
@@ -128,7 +144,12 @@ export async function executeClassicMultisource({
 
     stage = "scheduler";
     await progress(stage, 70);
-    const scheduledProducts = scheduleClassicMultisource({ record, shotPool: quality.shotPool,
+    let editingEvidence;
+    if(['fusion-v2','fusion-v2.1'].includes(process.env.CUTFLOW_GUIDED_SELECTION_MODE) && new Set(quality.shotPool.shots.map(s=>s.source)).size>1){
+      try { editingEvidence = await collectGuidedEditingEvidence({shots:quality.shotPool.shots,ffmpeg,includeInternalCuts:process.env.CUTFLOW_GUIDED_SELECTION_MODE==='fusion-v2.1'}); }
+      catch { editingEvidence = {shots:{},warnings:['optional_local_probe_failed']}; }
+    }
+    const scheduledProducts = scheduleClassicMultisource({ record, shotPool: quality.shotPool,editingEvidence,
       scriptTemplate: resolvedTemplate, semanticEvidence: quality.semanticEvidence });
     await writeJsonAtomic(path.join(workspaceDir, taskId, "edit", "multisource-schedule-result.json"), {
       taskId, manifestSha256: record.manifestSha256, templateSlots: resolvedTemplate.slots.length,
@@ -155,6 +176,7 @@ export async function executeClassicMultisource({
       targetOutputsPerBatch: renderable.length, coveragePolicy: "all_products_required",
       colorStrategy: "none", transitionMode: "standard" };
     Object.assign(batch, scopedBrandResources);
+    Object.assign(batch, classicMultisourceBgm(record));
     stage = "render";
     await progress(stage, 80);
     let renderPermit;

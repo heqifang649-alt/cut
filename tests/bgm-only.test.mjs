@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { BGM_ROOT, normalizeBrandTrack, prepareBrandAudio } from '../worker/brand-bgm.mjs';
@@ -13,11 +13,12 @@ const runtime = JSON.parse(await readFile(new URL('../config/cutflow-runtime.jso
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'cut-bgm-only-'));
   t.after(() => rm(root, { recursive:true, force:true }));
-  const folder = 'offline-'+randomUUID();
+  const folder = '基督';
+  const musicDirectory = path.join(root,'offline');
   const cacheRoot = path.join(root, 'cache');
-  const cache = path.join(cacheRoot, 'GC', createHash('sha256').update(BGM_ROOT+'|'+folder).digest('hex').slice(0,16));
+  const cache = path.join(cacheRoot, 'GC', createHash('sha256').update(musicDirectory+'|'+folder).digest('hex').slice(0,16));
   await mkdir(cache,{recursive:true});
-  return {root,cache,options:{root,cacheRoot,mapping:{GC:folder},batch:{brandCopyContext:{brandId:'GC',provenance:'verified_handoff'}},
+  return {root,cache,options:{root,cacheRoot,musicDirectory,mapping:{GC:folder},batch:{brandCopyContext:{brandId:'GC',provenance:'verified_handoff'}},
     product:{get segments(){throw Error('source audio must never be accessed');}},duration:8,directory:path.join(root,'audio'),
     ffmpeg:runtime.ffmpegExecutable,ffprobe:runtime.ffprobeExecutable}};
 }
@@ -50,6 +51,7 @@ test('all corrupt or missing tracks yield video-only and never original/template
   const result=await prepareBrandAudio(options);
   assert.equal(result.path,null);assert.equal(result.decision.originalAudio,false);
   assert.ok(result.decision.warnings.includes('BGM_UNAVAILABLE_VIDEO_ONLY'));
+  assert.equal(result.decision.reason,'track_normalization_failed');
 });
 for(const [name,length]of [['short',1.73],['equal',8],['long',12]])test(`${name} music fits exact duration with expected loop behavior`,async t=>{
   const {root,options}=await fixture(t);const file=path.join(root,'music.wav');await tone(file,length);

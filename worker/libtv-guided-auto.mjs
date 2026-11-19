@@ -1,3 +1,4 @@
+import { batchVideoType, confirmedUnboxing, selectUnboxingShots } from "../lib/video-type.mjs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -54,7 +55,7 @@ export async function prepareGuidedInputs({ root = process.cwd(), batch, batchDi
   await writeJsonAtomic(sidecarPath, { video: file.relativePath, tags: [], duration: technical.duration, platform: "camera" });
   const segments = [];
   for (const segment of intervals) {
-    const quality = await analyzeBudget(videoPath, { ffmpeg, technical, start: segment.start, duration: segment.end - segment.start });
+    const quality = await analyzeBudget(videoPath, { ffmpeg, technical, allowUnboxingAnalysis: batchVideoType(batch) === "unboxing", start: segment.start, duration: segment.end - segment.start });
     const frames = await execute(ffmpeg, ["-hide_banner", "-loglevel", "error", "-ss", String(segment.start), "-i", videoPath,
       "-t", String(segment.end - segment.start), "-vf", "fps=4,scale=64:64,format=gray", "-f", "rawvideo", "pipe:1"]);
     if (!frames.bytes.length) throw fail("GUIDED_DECODE_FAILED");
@@ -74,6 +75,7 @@ export function scheduleGuided({ batch, shots, prepared }) {
   const input = prepared?.sidecars?.find((s) => s.fileId === source[0].id);
   if (!input) throw fail("SOURCE_INSUFFICIENT");
   const used = [], excluded = [], seen = new Set(); let lastEnd = -1;
+  const eligible = selectUnboxingShots(shots, () => batchVideoType(batch));
   for (const shot of [...shots].sort((a, b) => a.start - b.start)) {
     if (shot.path !== input.videoPath || !Number.isFinite(shot.start) || !Number.isFinite(shot.end) || shot.end <= shot.start
       || shot.start < lastEnd - 1e-6 || shot.reject) throw fail("SOURCE_SCOPE_INVALID");
@@ -83,7 +85,7 @@ export function scheduleGuided({ batch, shots, prepared }) {
     // Only byte-identical decoded sequences are treated as duplicates. Low motion alone never excludes a clear product hold.
     const duplicate = seen.has(segment.fingerprint);
     const keepHold = shot.productVisibility >= .5 && used.filter((s) => s.tags.includes(shot.tags.find((t) => t.startsWith("scene:")))).reduce((n, s) => n + s.duration, 0) < 3;
-    const reason = shot.productVisibility < .2 ? "unclear_product" : duplicate && !keepHold ? "redundant_decoded_sequence" : null;
+    const reason = shot.productVisibility < .2 && !(batchVideoType(batch) === "unboxing" && eligible.includes(shot) && confirmedUnboxing(shot.unboxingAction)) ? "unclear_product" : duplicate && !keepHold ? "redundant_decoded_sequence" : null;
     if (reason) excluded.push({ shotId: shot.id, start: shot.start, end: shot.end, reason });
     else { used.push(shot); seen.add(segment.fingerprint); }
   }
@@ -102,5 +104,5 @@ export function scheduleGuided({ batch, shots, prepared }) {
   return { products: [{ product, sourceNamesByShotId: Object.fromEntries(used.map((s) => [s.id, source[0].relativePath])),
     scheduleResult: { status: "success", actualCutDuration: availableSafeDuration, minimumSafeDuration: MINIMUM_AD_SECONDS,
       renderPlan: { id: `${batch.id}-guided`, batchId: batch.id, createdAt: new Date().toISOString(), ...boundedPlan, minimumSafeDuration: MINIMUM_AD_SECONDS, transitionProfile: "hard_cut" } } }],
-    used: boundedPlan.slots.map(({shot:s,slot}) => ({ shotId: s.id, start: s.start, end: s.start+slot.targetDuration, reason: "quality_accepted_product_visible" })), excluded };
+    used: boundedPlan.slots.map(({shot:s,slot}) => ({ shotId: s.id, start: s.start, end: s.start+slot.targetDuration, reason: batchVideoType(batch) === "unboxing" && s.productVisibility < .2 ? "quality_accepted_confirmed_unboxing" : "quality_accepted_product_visible" })), excluded };
 }

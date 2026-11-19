@@ -495,3 +495,33 @@ test('disabled service owner guided import needs no service template and preserv
   await assert.rejects(enqueueImport(e.root,e.config,{...e.input,userId:randomUUID()}),/IMPORT_CONFLICT/);
   const status=await importStatus(e.root,e.config,e.input.handoffId,e.input.userId);assert.equal(status.batchId,first.batchId);
 });
+
+for (const [label, fields, expected] of [
+ ['camel', {source:{videoType:'unboxing'}}, 'unboxing'],
+ ['snake', {source:{video_type:'unboxing'}}, 'unboxing'],
+ ['intent', {edit_intent:{video_type:'unboxing'}}, 'unboxing'],
+ ['missing', {}, 'ootd'], ['unknown', {source:{videoType:'future'}}, 'ootd'],
+ ['null', {source:{videoType:null}}, 'ootd'], ['empty', {source:{videoType:''}}, 'ootd'],
+ ['ootd', {source:{videoType:'ootd'}}, 'ootd']]) {
+ test('video type admission/restart/idempotency: '+label, async t => {
+  const e=await fixture(t); Object.assign(e.manifest.source,fields.source); if(fields.edit_intent)e.manifest.edit_intent=fields.edit_intent;
+  await e.publish(); await enqueueImport(e.root,e.config,e.input); await bridgeTick(e.root,e.config);
+  const restarted=await import('../lib/libtv-bridge.mjs?video-type-restart');
+  await restarted.enqueueImport(e.root,e.config,e.input); await restarted.bridgeTick(e.root,e.config);
+  const batches=await readJson(path.join(e.root,'data/batches.json'));
+  assert.equal(batches.length,1); assert.equal(batches[0].videoType,expected);
+  assert.deepEqual(batches[0].libtvSource.editPolicyReceipt.policy,GUIDED_POLICY);
+ });
+}
+
+test('unboxing preserves confirmed opening only, OOTD selection unchanged',async t=>{
+ const e=await imported(t),file=e.batch.files.find(f=>f.kind==='products'); const videoPath=path.resolve(e.root,file.storagePath);
+ const shots=Array.from({length:12},(_,i)=>({id:'u'+i,path:videoPath,source:'fixture',start:i,end:i+1,duration:1,tags:['scene:'+i],reject:false,origin:'real',productVisibility:i<4?.1:.9,productCentered:true,motionEnergy:'low',
+ unboxingAction:i<3?{action:'opening',confidence:.95,evidence_frames:[0,2]}:undefined}));
+ const prepared={sidecars:[{fileId:file.id,videoPath,segments:shots.map(s=>({...s,fingerprint:s.id}))}]};
+ const old=scheduleGuided({batch:e.batch,shots,prepared}); assert.equal(old.used.length,8);
+ e.batch.videoType='unboxing'; const result=scheduleGuided({batch:e.batch,shots,prepared});
+ assert(result.used.some(s=>s.shotId==='u0')); assert(!result.used.some(s=>s.shotId==='u3'));
+ assert(result.used.filter(s=>s.start<4).length<=2);
+ e.batch.videoType='ootd';assert.deepEqual(scheduleGuided({batch:e.batch,shots,prepared}).used,old.used);
+});

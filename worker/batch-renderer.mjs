@@ -20,7 +20,7 @@ import { verifyEncodedSafeDuration, assertOutputDuration, MAXIMUM_OUTPUT_SECONDS
 export { verifyEncodedSafeDuration } from "../lib/output-duration.mjs";
 import { brandCopyEnabled, ensureBrandCopySnapshot } from "../lib/brand-copy-library.mjs";
 import { prepareOutputBrandCopy } from "./brand-copy-render.mjs";
-import { brandBgmEnabled, prepareBrandAudio } from "./brand-bgm.mjs";
+import { brandBgmEnabled, prepareBrandAudio, inspectRenderedBrandAudio } from "./brand-bgm.mjs";
 
 const MEDIA_EXTENSIONS = new Set([".mp3", ".m4a", ".aac", ".wav", ".mp4", ".mov"]);
 const PROCESS_TIMEOUT_MS = Math.max(5 * 60 * 1000, Number(process.env.CUTFLOW_FFMPEG_TIMEOUT_MS) || 20 * 60 * 1000);
@@ -1071,10 +1071,10 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     const outputHookOverlay = outputCopy ? outputCopy.hookOverlayPath : hookOverlayPath;
     const outputCvrOverlay = outputCopy ? outputCopy.cvrOverlayPath : cvrOverlayPath;
     const savedOutput = renderCheckpoint.outputs[outputName] || {};
-    const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'only-v1',enabled:brandAudioEnabled,context:batch.brandCopyContext} : {}) });
+    const renderSignature = renderHash({ product, master:copyMaster, colorStrategy, transitionProfile, variantIndex, ...(useBrandBgm ? {brandBgm:'only-v1',enabled:brandAudioEnabled,context:batch.brandBgmContext || batch.brandCopyContext,resolution:batch.brandBgmResolution} : {}) });
     const canReuseOutput = savedOutput.renderSignature === renderSignature && await isUsableVideo(ffmpeg, outputPath);
     const brandAudio = useBrandBgm && !canReuseOutput ? await prepareBrandAudio({root,batch,enabled:brandAudioEnabled,product,duration:productDuration,directory:path.join(productClips,'brand-audio'),ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable}) : null;
-    const bgmDecision = useBrandBgm ? brandAudio?.decision || savedOutput.bgm : null;
+    let bgmDecision = useBrandBgm ? brandAudio?.decision || savedOutput.bgm : null;
     const musicPath = canReuseOutput ? savedOutput.musicPath : brandAudio?.path || null;
     await assertActive();
     const musicOffset = useBrandBgm ? 0 : Number.isFinite(savedOutput.musicOffset)
@@ -1096,6 +1096,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     if (canReuseOutput) {
       const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
+      if (useBrandBgm) bgmDecision=await inspectRenderedBrandAudio({file:outputPath,decision:bgmDecision,ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable});
       const record = savedOutput.record || await buildOutputRecord(root, outputPath, {
         musicName: musicPath ? path.basename(musicPath) : '', beatOffsetSeconds: musicOffset, qualityStatus: "passed", variantIndex: variantIndex + 1, productId: product.product_id, displayName: product.display_name,
       });
@@ -1106,7 +1107,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
         const chatcutManifestPath = await writeChatCutManifest({ root, outputDir, batch, master:copyMaster, product, record, musicPath, musicOffset, textLayout });
         record.chatcut = { status: "pending", manifestPath: chatcutManifestPath };
       }
-      renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", record };
+      renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", bgm:bgmDecision, record };
       await writeJsonAtomic(checkpointPath, renderCheckpoint);
       results.push(record);
       musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: useBrandBgm ? bgmDecision?.bgmFile : path.basename(musicPath), ...(useBrandBgm ? {bgm:bgmDecision} : {}), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
@@ -1122,6 +1123,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-i", basePath, ...(hasBrandAudio ? ["-i", musicPath] : []), ...(hasOverlays ? ["-loop", "1", "-i", outputHookOverlay, "-loop", "1", "-i", outputCvrOverlay] : []), "-filter_complex", graph, "-map", "[vout]", ...(hasBrandAudio ? ["-map", "[aout]"] : ["-an"]), "-t", String(productDuration), "-r", String(fps), "-c:v", "h264_mf", "-b:v", "9M", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath], `合成${product.display_name}`, onActivity);
     await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-f", "null", "-"], `质检${product.display_name}`, onActivity);
     const outputDurationSeconds = await verifyEncodedSafeDuration(runtimeConfig.ffprobeExecutable, outputPath);
+      if (useBrandBgm) bgmDecision=await inspectRenderedBrandAudio({file:outputPath,decision:bgmDecision,ffmpeg,ffprobe:runtimeConfig.ffprobeExecutable});
     const record = await buildOutputRecord(root, outputPath, {
       musicName: musicPath ? path.basename(musicPath) : '',
       beatOffsetSeconds: musicOffset,
@@ -1138,7 +1140,7 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
     if (record.size < 500_000) throw new Error(`成片体积异常：${outputName}`);
     results.push(record);
     musicAssignments.push({ product_id: product.product_id, variant: variantIndex + 1, music: useBrandBgm ? bgmDecision?.bgmFile : path.basename(musicPath), ...(useBrandBgm ? {bgm:bgmDecision} : {}), source_offset_seconds: musicOffset, cut_points: master.cuts || [3, 6, 8.2, 10.2] });
-    renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", record };
+    renderCheckpoint.outputs[outputName] = { ...renderCheckpoint.outputs[outputName], state: "completed", bgm:bgmDecision, record };
     await writeJsonAtomic(checkpointPath, renderCheckpoint);
     await onProgress(currentOutputOrdinal + 1, totalOutputs, product.display_name);
     await assertActive();

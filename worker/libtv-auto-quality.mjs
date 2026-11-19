@@ -1,3 +1,4 @@
+import { batchVideoType } from "../lib/video-type.mjs";
 import { classicServiceOwnerConfig, classicServiceOwner } from "../lib/classic-service-owner.mjs";
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { prepareGuidedInputs } from "./libtv-guided-auto.mjs";
@@ -54,9 +55,10 @@ export async function runAutoOotdQuality({ root, batch, batchDir, artifactDir, f
       const stateDir = path.join(batchDir, "automatic-segment-quality", shot.id);
       try { await validate({ root, batch, batchDir: stateDir, evidenceStateDir: stateDir, artifactDir: path.join(artifactDir, shot.id),
         sourceBatchDir: batchDir, file: { ...file, id: shot.id }, ffmpeg, referenceOverrides: input.refs,
-        automaticOnly: true, sourceInterval: { start: shot.start, end: shot.end } }); } catch { /* Read any existing bound evidence before using deterministic Review fallback. */ }
+        videoType: batchVideoType(batch), automaticOnly: true, sourceInterval: { start: shot.start, end: shot.end } }); } catch { /* Read any existing bound evidence before using deterministic Review fallback. */ }
       const evidence = await readJson(path.join(stateDir, "quality-evidence.v2.json"), null);
       const record = evidence?.sources?.find((item) => item.sourceId === shot.id && item.sourceHash === input.sourceHash);
+      if (batchVideoType(batch) === "unboxing" && record?.unboxingAction) shot.unboxingAction = record.unboxingAction;
       const gate = automaticSourceGate({ sourceHash: input.sourceHash,
         references: input.refs.map((ref) => ({ sha256: ref.sha256, verified: true, origin: ref.referenceOrigin })),
         evidence: record, policy: evidence?.policy, technicalVerdict, allowReview: true });

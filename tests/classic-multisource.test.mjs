@@ -53,6 +53,51 @@ async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount 
   return { root, nasRoot, dir, taskId, userId, handoffKey, manifest, manifestSha256, config, env, input };
 }
 
+test('short-shot diagnostics survive status/NAS roundtrip and duplicate admission without replay', async () => {
+ const f=await fixture({contractVersion:MULTISOURCE_CONTRACT});await admitMultisource(f.root,f.config,f.input);
+ const error=Object.assign(new Error('FINAL_MP4_SHORT_SHOT_REFUSE'),{code:'FINAL_MP4_SHORT_SHOT_REFUSE',stage:'render',failure_stage:'final_mp4_quality_check',failed_shot_index:4,actual_shot_duration_ms:1000/30,minimum_allowed_duration_ms:1000,retryable:false,
+ diagnostic_details:{fps:30,frame_count:313,encoded_layout_proven:false,secret:'must not escape',failed_intervals:[{shot_index:4,start_frame:184,end_frame:185,duration_ms:1000/30,source:'private path'}]}});
+ await updateMultisourceStatus(f.root,f.taskId,'failed',error,f.config);
+ const status=await multisourceStatus(f.root,f.taskId),nas=JSON.parse(await readFile(path.join(f.nasRoot,'outbox',f.taskId,'status.json'),'utf8'));
+ assert.deepEqual(status,nas);assert.equal(status.error.diagnostics.task_id,f.taskId);assert.equal(status.error.diagnostics.retryable,false);
+ assert.equal(status.error.diagnostics.failed_shot_index,4);assert.equal(status.error.diagnostics.failure_stage,'final_mp4_quality_check');
+ assert.ok(!JSON.stringify(status).includes('private path'));assert.ok(!JSON.stringify(status).includes('must not escape'));
+ assert.deepEqual(await admitMultisource(f.root,f.config,f.input),status);
+ assert.equal(await claimMultisourceTask(f.root,'isolated-worker'),null);
+});
+
+test('historical short-shot errors expose unknown diagnostic values as null', async () => {
+ const f=await fixture({contractVersion:MULTISOURCE_CONTRACT});await admitMultisource(f.root,f.config,f.input);
+ await updateMultisourceStatus(f.root,f.taskId,'failed',new Error('FINAL_MP4_SHORT_SHOT_REFUSE'),f.config);
+ const d=(await multisourceStatus(f.root,f.taskId)).error.diagnostics;
+ for(const key of ['failure_stage','failed_shot_index','actual_shot_duration_ms','minimum_allowed_duration_ms','retryable','diagnostic_details'])assert.equal(d[key],null);
+});
+
+for(const code of ['FINAL_MP4_BOUNDARY_UNCONFIRMED','FINAL_MP4_CORRUPT'])test('existing v2 envelope distinguishes '+code+' without a new task state',async()=>{
+ const f=await fixture({contractVersion:MULTISOURCE_CONTRACT});await admitMultisource(f.root,f.config,f.input);
+ await updateMultisourceStatus(f.root,f.taskId,'failed',Object.assign(new Error(code),{code,stage:'render',retryable:false}),f.config);
+ const response=await multisourceStatus(f.root,f.taskId),nas=JSON.parse(await readFile(path.join(f.nasRoot,'outbox',f.taskId,'status.json'),'utf8'));
+ assert.deepEqual(response,nas);assert.equal(response.status,'failed');assert.equal(response.error.code,code);
+ assert.match(response.error.message,/不建议/);assert.ok(!Object.hasOwn(response,'outputs'));
+ assert.deepEqual(Object.keys(response.error).sort(),['code','detailCode','message','stage']);
+});
+
+for (const mismatch of [false, true]) test(`brand aliases agree canonically and preserve business UUID; mismatch=${mismatch}`, async () => {
+  const f = await fixture();
+  const businessBrandId = '483d70a2-c291-4102-93e5-734166a8767a';
+  f.manifest.sourceBinding = {kind:'brand',value:'tokyotiger',businessBrandId,granularity:'brand-profile',productIdProvided:false};
+  f.manifest.sources = f.manifest.sources.map((s,i)=>({...s,productId:null,brandIdentity:mismatch && i ? 'GC' : 'TT',businessBrandId}));
+  f.manifest.edit_policy = {audioPolicy:{sourceAudio:'mute',bgm:'auto_match',beatSync:true}};
+  const raw=Buffer.from(JSON.stringify(f.manifest)); f.input.manifestSha256=hash(raw);
+  await writeFile(path.join(f.dir,'manifest.json'),raw); await writeJsonAtomic(path.join(f.dir,'READY'),{sha256:hash(raw)});
+  if(mismatch) return assert.rejects(admitMultisource(f.root,f.config,f.input),/INVALID_SOURCE/);
+  await admitMultisource(f.root,f.config,f.input);
+  const [record]=JSON.parse(await readFile(path.join(f.root,'data/classic-multisource-records.json'),'utf8'));
+  assert.equal(record.sourceBinding.businessBrandId,businessBrandId);
+  assert.ok(record.sources.every(s=>s.businessBrandId===businessBrandId && s.brandIdentity==='TT' && s.bindingKey==='tokyotiger'));
+  assert.deepEqual(record.audioPolicy,f.manifest.edit_policy.audioPolicy);
+});
+
 test("reuses Bridge bearer and classic NAS root while business-record dependencies do not block admission", async () => {
   const f = await fixture();
   assert.equal(f.config.ready, true); assert.equal(f.config.nasRoot, path.resolve(f.nasRoot)); assert.equal(f.config.token, f.env.LIBTV_BRIDGE_TOKEN);
@@ -381,4 +426,18 @@ test("service owner accepts unmapped 1/2/8 source tasks, isolates users/brands a
   assert.deepEqual(records.filter(record => record.userId === sameUser).map(record => record.sourceBinding.value), ["GC", "TT"]);
   await writeJsonAtomic(path.join(shared.root, "data/users.json"), [{ id: ownerId, status: "active", role: "member" }]);
   await assert.rejects(admitMultisource(shared.root, config, shared.input), /SERVICE_OWNER_MUST_BE_NONINTERACTIVE/);
+});
+
+for(const mixed of [false,true]) test('video types persist per source, mixed='+mixed,async()=>{
+ const f=await fixture(); f.manifest.videoType='unboxing';
+ if(mixed) f.manifest.sources[1].video_type='ootd';
+ const raw=Buffer.from(JSON.stringify(f.manifest)); const sha=hash(raw);
+ await writeFile(path.join(f.dir,'manifest.json'),raw); await writeJsonAtomic(path.join(f.dir,'READY'),{sha256:sha});
+ f.input.manifestSha256=sha;
+ await admitMultisource(f.root,f.config,f.input);
+ const restarted=await import('../lib/classic-multisource.mjs?video-type-restart');
+ await restarted.admitMultisource(f.root,f.config,f.input);
+ const {readFile}=await import('node:fs/promises');
+ const record=JSON.parse(await readFile(path.join(f.root,'data/classic-multisource-records.json'),'utf8'))[0];
+ assert.deepEqual(record.sources.map(s=>s.videoType),['unboxing',mixed?'ootd':'unboxing']);
 });

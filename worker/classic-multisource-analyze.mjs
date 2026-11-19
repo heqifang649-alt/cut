@@ -1,3 +1,4 @@
+import { sourceVideoType } from "../lib/video-type.mjs";
 import { analyzeDeterministicMetadataBudget } from "./deterministic-budget.mjs";
 import { evaluateTechnical } from "./ai-video-validator.mjs";
 import { createHash } from "node:crypto";
@@ -47,7 +48,7 @@ export async function prepareClassicMultisourceAnalyze({
   }
   const batch = { id: record.taskId, ownerId: record.ownerId, storageVersion: 1, referenceProfile,
     durationMax: MAXIMUM_OUTPUT_SECONDS,
-    files: sources.map((source) => ({ id: source.id, kind: "products", name: path.basename(source.absolutePath),
+    files: sources.map((source) => ({ videoType: sourceVideoType(source, record.videoType), id: source.id, kind: "products", name: path.basename(source.absolutePath),
       relativePath: source.relativePath, storagePath: source.absolutePath, absolutePath: source.absolutePath,
       sourceType: "upload", sha256: source.sha256 })) };
   const prepared = await prepare({ batch, batchDir, ffmpeg });
@@ -60,7 +61,7 @@ export async function prepareClassicMultisourceAnalyze({
       const segments = [];
       for (let start = 0; start < input.technical.duration - .001; start += 3) {
         const end = Math.min(start + 3, input.technical.duration);
-        const quality = await analyzeDeterministicMetadataBudget(input.videoPath, { ffmpeg, technical: input.technical, start, duration: end-start });
+        const quality = await analyzeDeterministicMetadataBudget(input.videoPath, { ffmpeg, allowUnboxingAnalysis: sourceVideoType(source, record.videoType) === "unboxing", technical: input.technical, start, duration: end-start });
         segments.push({ id: `continuous-${segments.length}`, start, end, tags: [], budget: quality.budget });
       }
       input.segments = segments;

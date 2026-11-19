@@ -111,7 +111,7 @@ export async function analyzeDeterministicMetadataBudget(videoPath, options = {}
   const productVisibility = clamp(visibility);
   const productCentered = centeredRatio >= 0.75;
   const motionEnergy = motion < 0.04 ? "low" : motion < 0.12 ? "medium" : "high";
-  if (productVisibility < 0.12 || centeredRatio < 0.5) {
+  if (!options.allowUnboxingAnalysis && (productVisibility < 0.12 || centeredRatio < 0.5)) {
     const error = new Error(`Deterministic product visibility evidence is insufficient for ${videoPath}`);
     error.code = "METADATA_BUDGET_REVIEW_REQUIRED";
     error.evidence = { sampleCount: metrics.length, productVisibility, centeredRatio, motion, method: "grayscale_foreground_temporal_v1" };

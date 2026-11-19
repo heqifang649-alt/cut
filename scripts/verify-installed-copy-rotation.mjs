@@ -1,0 +1,9 @@
+import {reserveOutputCopy} from 'file:///D:/CUT-Releases/20261030-production-first-r11/lib/brand-copy-history.mjs';
+import {withFileLock} from 'file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs';
+import {mkdtemp,writeFile,mkdir,readFile} from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import assert from 'node:assert/strict';
+const root=await mkdtemp(path.join(os.tmpdir(),'installed-copy-')),file=path.join(root,'data/brand-copy-history.v1.json');await mkdir(path.dirname(file),{recursive:true});
+const args={root,batch:{id:'isolated-check',brandCopyContext:{brandId:'TT',provenance:'isolated_canary'}},product:{product_id:'test',duration_seconds:10,segments:[{duration:3},{duration:3}]},outputId:'tt.mp4',fingerprint:'test',snapshot:{entries:[{id:'a',brand:'TT',kind:'hook',text:'Wear your own style',sources:[]},{id:'b',brand:'TT',kind:'hook',text:'Find your own style',sources:[]}]}};
+const first=await reserveOutputCopy(args);const second=await reserveOutputCopy({...args,batch:{...args.batch,id:'second'}});assert.notEqual(first.hook.entryId,second.hook.entryId);
+await writeFile(file,'broken-json');const broken=await reserveOutputCopy(args);assert.equal(broken.warning,'BRAND_COPY_HISTORY_UNAVAILABLE');assert.equal(broken.hook.source,'library');
+await writeFile(file,JSON.stringify({sequence:0,records:[]}));let locked;await writeFile(file+'.lock',JSON.stringify({token:'isolated-lock',pid:process.pid,createdAt:new Date().toISOString()}));locked=await reserveOutputCopy(args);assert.equal(locked.warning,'BRAND_COPY_HISTORY_UNAVAILABLE');assert.equal(locked.hook.source,'library');
+console.log(JSON.stringify({installedModuleTest:'pass',corruptHistory:'safe_fallback',lockedHistory:'safe_fallback',rotation:true,productionDataTouched:false}));

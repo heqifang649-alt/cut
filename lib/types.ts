@@ -327,6 +327,8 @@ export const REJECT_REASONS = [
 export type RejectReason = (typeof REJECT_REASONS)[number];
 
 export type Shot = {
+  videoType?: "ootd" | "unboxing";
+  unboxingAction?: { action: string; confidence: number; evidence_frames: number[] };
   id: string;
   source: string;
   path: string;
@@ -425,8 +427,10 @@ export const isTransitionMode = (value: unknown): value is TransitionMode => TRA
 
 export function isShot(value: unknown): value is Shot {
   if (!isRecord(value)) return false;
-  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy"])
+  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy", "videoType", "unboxingAction"])
     && isString(value.id)
+    && (value.videoType === undefined || value.videoType === "ootd" || value.videoType === "unboxing")
+    && (value.unboxingAction === undefined || isRecord(value.unboxingAction) && isString(value.unboxingAction.action) && isNonNegativeNumber(value.unboxingAction.confidence) && value.unboxingAction.confidence <= 1 && Array.isArray(value.unboxingAction.evidence_frames) && value.unboxingAction.evidence_frames.every(n => Number.isInteger(n) && n >= 0 && n <= 4))
     && isString(value.source)
     && isString(value.path)
     && isNonNegativeNumber(value.start)

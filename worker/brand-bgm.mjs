@@ -4,17 +4,17 @@ import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { randomInt, createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canonicalBrand } from '../lib/brand-copy-library.mjs';
+import { canonicalBgmBrand, BRAND_BGM_DIRECTORIES } from '../lib/brand-bgm-identity.mjs';
 
 const exec = promisify(execFile);
 export const BGM_ROOT = String.raw`\\192.168.120.60\新成片交付\批量剪辑素材\BGM`;
-export const brandBgmEnabled = (env = process.env, batch) => batch?.brandBgmEnabled === true || env.ENABLE_BRAND_BGM === 'true';
+export const brandBgmEnabled = (env = process.env, batch) => batch?.brandBgmResolution?.reason ? false : batch?.brandBgmEnabled === true || env.ENABLE_BRAND_BGM === 'true';
 const extensions = new Set(['.mp3','.wav','.m4a','.aac','.mp4','.mov','.flac','.ogg']);
 export function outputBrand(batch, product) {
-  const context = batch.brandCopyContext;
+  const context = batch.brandBgmContext || batch.brandCopyContext;
   if (!['authenticated_api','verified_handoff','isolated_canary'].includes(context?.provenance)) return null;
   const value=context.products?.[product.product_id]?.brandId || context.brandId;
-  return canonicalBrand(value) || (String(value).toUpperCase()==='NW' ? 'NW' : null);
+  return canonicalBgmBrand(value);
 }
 export function chooseTrack(tracks, previous, random = randomInt) {
   const pool = tracks.length > 1 ? tracks.filter(t => t !== previous) : tracks;
@@ -44,16 +44,20 @@ export async function silenceFile(directory, duration) {
   await writeFile(file,bytes);return file;
 }
 export async function selectBrandBgm({root,brand,ffmpeg,directory=BGM_ROOT,cacheRoot=path.join(root,'data/brand-bgm-cache'),mapping,exclude=[]}) {
-  const decision={brand,bgmFile:null,status:'no_bgm',warnings:[]};
+  brand = canonicalBgmBrand(brand);
+  const decision={brand,bgmFile:null,status:'no_bgm',reason:null,selectionAttempted:false,candidateCount:null,warnings:[]};
+  if (!brand) return {...decision,reason:'brand_unrecognized',warnings:['BGM_BRAND_UNRECOGNIZED']};
   try {
     mapping ||= JSON.parse(await readFile(path.join(root,'config/brand-bgm-directories.json'),'utf8'));
     const folder=mapping[brand];
-    if (!['GC','TT','NW'].includes(brand) || typeof folder!=='string' || path.basename(folder)!==folder || ['.','..'].includes(folder)) throw Error('BGM_BRAND_UNMAPPED');
+    if (folder !== BRAND_BGM_DIRECTORIES[brand]) return {...decision,reason:'library_mapping_invalid',warnings:['BGM_BRAND_UNMAPPED']};
     const brandDir=path.join(cacheRoot,brand,createHash('sha256').update(directory+'|'+folder).digest('hex').slice(0,16));
     await mkdir(brandDir,{recursive:true});
     let files=[];
     try { files=JSON.parse((await command(process.execPath,[fileURLToPath(import.meta.url),'--scan-bgm',path.join(directory,folder)],2500)).stdout); }
-    catch { decision.warnings.push('BGM_NAS_UNAVAILABLE'); }
+    catch { decision.reason='library_unavailable'; decision.warnings.push('BGM_NAS_UNAVAILABLE'); }
+    decision.selectionAttempted=true;
+    decision.candidateCount=decision.reason ? null : files.length;
     files=files.filter(file=>!exclude.includes(file));
     const previous=await readFile(path.join(brandDir,'recent.txt'),'utf8').catch(()=>null);
     const cached=(await readdir(brandDir)).filter(f=>f.endsWith('.wav')).map(f=>path.join(brandDir,f));
@@ -67,15 +71,16 @@ export async function selectBrandBgm({root,brand,ffmpeg,directory=BGM_ROOT,cache
         if ((await readFile(temp)).length<48000) throw Error('EMPTY_AUDIO');
         await rename(temp,target);await writeFile(target+'.json',JSON.stringify({source,name:path.basename(source)}));
         await writeFile(path.join(brandDir,'recent.txt'),source);
-        return {...decision,bgmFile:path.basename(source),path:target,sourcePath:source,status:'selected'};
-      } catch { decision.warnings.push('BGM_DECODE_FAILED'); }
+        return {...decision,reason:null,bgmFile:path.basename(source),path:target,sourcePath:source,status:'selected'};
+      } catch { decision.reason='track_decode_failed'; decision.warnings.push('BGM_DECODE_FAILED'); }
     }
     const valid=[];
     for(const file of cached)try {const info=JSON.parse(await readFile(file+'.json','utf8'));if(!exclude.includes(info.source))valid.push({file,...info});}catch { /* incomplete cache */ }
     const source=chooseTrack(valid.map(t=>t.source),previous),hit=valid.find(t=>t.source===source);
-    if(hit){await writeFile(path.join(brandDir,'recent.txt'),source);return {...decision,path:hit.file,bgmFile:hit.name,sourcePath:hit.source,status:'cached'};}
+    if(hit){await writeFile(path.join(brandDir,'recent.txt'),source);return {...decision,reason:null,path:hit.file,bgmFile:hit.name,sourcePath:hit.source,status:'cached'};}
+    decision.reason ||= 'no_candidate_tracks';
     decision.warnings.push('BGM_NO_VALID_TRACK');
-  } catch {decision.warnings.push('BGM_UNAVAILABLE_OR_UNMAPPED');}
+  } catch {decision.reason ||= 'library_unavailable';decision.warnings.push('BGM_UNAVAILABLE_OR_UNMAPPED');}
   return decision;
 }
 
@@ -106,20 +111,41 @@ export async function normalizeBrandTrack({file,duration,directory,ffmpeg,ffprob
   return {path:output,loopCount:loops,crossfadeSeconds:crossfade,fadeInSeconds:.15,fadeOutSeconds:.7,targetLufs:-16,truePeakCeilingDbtp:-1,normalizerPeakDbtp:-2,inputLoudness:stats};
 }
 
-export async function prepareBrandAudio({root,batch,product,duration,directory,ffmpeg,ffprobe,mapping,cacheRoot,enabled=true}) {
+export async function prepareBrandAudio({root,batch,product,duration,directory,ffmpeg,ffprobe,mapping,cacheRoot,musicDirectory=BGM_ROOT,enabled=true}) {
   let decision={brand:outputBrand(batch,product||{}),bgmFile:null,status:'no_bgm',originalAudio:false,audioRule:'brand_bgm_only_v1',warnings:[]};
-  if(!enabled)return {path:null,decision:{...decision,warnings:['BGM_DISABLED_NO_SOURCE_FALLBACK']}};
+  const resolution=batch.brandBgmResolution;
+  if(resolution?.reason || !enabled || !decision.brand)return {path:null,decision:{...decision,
+    reason:resolution?.reason || (!decision.brand ? 'brand_unrecognized' : 'bgm_disabled'),selectionAttempted:false,candidateCount:null,
+    warnings:['BGM_DISABLED_NO_SOURCE_FALLBACK']}};
   const exclude=[];
   for(let attempt=0;attempt<2;attempt++){
     try{
-      const selected=await selectBrandBgm({root,brand:decision.brand,ffmpeg,mapping,cacheRoot,exclude});
+      const selected=await selectBrandBgm({root,brand:decision.brand,ffmpeg,mapping,cacheRoot,exclude,directory:musicDirectory});
+      if (!selected.path && decision.reason === 'track_normalization_failed') selected.reason = decision.reason;
       decision={...selected,originalAudio:false,audioRule:'brand_bgm_only_v1',warnings:[...decision.warnings,...selected.warnings]};
       if(!selected.path)break;
       const source=selected.sourcePath||(JSON.parse(await readFile(selected.path+'.json','utf8'))).source;
       exclude.push(source);
       const normalized=await normalizeBrandTrack({file:selected.path,duration,directory,ffmpeg,ffprobe});
       return {path:normalized.path,decision:{...decision,...normalized,normalizedPath:normalized.path,path:selected.path,bgmGain:1}};
-    }catch{decision.warnings.push('BGM_NORMALIZATION_FAILED_TRY_SAME_BRAND');}
+    }catch{decision.reason='track_normalization_failed';decision.warnings.push('BGM_NORMALIZATION_FAILED_TRY_SAME_BRAND');}
   }
   return {path:null,decision:{...decision,status:'no_bgm',bgmFile:null,path:null,warnings:[...decision.warnings,'BGM_UNAVAILABLE_VIDEO_ONLY']}};
+}
+
+// Diagnostic only: do not fail a video task or change its completion contract.
+export async function inspectRenderedBrandAudio({file,decision,ffmpeg,ffprobe}) {
+  const result={...decision,warnings:[...(decision?.warnings || [])]};
+  try {
+    const info=JSON.parse((await command(ffprobe,['-v','error','-show_streams','-of','json',file],15000)).stdout);
+    const count=info.streams.filter(s=>s.codec_type==='audio').length;
+    if(!count){result.audioValidation={state:'no_audio_stream',audioStreams:0};if(['selected','cached'].includes(result.status)){result.status='no_bgm';result.reason='render_missing_audio_stream';result.warnings.push('BGM_RENDER_MISSING_AUDIO');}return result;}
+    const measured=await command(ffmpeg,['-hide_banner','-v','info','-i',file,'-map','0:a:0','-af','volumedetect','-f','null','-'],60000);
+    const mean=Number(measured.stderr.match(/mean_volume:\s*(-?[\d.]+) dB/)?.[1]);
+    if(!Number.isFinite(mean))throw Error('AUDIO_MEASUREMENT_FAILED');
+    const audible=mean > -80;
+    result.audioValidation={state:audible?'audible':'silent',audioStreams:count,meanDb:mean,thresholdDb:-80};
+    if(!audible){result.status='no_bgm';result.reason='render_audio_silent';result.warnings.push('BGM_RENDER_SILENT');}
+    return result;
+  } catch {return {...result,status:'no_bgm',reason:'render_audio_check_failed',audioValidation:{state:'check_failed'},warnings:[...result.warnings,'BGM_AUDIO_CHECK_FAILED']};}
 }

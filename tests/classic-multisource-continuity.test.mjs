@@ -18,3 +18,12 @@ test('unmatched template fallback preserves a viable take rather than concatenat
   // Single-source path remains usable.
   assert.equal(schedule(shots.filter(s=>s.source==='A')).status,'success');
 });
+
+test('unboxing uses bounded confirmed narrative while preserving mixed source metadata',()=>{
+ const sources=[{id:'A',order:1,bindingKey:'p',absolutePath:'D:/A.mp4',videoType:'unboxing'}, {id:'B',order:2,bindingKey:'p',absolutePath:'D:/B.mp4',videoType:'ootd'}];
+ const shots=Array.from({length:12},(_,i)=>({id:'x'+i,source:'A',path:'D:/A.mp4',start:i,end:i+1,duration:1,tags:[],reject:false,origin:'real',productVisibility:i<4?.1:.9,productCentered:true,motionEnergy:'medium',...(i<3?{unboxingAction:{action:'opening',confidence:.95,evidence_frames:[0,2]}}:{})}));
+ const result=scheduleClassicMultisource({record:{taskId:'offline',sources},shotPool:{version:1,shots},scriptTemplate:{id:'t',name:'t',totalDuration:10,slots:[{id:'hook',label:'hook',requireTags:['absent'],targetDuration:10}]}})[0].scheduleResult;
+ assert.equal(result.status,'success');const selected=result.renderPlan.slots.map(s=>s.shot.id);
+ assert(selected.includes('x0'));assert(!selected.includes('x3'));assert(!selected.includes('x2'));
+ assert.deepEqual(sources.map(s=>s.videoType),['unboxing','ootd']);
+});

@@ -1,3 +1,4 @@
+import { normalizeVideoType, UNBOXING_PROMPT } from "../lib/video-type.mjs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { access, mkdir, readFile, stat } from "node:fs/promises";
@@ -167,15 +168,25 @@ function providerRunner(config, root) {
   });
 }
 
-async function requestProviderEvidence({ runner, model, sourceId, prompt, images, imageLabels, signal, beforeDispatch }) {
-  const parse = (response) => parseQualityEvidenceProvider(response.text, { expectedSourceId: sourceId });
+export async function requestProviderEvidence({ runner, model, sourceId, prompt, images, imageLabels, signal, beforeDispatch, videoType }) {
+  let unboxingAction;
+  const schema = qualityEvidenceProviderJsonSchema();
+  if (videoType === "unboxing") {
+    schema.properties.unboxing_action = { type: "object", additionalProperties: false, required: ["action", "confidence", "evidence_frames"], properties: { action: { type: "string", enum: ["none", "packaging_reveal", "opening", "extracting", "unfolding", "lifting"] }, confidence: { type: "number", minimum: 0, maximum: 1 }, evidence_frames: { type: "array", items: { type: "integer", minimum: 0, maximum: 4 } } } };
+    schema.required.push("unboxing_action"); prompt += "\n" + UNBOXING_PROMPT;
+  }
+  const parse = response => {
+    if (videoType !== "unboxing") return parseQualityEvidenceProvider(response.text, { expectedSourceId: sourceId });
+    const value = JSON.parse(response.text); unboxingAction = value.unboxing_action; delete value.unboxing_action;
+    return parseQualityEvidenceProvider(JSON.stringify(value), { expectedSourceId: sourceId });
+  };
   try {
-    const response = await runner.complete({ model, prompt, images, imageLabels, jsonSchema: qualityEvidenceProviderJsonSchema(), capability: "structured", signal, beforeDispatch });
-    return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null } };
+    const response = await runner.complete({ model, prompt, images, imageLabels, jsonSchema: schema, capability: "structured", signal, beforeDispatch });
+    return { providerEvidence: parse(response), unboxingAction, telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null } };
   } catch (nativeError) {
     try {
       const response = await runner.complete({ model, prompt: `${prompt}\nNative schema was unavailable. Return only valid JSON matching the required schema.`, images, imageLabels, capability: "structured", signal, beforeDispatch });
-      return { providerEvidence: parse(response), telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null, jsonFallback: true } };
+      return { providerEvidence: parse(response), unboxingAction, telemetry: { model, protocol: response.protocol, latencyMs: response.latencyMs, usage: response.usage || null, jsonFallback: true } };
     } catch (fallbackError) {
       const error = fallbackError instanceof ProviderAdapterError ? fallbackError : nativeError;
       return { error: { code: error.code || "PROVIDER_ERROR", message: safeProviderError(error.message || String(error)) } };
@@ -202,16 +213,17 @@ export async function setQualityEvidenceV2ReviewDecision({ batchDir, sourceId, d
   });
 }
 
-export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, evidenceStateDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides, sourceInterval, automaticOnly = false, beforeDispatch } = {}) {
+export async function validateWithQualityGateV2({ root = process.cwd(), batch, batchDir, artifactDir = batchDir, evidenceStateDir = batchDir, sourceBatchDir = batchDir, file, ffmpeg, env = process.env, adapter, policyPath, extractFrames, referenceOverrides, sourceInterval, automaticOnly = false, beforeDispatch, videoType: inputVideoType } = {}) {
   const sourceId = String(file?.id || file?.storagePath || file?.absolutePath || "");
   const videoPath = sourcePath(root, batch, batchDir, file || {});
   const policy = await loadPolicy(policyPath);
   const sourceHash = await fileHash(videoPath);
   const evidenceFile = path.join(evidenceStateDir, QUALITY_EVIDENCE_V2_FILE);
   const existing = await readJson(evidenceFile, null);
+  const videoType = normalizeVideoType(inputVideoType);
   const previous = existing?.sources?.find((entry) => entry.sourceId === sourceId && entry.sourceHash === sourceHash && entry.policyVersion === policy.policyVersion && entry.promptVersion === QUALITY_EVIDENCE_V2_PROMPT_VERSION);
   const referenceKey = automaticOnly ? hash(JSON.stringify((referenceOverrides || []).map((ref) => [ref.id, ref.sha256]))) : null;
-  if (previous?.decision?.verdict && previous.technicalScopeVersion === TECHNICAL_SCOPE_VERSION && (!automaticOnly || previous.automaticOnly === true && previous.referenceKey === referenceKey
+  if ((previous?.videoType || "ootd") === videoType && previous?.decision?.verdict && previous.technicalScopeVersion === TECHNICAL_SCOPE_VERSION && (!automaticOnly || previous.automaticOnly === true && previous.referenceKey === referenceKey
     && JSON.stringify(previous.sourceInterval) === JSON.stringify(sourceInterval))) return toValidationResult(previous);
 
   const createdAt = new Date().toISOString();
@@ -234,7 +246,7 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
     ...(automaticOnly ? { automaticOnly: true, referenceKey, sourceInterval } : {}),
     provider: null,
     model: null,
-    promptVersion: QUALITY_EVIDENCE_V2_PROMPT_VERSION,
+    videoType, promptVersion: QUALITY_EVIDENCE_V2_PROMPT_VERSION,
     sampledFrames: frames.map((frame) => ({ index: frame.index, ratio: frame.ratio, time: frame.time, path: frame.path, hash: frame.hash })),
     sampledFrameHash: hash(frames.map((frame) => frame.hash).join(":")),
     createdAt,
@@ -270,12 +282,13 @@ export async function validateWithQualityGateV2({ root = process.cwd(), batch, b
         try {
           const imageLabels = qualityEvidenceImageLabels({ references: refs, frames, crops: specialistCrops });
           record.inputEvidenceRoles = imageLabels;
-          result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements, references: record.referenceCoverage.references.map((reference) => ({ type: reference.referenceType, name: reference.mappedFilename })), frames, crops: record.specialistEvidence.crops }), images: [...referenceImages, ...frameImages, ...cropImages], imageLabels, signal: timeout.signal, beforeDispatch });
+          result = await requestProviderEvidence({ runner: adapter || providerRunner(resolved.config, root), model, sourceId, prompt: providerPrompt({ sourceId, technical, requirements: batch.requirements, references: record.referenceCoverage.references.map((reference) => ({ type: reference.referenceType, name: reference.mappedFilename })), frames, crops: record.specialistEvidence.crops }), images: [...referenceImages, ...frameImages, ...cropImages], imageLabels, signal: timeout.signal, beforeDispatch, videoType });
         } finally {
           clearTimeout(timer);
         }
         if (result.providerEvidence) {
           record.providerEvidence = result.providerEvidence;
+          if (videoType === "unboxing") record.unboxingAction = result.unboxingAction;
           record.telemetry = result.telemetry;
           record.analysisStatus = "complete";
         } else {

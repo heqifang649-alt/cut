@@ -1,3 +1,4 @@
+import { sourceVideoType } from "../lib/video-type.mjs";
 import {MINIMUM_OUTPUT_SECONDS, MAXIMUM_OUTPUT_SECONDS} from '../lib/output-duration.mjs';
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -249,7 +250,7 @@ export async function prepareDeterministicInputs({ batch, batchDir, ffmpeg, prob
       await writeJsonAtomic(sidecarPath, sidecar);
       const segments = [];
       for (const segment of candidateSegments(technical.duration, scriptTemplate)) {
-        const quality = await analyzeBudget(videoPath, { ffmpeg, technical, start: segment.start, duration: segment.end - segment.start });
+        const quality = await analyzeBudget(videoPath, { ffmpeg, technical, allowUnboxingAnalysis: sourceVideoType(file) === "unboxing", start: segment.start, duration: segment.end - segment.start });
         segments.push({ ...segment, budget: quality.budget, evidence: quality.evidence });
       }
       sidecars.push({ fileId: file.id, videoPath, sidecarPath, duration: technical.duration, technical, segments });

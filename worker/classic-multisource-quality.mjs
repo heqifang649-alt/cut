@@ -1,3 +1,4 @@
+import { sourceVideoType } from "../lib/video-type.mjs";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, readFile, stat } from "node:fs/promises";
@@ -88,12 +89,13 @@ export async function runClassicMultisourceQuality({
       try { await validate({ root, batch, batchDir: stateDir, evidenceStateDir: stateDir,
         artifactDir: path.join(artifactDir, source.id, candidate.id), sourceBatchDir: batchDir,
         file: { id: candidate.id, name: path.basename(source.absolutePath), storagePath: source.absolutePath }, ffmpeg,
-        referenceOverrides, automaticOnly: true, sourceInterval: { start: candidate.start, end: candidate.end },
+        videoType: sourceVideoType(source, record.videoType), referenceOverrides, automaticOnly: true, sourceInterval: { start: candidate.start, end: candidate.end },
         beforeDispatch: (phase) => reserveMultisourceVisualCall(root, record, phase) });
       } catch { /* Preserve any completed, hash-bound evidence before degrading to Review. */ }
       const evidencePath = path.join(stateDir, "quality-evidence.v2.json");
       const evidenceDocument = await readJson(evidencePath, null);
       const evidence = evidenceDocument?.sources?.find((item) => item.sourceId === candidate.id && item.sourceHash === source.sha256);
+      candidate.unboxingAction = evidence?.unboxingAction;
       const gate = automaticSourceGate({ sourceHash: source.sha256,
         references: references.map((reference) => ({ sha256: reference.sha256, verified: true, origin: reference.origin })),
         evidence, policy: evidenceDocument?.policy, technicalVerdict: candidate.technicalVerdict || evidence?.technical?.verdict, allowReview: true });
@@ -109,7 +111,7 @@ export async function runClassicMultisourceQuality({
     if (!quarantined) {
       for (const candidate of candidates) if (sourceDecisions.find((item) => item.shotId === candidate.id)?.state && ["READY", "REVIEW"].includes(sourceDecisions.find((item) => item.shotId === candidate.id)?.state)) {
         accepted.push({ id: candidate.id, source: source.id, path: candidate.path, start: candidate.start, end: candidate.end,
-          duration: candidate.duration, tags: [...candidate.tags, ...(sourceDecisions.find((item) => item.shotId === candidate.id)?.state === "REVIEW" ? ["quality:review"] : [])], reject: false, origin: "real",
+          unboxingAction: candidate.unboxingAction, videoType: sourceVideoType(source, record.videoType), duration: candidate.duration, tags: [...candidate.tags, ...(sourceDecisions.find((item) => item.shotId === candidate.id)?.state === "REVIEW" ? ["quality:review"] : [])], reject: false, origin: "real",
           productVisibility: candidate.productVisibility, productCentered: candidate.productCentered, motionEnergy: candidate.motionEnergy });
       }
     }

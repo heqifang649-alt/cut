@@ -2,7 +2,7 @@ import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { readJson, writeJsonAtomic } from '../lib/atomic-json.mjs';
 import { copyHash } from '../lib/brand-copy-library.mjs';
-import { matchOutputCopy } from '../lib/brand-copy-match.mjs';
+import { reserveOutputCopy } from '../lib/brand-copy-history.mjs';
 
 export async function prepareOutputBrandCopy({root,batch,editDir,outputId,product,semanticEvidence,master,snapshot,runtimeConfig,run}) {
   const blank={...master,hook:{...master.hook,text:''},cvr:{...master.cvr,text:'',secondary_text:'',pointer_enabled:false}};
@@ -13,7 +13,7 @@ export async function prepareOutputBrandCopy({root,batch,editDir,outputId,produc
     const decisionPath=path.join(directory,'selection.json');
     let decision=await readJson(decisionPath,null).catch(()=>null);
     if(!decision || decision.fingerprint!==fingerprint){
-      decision={...matchOutputCopy({batch,product,outputId,snapshot,semanticEvidence,templateMaster:master}),fingerprint};
+      decision={...await reserveOutputCopy({root,batch,product,outputId,snapshot,semanticEvidence,fingerprint}),fingerprint};
       await writeJsonAtomic(decisionPath,decision);
     }
     const outputMaster={...master,hook:{...master.hook,text:decision.hook.text},cvr:{...master.cvr,text:decision.cta.text,secondary_text:'',pointer_enabled:false}};

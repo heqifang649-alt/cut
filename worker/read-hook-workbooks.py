@@ -4,11 +4,55 @@ import io
 import json
 import pathlib
 import posixpath
+import re
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+
+
+def read_document(file):
+    raw = file.read_bytes()
+    if len(raw) > 16 * 1024 * 1024:
+        raise ValueError("document_too_large")
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        if sum(x.file_size for x in archive.infolist()) > 64 * 1024 * 1024:
+            raise ValueError("expanded_document_too_large")
+        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        body = ET.fromstring(archive.read("word/document.xml"))
+        hook_rows = []
+        found_hook_header = False
+        for table in body.findall(".//w:tbl", ns):
+            records = [
+                ["".join(t.text or "" for t in cell.findall(".//w:t", ns)).strip()
+                 for cell in row.findall("w:tc", ns)]
+                for row in table.findall("w:tr", ns)
+            ]
+            if records and records[0] == ["#", "方向", "Hook", "文案（CTA）"]:
+                found_hook_header = True
+                records = records[1:]
+            if found_hook_header:
+                hook_rows.extend({"row": int(row[0]), "cells": {"A": row[2]}}
+                                 for row in records if len(row) == 4 and row[0].isdigit())
+        if found_hook_header:
+            return {"filename": file.name, "sha256": hashlib.sha256(raw).hexdigest(),
+                    "sheets": [{"name": "Hook", "rows": [
+                        {"row": 0, "cells": {"A": "英文 Hook"}}, *hook_rows]}]}
+        if file.name == "护士通用hook与文案.docx":
+            raise ValueError("unrecognized_hook_table")
+        rows = [{"row": 0, "cells": {"A": "英文 Hook"}}]
+        for number, paragraph in enumerate(body.findall('.//w:p', ns), 1):
+            text = ''.join(t.text or '' for t in paragraph.findall('.//w:t', ns)).strip()
+            # The maintained document ends with recommendations and purchase CTAs.
+            # Only standalone English Hook paragraphs preceding that commentary are data.
+            if text.startswith('我特别建议'):
+                break
+            text = re.sub(r'^\d+[.、]\s*', '', text)
+            if re.fullmatch(r"[\x20-\x7e\u2010-\u2026]+", text or '') and re.search(r'[A-Za-z]', text) and text != '英文 Hook':
+                rows.append({"row": number, "cells": {"A": text}})
+        return {"filename": file.name, "sha256": hashlib.sha256(raw).hexdigest(),
+                "sheets": [{"name": "document", "rows": rows}]}
 
 
 def read_workbook(file):
@@ -61,9 +105,9 @@ def main():
     results = []
     for name in request["files"]:
         try:
-            if pathlib.Path(name).name != name or not name.lower().endswith(".xlsx"):
+            if pathlib.Path(name).name != name or not name.lower().endswith((".xlsx", ".docx")):
                 raise ValueError("invalid_filename")
-            results.append(read_workbook(directory / name))
+            results.append((read_document if name.lower().endswith('.docx') else read_workbook)(directory / name))
         except Exception as error:
             results.append({"filename": name, "error": type(error).__name__})
     sys.stdout.reconfigure(encoding="utf-8")

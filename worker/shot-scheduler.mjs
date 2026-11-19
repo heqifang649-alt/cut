@@ -142,7 +142,7 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const semanticByShotId = semanticRecordMap(semanticEvidence);
   const semanticRequired = semanticByShotId !== null;
@@ -154,6 +154,8 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
       .filter((shot) => !usedShotIds.has(shot.id) && (!preserveSourceOrder || selected.every((entry) => entry.shot.source !== shot.source || shot.start >= entry.shot.end)) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
       .sort((a, b) => {
+        const preference = candidatePreference ? candidatePreference(b.shot, slot, selected) - candidatePreference(a.shot, slot, selected) : 0;
+        if (preference) return preference;
         if (!preserveSourceOrder) return compareCandidates(a, b);
         // Source-relative timestamps are not comparable across files. Order is
         // enforced by the filter above; retain evidence-based ranking here.
@@ -194,11 +196,11 @@ export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt 
   return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile, semanticEvidence });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial, preserveSourceOrder });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial, preserveSourceOrder, candidatePreference });
 }
 
 export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAFE_DURATION_SECONDS) {
