@@ -1,0 +1,77 @@
+[
+  {
+    "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+    "outputs": [
+      {
+        "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+        "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+        "size": 11317613,
+        "fullDecodePass": true,
+        "decodeStderr": "",
+        "duration": 10.033333,
+        "streams": [
+          {
+            "type": "video",
+            "codec": "h264",
+            "width": 1080,
+            "height": 1920,
+            "fps": "30/1"
+          },
+          {
+            "type": "audio",
+            "codec": "aac",
+            "fps": "0/0"
+          }
+        ]
+      }
+    ],
+    "edl": {
+      "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f/edit/render-plan-edl.json",
+      "duration": 10.04,
+      "cuts": [
+        2.875,
+        5.583333,
+        7.811666
+      ]
+    },
+    "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+  },
+  {
+    "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+    "outputs": [
+      {
+        "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+        "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+        "size": 10595778,
+        "fullDecodePass": true,
+        "decodeStderr": "",
+        "duration": 9.4,
+        "streams": [
+          {
+            "type": "video",
+            "codec": "h264",
+            "width": 1080,
+            "height": 1920,
+            "fps": "30/1"
+          },
+          {
+            "type": "audio",
+            "codec": "aac",
+            "fps": "0/0"
+          }
+        ]
+      }
+    ],
+    "edl": {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811/edit/render-plan-edl.json",
+      "duration": 9.366667,
+      "cuts": [
+        2.033333,
+        3.933333,
+        5.8,
+        7.3
+      ]
+    },
+    "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+  }
+]
