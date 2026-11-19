@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-19T12:50:53.301Z",
+  "from": "2026-11-19T12:47:17.317Z",
+  "to": "2026-11-19T12:50:53.301Z",
+  "windowSeconds": 216,
+  "pid": 371720,
+  "restartCount": 57,
+  "pass": true,
+  "limitation": "Two bounded snapshots and current source inspection; prior lock timeout retained, not proof of long-term stability or independent full business acceptance"
+}
