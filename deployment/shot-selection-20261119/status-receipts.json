@@ -1,0 +1,42 @@
+[
+  {
+    "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+    "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\status.json",
+    "sha256": "0e00c10e64b1878746213c7361406f540c1947c0773232ea0dd0e746df639a32",
+    "status": "completed",
+    "revision": 3,
+    "outputs": [
+      {
+        "outputId": "8d15ed79-c19a-4db0-a750-fd9059c666cd",
+        "relativePath": "outbox/c54e0067-28e6-428a-9b69-1ef91708a30f/8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+        "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+        "size": 11317613,
+        "reviewStatus": "PENDING",
+        "durationSeconds": 10.033333
+      }
+    ],
+    "leasePresent": false,
+    "pendingCompletion": false,
+    "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+  },
+  {
+    "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+    "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\status.json",
+    "sha256": "3de991f1cacd5b4c852ebde59e1045f70eb70df772b47c38c92339fefb3bf7b7",
+    "status": "completed",
+    "revision": 3,
+    "outputs": [
+      {
+        "outputId": "eee491d2-c054-40bf-beb5-bd10bbed95e3",
+        "relativePath": "outbox/4ee904b6-e73f-40b0-8777-d61e67e92811/eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+        "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+        "size": 10595778,
+        "reviewStatus": "PENDING",
+        "durationSeconds": 9.4
+      }
+    ],
+    "leasePresent": false,
+    "pendingCompletion": false,
+    "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+  }
+]
