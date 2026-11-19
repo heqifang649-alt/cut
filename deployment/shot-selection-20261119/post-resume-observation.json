@@ -1,0 +1,126 @@
+{
+  "at": "2026-11-19T12:47:44.868Z",
+  "services": [
+    {
+      "file": "analyze-analyze-1.json",
+      "pid": 343508,
+      "at": "2026-11-19T12:47:43.137Z",
+      "ageSeconds": 1.734,
+      "claimsEnabled": false
+    },
+    {
+      "file": "analyze-analyze-2.json",
+      "pid": 389476,
+      "at": "2026-11-19T12:47:41.900Z",
+      "ageSeconds": 2.971,
+      "claimsEnabled": false
+    },
+    {
+      "file": "analyze-analyze-3.json",
+      "pid": 255596,
+      "at": "2026-11-19T12:47:41.309Z",
+      "ageSeconds": 3.562,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-1.json",
+      "pid": 45032,
+      "at": "2026-11-19T12:47:39.918Z",
+      "ageSeconds": 4.954,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-2.json",
+      "pid": 391356,
+      "at": "2026-11-19T12:47:43.416Z",
+      "ageSeconds": 1.456,
+      "claimsEnabled": false
+    },
+    {
+      "file": "clip-clip-3.json",
+      "pid": 237844,
+      "at": "2026-11-19T12:47:41.050Z",
+      "ageSeconds": 3.823,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-1.json",
+      "pid": 279928,
+      "at": "2026-11-19T12:47:43.307Z",
+      "ageSeconds": 1.566,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-2.json",
+      "pid": 190244,
+      "at": "2026-11-19T12:47:41.870Z",
+      "ageSeconds": 3.003,
+      "claimsEnabled": false
+    },
+    {
+      "file": "render-render-3.json",
+      "pid": 370864,
+      "at": "2026-11-19T12:47:41.888Z",
+      "ageSeconds": 2.986,
+      "claimsEnabled": false
+    }
+  ],
+  "servicesNoClaimPass": true,
+  "http": {
+    "/": 200,
+    "/api/health": 401
+  },
+  "heartbeat": {
+    "schemaVersion": 1,
+    "at": "2026-11-19T12:47:40.608Z",
+    "pid": 371720,
+    "accepted": 0,
+    "executed": 0,
+    "failed": 0,
+    "gate": "OPEN",
+    "claimsEnabled": true
+  },
+  "heartbeatAgeSeconds": 5.381,
+  "processes": {
+    "ProcessId": 371720,
+    "ParentProcessId": 23336,
+    "CreationDate": "/Date(1795092424769)/",
+    "CommandLine": "C:\\Users\\����\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe D:\\CUT-Releases\\20261030-production-first-r11\\worker\\classic-multisource-runner.mjs"
+  },
+  "runtime": {
+    "schemaVersion": 1,
+    "worker": "multisource",
+    "restartCount": 57,
+    "status": "running",
+    "claimsEnabled": false,
+    "runtimeProfile": "cutflow-hybrid-pilot",
+    "runtimeRevision": "2026-10-07.1",
+    "runtimeConfigHash": "bdf8fd04e33a1c1379e15a36a1efb489b5328b5c920724986374696d852697e5",
+    "updatedAt": "2026-11-19T12:47:04.772Z",
+    "lastStartedAt": "2026-11-19T12:47:04.770Z",
+    "lastFailureReason": "file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208 if (Date.now() >= deadline) throw new Error(`等待数据锁超时：${path.basename(file)}`); ^ Error: 等待数据锁超时：classic-multisource-records.json at acquireTokenLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208:41) at async withFileLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:282:12) at async runClaimed (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:38:19) at async Promise.all (index 0) at async runMultisourceTick (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:57:11) at async withMultisourceHeartbeat (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:19:16) at async file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:71:20 Node.js v24.22.3",
+    "lastFailureAt": "2026-11-19T12:45:28.642Z",
+    "unavailable": [
+      "ffmpeg",
+      "ffprobe"
+    ],
+    "failureStage": "preflight",
+    "detectedAt": "2026-11-03T06:15:32.325Z",
+    "pid": 371720
+  },
+  "lock": null,
+  "isolationHash": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+  "queue": {
+    "total": 282,
+    "counts": {
+      "failed": 43,
+      "review": 5,
+      "completed": 219,
+      "queued": 15
+    },
+    "leases": 0,
+    "pendingCompletions": 0,
+    "queuedAllIsolated": true
+  },
+  "limitation": "Observed subsequent process turnover and lock timeout after the recorded successful resume; current stability requires observation. No task, lease, receipt, lock or configuration mutation by this observer."
+}
