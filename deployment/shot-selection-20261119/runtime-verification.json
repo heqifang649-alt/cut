@@ -1,0 +1,857 @@
+{
+  "at": "2026-11-19T12:48:44.385Z",
+  "root": "D:/CUT-Releases/20261030-production-first-r11",
+  "status": {
+    "CODE_INSTALLED": "PASS",
+    "WORKER_LOADED": "PASS_OBSERVED",
+    "CANARY_RENDER_PASS": "PASS_TECHNICAL",
+    "NAS_DELIVERY_PASS": "PASS",
+    "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED",
+    "CLASSIC_RESUMED": "RESUMED_WITH_POST_RESUME_INSTABILITY",
+    "PRODUCTION_RECOVERED": "NOT_FULLY_INDEPENDENTLY_VERIFIED"
+  },
+  "files": [
+    {
+      "file": "lib/cut-aware-source-segments.mjs",
+      "expected": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e",
+      "actual": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+    },
+    {
+      "file": "worker/classic-multisource-analyze.mjs",
+      "expected": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9",
+      "actual": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+    },
+    {
+      "file": "worker/ootd-min-shot.mjs",
+      "expected": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648",
+      "actual": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+    },
+    {
+      "file": "worker/ootd-template-render.mjs",
+      "expected": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481",
+      "actual": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+    }
+  ],
+  "loaded": [
+    {
+      "file": "lib/cut-aware-source-segments.mjs",
+      "pid": 134928,
+      "sha256": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+    },
+    {
+      "file": "worker/classic-multisource-analyze.mjs",
+      "pid": 134928,
+      "sha256": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+    },
+    {
+      "file": "worker/ootd-min-shot.mjs",
+      "pid": 134928,
+      "sha256": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+    },
+    {
+      "file": "worker/ootd-template-render.mjs",
+      "pid": 134928,
+      "sha256": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+    }
+  ],
+  "preflightDrift": [
+    {
+      "file": "worker/classic-multisource-runner.mjs",
+      "expected": "6485cd84eb7a3fa790ebc0027253a090aef728b7c773e3a3f4cefe2938a88436",
+      "actual": "8dd467358ee3d2e48a721ad1b0696fbbc04cab68ae328c3387317e84921bdf13"
+    },
+    {
+      "file": "config/classic-claim-pause.json",
+      "expected": "b4abd7a144c39139f7d8f9dad3bf8c82498ca13dcc17395a0bc4f000fd289083",
+      "actual": "9de00985336fe01e5d11c2441c39b5c4eda5438452257983ed86ab0f7c05ccc6"
+    },
+    {
+      "file": "config/classic-task-isolation.json",
+      "expected": "09aaf1692f4d039c1c6cc35ac59e0dfd987206ac233e7b4cdb9d6e0934e60fab",
+      "actual": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f"
+    }
+  ],
+  "maintenance": {
+    "pid": 23336,
+    "held": false,
+    "completed": true,
+    "newWorkerPid": 134928
+  },
+  "resume": {
+    "startedAt": "2026-11-19T12:41:22.248Z",
+    "authorization": "User instructed conditional Classic recovery after real canaries and confirmed ALLWE return. Preserve all historical isolation and ordinary NoClaim.",
+    "storesUnchanged": true,
+    "isolationHashBefore": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+    "oldProcess": {
+      "pid": 171916,
+      "resources": [
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqPromise",
+        "FSReqPromise",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqPromise",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "FSReqCallback",
+        "PipeWrap"
+      ]
+    },
+    "oldProcessExit": "Controlled exit0 after tick complete, zero leases, all four locks held; not an in-flight task termination.",
+    "resumed": {
+      "pid": 23336,
+      "childPid": 134928,
+      "held": false
+    },
+    "heartbeat": {
+      "schemaVersion": 1,
+      "at": "2026-11-19T12:41:25.431Z",
+      "pid": 134928,
+      "busy": true,
+      "gate": "OPEN"
+    },
+    "loaded": [
+      {
+        "file": "lib/cut-aware-source-segments.mjs",
+        "pid": 134928,
+        "sha256": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+      },
+      {
+        "file": "worker/classic-multisource-analyze.mjs",
+        "pid": 134928,
+        "sha256": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+      },
+      {
+        "file": "worker/ootd-min-shot.mjs",
+        "pid": 134928,
+        "sha256": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+      },
+      {
+        "file": "worker/ootd-template-render.mjs",
+        "pid": 134928,
+        "sha256": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+      }
+    ],
+    "isolationHashAfter": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+    "maintenanceCompletion": {
+      "pid": 23336,
+      "completed": true
+    },
+    "finishedAt": "2026-11-19T12:41:26.119Z",
+    "status": "CLASSIC_RESUMED_EXISTING_ISOLATION_PRESERVED"
+  },
+  "allweConfirmation": {
+    "at": "2026-11-19T12:41:21.877Z",
+    "source": "User confirmation in this chat after two task IDs and request for ALLWE receipt",
+    "statement": "已回传",
+    "taskIds": [
+      "c54e0067-28e6-428a-9b69-1ef91708a30f",
+      "4ee904b6-e73f-40b0-8777-d61e67e92811"
+    ],
+    "classification": "USER_CONFIRMED",
+    "independentRemoteLogRead": false
+  },
+  "drain": {
+    "pid": 171916,
+    "kind": "classic",
+    "sourceSha256": "8dd467358ee3d2e48a721ad1b0696fbbc04cab68ae328c3387317e84921bdf13",
+    "boundaryLine": 76,
+    "nextCycleDisabled": true,
+    "at": "2026-11-19T12:29:24.284Z"
+  },
+  "exitWitnessLimitation": "Supervisor watcher initially recorded an older child exit. The old idle process was later exited under four locks with zero leases and unchanged business-store hashes, then reloaded through the original supervisor; see classic-resume.json.",
+  "queue": {
+    "total": 282,
+    "counts": {
+      "failed": 43,
+      "review": 5,
+      "completed": 219,
+      "queued": 15
+    },
+    "leases": 0,
+    "pendingCompletions": 0
+  },
+  "cases": [
+    {
+      "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+      "execution": {
+        "startedAt": "2026-11-19T12:29:59.963Z",
+        "finishedAt": "2026-11-19T12:32:28.986Z",
+        "pid": 76664,
+        "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+        "result": {
+          "accepted": 0,
+          "executed": 1,
+          "failed": 0,
+          "gate": "OPEN",
+          "claimsEnabled": true
+        },
+        "historicalRecordsUnchanged": true,
+        "record": {
+          "status": "completed",
+          "stage": "completed",
+          "attempt": 1,
+          "batchId": "2aed4e30-664f-445b-a1bc-3eab01405de7",
+          "outputs": [
+            {
+              "id": "8d15ed79-c19a-4db0-a750-fd9059c666cd",
+              "relativePath": "outbox/c54e0067-28e6-428a-9b69-1ef91708a30f/8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+              "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+              "size": 11317613,
+              "durationSeconds": 10.033333
+            }
+          ],
+          "leasePresent": false,
+          "pendingCompletion": false
+        }
+      },
+      "verified": {
+        "at": "2026-11-19T12:39:48.756Z",
+        "taskId": "c54e0067-28e6-428a-9b69-1ef91708a30f",
+        "cutDetection": [
+          {
+            "sourceId": "33cb9087-7111-5781-8a30-498a7b2b4440",
+            "state": "detected",
+            "cuts": [
+              2.875,
+              5.583333
+            ],
+            "candidates": 4
+          }
+        ],
+        "candidateBoundsPass": true,
+        "quality": {
+          "generatedAt": "2026-11-19T12:32:13.163Z",
+          "sources": [
+            {
+              "sourceId": "33cb9087-7111-5781-8a30-498a7b2b4440",
+              "productId": null,
+              "bindingKey": "guidingcross",
+              "state": "REVIEW",
+              "reasons": [
+                "artifact:hand",
+                "artifact:face"
+              ]
+            }
+          ],
+          "counts": {
+            "REVIEW": 4
+          },
+          "admittedCount": 4,
+          "reviewWarning": true
+        },
+        "edl": {
+          "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f/edit/render-plan-edl.json",
+          "duration": 10.04,
+          "cuts": [
+            2.875,
+            5.583333,
+            7.811666
+          ]
+        },
+        "render": {
+          "renderedAt": "2026-11-19T12:32:24.971Z",
+          "route": {
+            "state": "legacy",
+            "requestedTemplateId": null,
+            "reason": null
+          },
+          "finalShotCheck": null,
+          "qualityGates": {
+            "productConsistency": "passed",
+            "originalSpeed": "passed",
+            "decodeCheck": "passed",
+            "outputDuration": "passed",
+            "uniqueMusic": "passed",
+            "shortShotReview": "passed"
+          },
+          "shortShotQuality": {
+            "products": [],
+            "reviewWarnings": []
+          },
+          "productVisualReview": {
+            "status": "not_run",
+            "reason": "semantic_evidence_unavailable",
+            "threshold": 0.5,
+            "products": [],
+            "failures": []
+          }
+        },
+        "evidence": [
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\analyze\\source-cut-candidates.v1.json",
+            "sha256": "900cd5eba14040a3c17081f4f5cf59278e96012908f7200d8a771f7f7c72ae03"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\quality\\classic-multisource-quality.v1.json",
+            "sha256": "a2fa3f0a536d810ae25e568f967d6edb2e4f1d0b9f5e62c20269eefcd27d32fc"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\edit\\render-plan-edl.json",
+            "sha256": "6fbb19faef830b86273fc4b2e853d5c2c50d1b81b600aafb386d4d31e1e2ab1a"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\edit\\multisource-schedule-result.json",
+            "sha256": "bbe255d89654a221ee83498685e8e7edb2004b15cdd5a2d96cbc1495396f26ba"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\c54e0067-28e6-428a-9b69-1ef91708a30f\\output\\render-manifest.json",
+            "sha256": "94b582322b16887f2f61e968363f187f076c557f2e2e02c21f3532061be8edf7"
+          }
+        ],
+        "outputs": [
+          {
+            "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+            "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+            "size": 11317613,
+            "fullDecodePass": true,
+            "decodeStderr": "",
+            "duration": 10.033333,
+            "streams": [
+              {
+                "type": "video",
+                "codec": "h264",
+                "width": 1080,
+                "height": 1920,
+                "fps": "30/1"
+              },
+              {
+                "type": "audio",
+                "codec": "aac",
+                "fps": "0/0"
+              }
+            ]
+          }
+        ],
+        "nasStatus": {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\status.json",
+          "sha256": "0e00c10e64b1878746213c7361406f540c1947c0773232ea0dd0e746df639a32",
+          "status": "completed",
+          "revision": 3
+        },
+        "ALLWE_CALLBACK_PASS": "UNCONFIRMED",
+        "limitations": [
+          "Completion and technical decode do not independently prove visual acceptance.",
+          "No live short-shot warning case or true wrong-SKU/insufficient negative sample has been established by these successful samples."
+        ]
+      },
+      "receipt": {
+        "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\c54e0067-28e6-428a-9b69-1ef91708a30f\\status.json",
+        "sha256": "0e00c10e64b1878746213c7361406f540c1947c0773232ea0dd0e746df639a32",
+        "status": "completed",
+        "revision": 3,
+        "outputs": [
+          {
+            "outputId": "8d15ed79-c19a-4db0-a750-fd9059c666cd",
+            "relativePath": "outbox/c54e0067-28e6-428a-9b69-1ef91708a30f/8d15ed79-c19a-4db0-a750-fd9059c666cd.mp4",
+            "sha256": "3f912b9117650b1dbf3747d273fb691b65d4920855069dfe1eaec373735fa8e8",
+            "size": 11317613,
+            "reviewStatus": "PENDING",
+            "durationSeconds": 10.033333
+          }
+        ],
+        "leasePresent": false,
+        "pendingCompletion": false
+      },
+      "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+    },
+    {
+      "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+      "execution": {
+        "startedAt": "2026-11-19T12:32:57.285Z",
+        "finishedAt": "2026-11-19T12:39:02.519Z",
+        "pid": 223520,
+        "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+        "result": {
+          "accepted": 0,
+          "executed": 1,
+          "failed": 0,
+          "gate": "OPEN",
+          "claimsEnabled": true
+        },
+        "historicalRecordsUnchanged": true,
+        "record": {
+          "status": "completed",
+          "stage": "completed",
+          "attempt": 1,
+          "batchId": "198a468f-980f-4e36-ad86-eabdc5068c81",
+          "outputs": [
+            {
+              "id": "eee491d2-c054-40bf-beb5-bd10bbed95e3",
+              "relativePath": "outbox/4ee904b6-e73f-40b0-8777-d61e67e92811/eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+              "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+              "size": 10595778,
+              "durationSeconds": 9.4
+            }
+          ],
+          "leasePresent": false,
+          "pendingCompletion": false
+        }
+      },
+      "verified": {
+        "at": "2026-11-19T12:39:47.509Z",
+        "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+        "cutDetection": [
+          {
+            "sourceId": "7075945b-ec64-5b9f-81f4-eb5b2ddb3292",
+            "state": "detected",
+            "cuts": [
+              3.875,
+              5.958333
+            ],
+            "candidates": 5
+          },
+          {
+            "sourceId": "41a3d84e-18c8-5098-ba1d-50adc66493e7",
+            "state": "detected",
+            "cuts": [
+              6.166667
+            ],
+            "candidates": 5
+          }
+        ],
+        "candidateBoundsPass": true,
+        "quality": {
+          "generatedAt": "2026-11-19T12:38:27.487Z",
+          "sources": [
+            {
+              "sourceId": "7075945b-ec64-5b9f-81f4-eb5b2ddb3292",
+              "productId": null,
+              "bindingKey": "guidingcross",
+              "state": "REVIEW",
+              "reasons": [
+                "automatic_checks_passed",
+                "artifact:hand",
+                "artifact:face"
+              ]
+            },
+            {
+              "sourceId": "41a3d84e-18c8-5098-ba1d-50adc66493e7",
+              "productId": null,
+              "bindingKey": "guidingcross",
+              "state": "REVIEW",
+              "reasons": [
+                "automatic_checks_passed",
+                "artifact:face"
+              ]
+            }
+          ],
+          "counts": {
+            "READY": 5,
+            "REVIEW": 5
+          },
+          "admittedCount": 10,
+          "reviewWarning": true
+        },
+        "edl": {
+          "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811/edit/render-plan-edl.json",
+          "duration": 9.366667,
+          "cuts": [
+            2.033333,
+            3.933333,
+            5.8,
+            7.3
+          ]
+        },
+        "render": {
+          "renderedAt": "2026-11-19T12:38:54.158Z",
+          "route": {
+            "revision": "classic-website-template/20261113-r1",
+            "state": "website_template",
+            "requestedTemplateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+            "reason": null,
+            "templateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+            "profileSha256": "83769cac7b05fa8629c53df67d53997453a0a269afd7981324f653a6815a596c",
+            "entrypoints": [
+              "deriveScriptTemplate",
+              "routeProductSchedule",
+              "scheduleProductView",
+              "renderBatchFromRenderPlans"
+            ]
+          },
+          "finalShotCheck": {
+            "reports": [
+              {
+                "output": "guidingcross.mp4",
+                "duration": 9.4,
+                "fps": 30,
+                "timeBase": 0.00006510416666666667,
+                "plans": [
+                  {
+                    "segmentId": "guidingcross-S01",
+                    "plannedTime": 0,
+                    "frame": 0,
+                    "encodedCount": 61
+                  },
+                  {
+                    "segmentId": "guidingcross-S02",
+                    "plannedTime": 2.033333,
+                    "frame": 61,
+                    "encodedCount": 57
+                  },
+                  {
+                    "segmentId": "guidingcross-S03",
+                    "plannedTime": 3.933333,
+                    "frame": 118,
+                    "encodedCount": 56
+                  },
+                  {
+                    "segmentId": "guidingcross-S04",
+                    "plannedTime": 5.8,
+                    "frame": 174,
+                    "encodedCount": 45
+                  },
+                  {
+                    "segmentId": "guidingcross-S05",
+                    "plannedTime": 7.3,
+                    "frame": 219,
+                    "encodedCount": 63
+                  }
+                ],
+                "encodedLayoutProven": true,
+                "boundaries": [
+                  0,
+                  61,
+                  118,
+                  174,
+                  219,
+                  282
+                ],
+                "shots": [
+                  {
+                    "startFrame": 0,
+                    "endFrame": 61,
+                    "start": 0,
+                    "end": 2.033333333333333,
+                    "duration": 2.033333333333333,
+                    "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\02-e5c02f44-e76b-402f-b1dc-97b31597d23a.mp4"
+                  },
+                  {
+                    "startFrame": 61,
+                    "endFrame": 118,
+                    "start": 2.033333333333333,
+                    "end": 3.933333333333333,
+                    "duration": 1.9,
+                    "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+                  },
+                  {
+                    "startFrame": 118,
+                    "endFrame": 174,
+                    "start": 3.933333333333333,
+                    "end": 5.8,
+                    "duration": 1.8666666666666667,
+                    "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+                  },
+                  {
+                    "startFrame": 174,
+                    "endFrame": 219,
+                    "start": 5.8,
+                    "end": 7.3,
+                    "duration": 1.5,
+                    "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\02-e5c02f44-e76b-402f-b1dc-97b31597d23a.mp4"
+                  },
+                  {
+                    "startFrame": 219,
+                    "endFrame": 282,
+                    "start": 7.3,
+                    "end": 9.4,
+                    "duration": 2.1000000000000005,
+                    "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+                  }
+                ],
+                "terminalPadding": {
+                  "frames": 1,
+                  "meanDifference": 0.007921006944444444,
+                  "maxDifference": 1,
+                  "reason": "verified_repeated_final_frame_after_cfr_duration_rounding"
+                },
+                "cuts": [
+                  {
+                    "time": 7.3,
+                    "nativeFrameSeconds": 0.033333333333333215,
+                    "confidence": "high",
+                    "evidence": {
+                      "normalizedDifference": 0.2657990733811302,
+                      "localMotionRatio": 78.09410063736553,
+                      "spatialCoverage": 1,
+                      "persistence": 0.2656981536303797,
+                      "brightnessOffsetRemoved": true
+                    },
+                    "frame": 219
+                  }
+                ],
+                "pass": true,
+                "shortShotReviewWarning": false,
+                "shortShotIntervals": []
+              }
+            ]
+          },
+          "qualityGates": {
+            "productConsistency": "passed",
+            "originalSpeed": "passed",
+            "decodeCheck": "passed",
+            "outputDuration": "passed",
+            "uniqueMusic": "passed",
+            "shortShotReview": "passed"
+          },
+          "shortShotQuality": {
+            "products": [],
+            "reviewWarnings": []
+          },
+          "productVisualReview": {
+            "status": "not_run",
+            "reason": "semantic_evidence_unavailable",
+            "threshold": 0.5,
+            "products": [],
+            "failures": []
+          }
+        },
+        "evidence": [
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\analyze\\source-cut-candidates.v1.json",
+            "sha256": "c9bb19b0023ff069b457fb99555e407b2fb4409ef42f543576046c323b05c9fd"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\quality\\classic-multisource-quality.v1.json",
+            "sha256": "d0f71ab94db25d8c7e7202b276c64f2632a67cb15910c87ab75e9e3bdb86d665"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\edit\\render-plan-edl.json",
+            "sha256": "75102f81ca4895c2e66033b6843b674d0253ab0bb5b7dc908a996b0edc1b9fd7"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\edit\\multisource-schedule-result.json",
+            "sha256": "3068b9f42b728ddde4b7cba981f0dbf42563c39c6d3f2de5cf2d1115d936b0fe"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\output\\render-manifest.json",
+            "sha256": "98bc060e13e259a02637e626e8f3ff73adabefc5246ddd2000aa9d11f1f0b894"
+          },
+          {
+            "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811/edit/ootd-final-shot-check.json",
+            "sha256": "505f9eedb368bdd0567bbb32f6615f0ab7a2b555fb834476d7bb6bae64d28b24"
+          }
+        ],
+        "outputs": [
+          {
+            "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+            "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+            "size": 10595778,
+            "fullDecodePass": true,
+            "decodeStderr": "",
+            "duration": 9.4,
+            "streams": [
+              {
+                "type": "video",
+                "codec": "h264",
+                "width": 1080,
+                "height": 1920,
+                "fps": "30/1"
+              },
+              {
+                "type": "audio",
+                "codec": "aac",
+                "fps": "0/0"
+              }
+            ]
+          }
+        ],
+        "nasStatus": {
+          "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\status.json",
+          "sha256": "3de991f1cacd5b4c852ebde59e1045f70eb70df772b47c38c92339fefb3bf7b7",
+          "status": "completed",
+          "revision": 3
+        },
+        "ALLWE_CALLBACK_PASS": "UNCONFIRMED",
+        "limitations": [
+          "Completion and technical decode do not independently prove visual acceptance.",
+          "No live short-shot warning case or true wrong-SKU/insufficient negative sample has been established by these successful samples."
+        ]
+      },
+      "receipt": {
+        "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\status.json",
+        "sha256": "3de991f1cacd5b4c852ebde59e1045f70eb70df772b47c38c92339fefb3bf7b7",
+        "status": "completed",
+        "revision": 3,
+        "outputs": [
+          {
+            "outputId": "eee491d2-c054-40bf-beb5-bd10bbed95e3",
+            "relativePath": "outbox/4ee904b6-e73f-40b0-8777-d61e67e92811/eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+            "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+            "size": 10595778,
+            "reviewStatus": "PENDING",
+            "durationSeconds": 9.4
+          }
+        ],
+        "leasePresent": false,
+        "pendingCompletion": false
+      },
+      "ALLWE_CALLBACK_PASS": "PASS_USER_CONFIRMED"
+    }
+  ],
+  "limits": {
+    "liveShortShotWarningCase": false,
+    "trueInsufficientAndWrongSkuLiveNegativeCases": false,
+    "populationFalseRefusalRate": "UNMEASURED",
+    "independentVisualAcceptance": "PENDING_REVIEW",
+    "allweConsumerAcknowledgement": "USER_CONFIRMED_NO_INDEPENDENT_LOG_READ"
+  },
+  "scope": {
+    "productionCodeChanges": 0,
+    "algorithmChanges": 0,
+    "rollbackExecuted": false,
+    "historicalTasksReplayedByThisAudit": 0,
+    "globalClaimsChanged": false,
+    "manualReadyLeaseReceiptEdits": false
+  },
+  "postResumeObservation": {
+    "at": "2026-11-19T12:47:44.868Z",
+    "services": [
+      {
+        "file": "analyze-analyze-1.json",
+        "pid": 343508,
+        "at": "2026-11-19T12:47:43.137Z",
+        "ageSeconds": 1.734,
+        "claimsEnabled": false
+      },
+      {
+        "file": "analyze-analyze-2.json",
+        "pid": 389476,
+        "at": "2026-11-19T12:47:41.900Z",
+        "ageSeconds": 2.971,
+        "claimsEnabled": false
+      },
+      {
+        "file": "analyze-analyze-3.json",
+        "pid": 255596,
+        "at": "2026-11-19T12:47:41.309Z",
+        "ageSeconds": 3.562,
+        "claimsEnabled": false
+      },
+      {
+        "file": "clip-clip-1.json",
+        "pid": 45032,
+        "at": "2026-11-19T12:47:39.918Z",
+        "ageSeconds": 4.954,
+        "claimsEnabled": false
+      },
+      {
+        "file": "clip-clip-2.json",
+        "pid": 391356,
+        "at": "2026-11-19T12:47:43.416Z",
+        "ageSeconds": 1.456,
+        "claimsEnabled": false
+      },
+      {
+        "file": "clip-clip-3.json",
+        "pid": 237844,
+        "at": "2026-11-19T12:47:41.050Z",
+        "ageSeconds": 3.823,
+        "claimsEnabled": false
+      },
+      {
+        "file": "render-render-1.json",
+        "pid": 279928,
+        "at": "2026-11-19T12:47:43.307Z",
+        "ageSeconds": 1.566,
+        "claimsEnabled": false
+      },
+      {
+        "file": "render-render-2.json",
+        "pid": 190244,
+        "at": "2026-11-19T12:47:41.870Z",
+        "ageSeconds": 3.003,
+        "claimsEnabled": false
+      },
+      {
+        "file": "render-render-3.json",
+        "pid": 370864,
+        "at": "2026-11-19T12:47:41.888Z",
+        "ageSeconds": 2.986,
+        "claimsEnabled": false
+      }
+    ],
+    "servicesNoClaimPass": true,
+    "http": {
+      "/": 200,
+      "/api/health": 401
+    },
+    "heartbeat": {
+      "schemaVersion": 1,
+      "at": "2026-11-19T12:47:40.608Z",
+      "pid": 371720,
+      "accepted": 0,
+      "executed": 0,
+      "failed": 0,
+      "gate": "OPEN",
+      "claimsEnabled": true
+    },
+    "heartbeatAgeSeconds": 5.381,
+    "processes": {
+      "ProcessId": 371720,
+      "ParentProcessId": 23336,
+      "CreationDate": "/Date(1795092424769)/",
+      "CommandLine": "C:\\Users\\����\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe D:\\CUT-Releases\\20261030-production-first-r11\\worker\\classic-multisource-runner.mjs"
+    },
+    "runtime": {
+      "schemaVersion": 1,
+      "worker": "multisource",
+      "restartCount": 57,
+      "status": "running",
+      "claimsEnabled": false,
+      "runtimeProfile": "cutflow-hybrid-pilot",
+      "runtimeRevision": "2026-10-07.1",
+      "runtimeConfigHash": "bdf8fd04e33a1c1379e15a36a1efb489b5328b5c920724986374696d852697e5",
+      "updatedAt": "2026-11-19T12:47:04.772Z",
+      "lastStartedAt": "2026-11-19T12:47:04.770Z",
+      "lastFailureReason": "file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208 if (Date.now() >= deadline) throw new Error(`等待数据锁超时：${path.basename(file)}`); ^ Error: 等待数据锁超时：classic-multisource-records.json at acquireTokenLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:208:41) at async withFileLock (file:///D:/CUT-Releases/20261030-production-first-r11/lib/atomic-json.mjs:282:12) at async runClaimed (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:38:19) at async Promise.all (index 0) at async runMultisourceTick (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:57:11) at async withMultisourceHeartbeat (file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:19:16) at async file:///D:/CUT-Releases/20261030-production-first-r11/worker/classic-multisource-runner.mjs:71:20 Node.js v24.22.3",
+      "lastFailureAt": "2026-11-19T12:45:28.642Z",
+      "unavailable": [
+        "ffmpeg",
+        "ffprobe"
+      ],
+      "failureStage": "preflight",
+      "detectedAt": "2026-11-03T06:15:32.325Z",
+      "pid": 371720
+    },
+    "lock": null,
+    "isolationHash": "56910c4f333e84790fc9531637dc9cb827cafd3b351d8567bbb79d34033fe10f",
+    "queue": {
+      "total": 282,
+      "counts": {
+        "failed": 43,
+        "review": 5,
+        "completed": 219,
+        "queued": 15
+      },
+      "leases": 0,
+      "pendingCompletions": 0,
+      "queuedAllIsolated": true
+    },
+    "limitation": "Observed subsequent process turnover and lock timeout after the recorded successful resume; current stability requires observation. No task, lease, receipt, lock or configuration mutation by this observer."
+  },
+  "concurrentOperationsConfirmation": {
+    "at": "2026-11-19T12:48:44.136Z",
+    "source": "User reply in this chat",
+    "statement": "有其他操作方正在操作",
+    "action": "Stop further production mutations; retain canary evidence; current runtime stability not independently established"
+  }
+}
