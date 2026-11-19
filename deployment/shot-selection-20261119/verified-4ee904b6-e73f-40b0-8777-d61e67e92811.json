@@ -1,0 +1,280 @@
+{
+  "at": "2026-11-19T12:39:47.509Z",
+  "taskId": "4ee904b6-e73f-40b0-8777-d61e67e92811",
+  "cutDetection": [
+    {
+      "sourceId": "7075945b-ec64-5b9f-81f4-eb5b2ddb3292",
+      "state": "detected",
+      "cuts": [
+        3.875,
+        5.958333
+      ],
+      "candidates": 5
+    },
+    {
+      "sourceId": "41a3d84e-18c8-5098-ba1d-50adc66493e7",
+      "state": "detected",
+      "cuts": [
+        6.166667
+      ],
+      "candidates": 5
+    }
+  ],
+  "candidateBoundsPass": true,
+  "quality": {
+    "generatedAt": "2026-11-19T12:38:27.487Z",
+    "sources": [
+      {
+        "sourceId": "7075945b-ec64-5b9f-81f4-eb5b2ddb3292",
+        "productId": null,
+        "bindingKey": "guidingcross",
+        "state": "REVIEW",
+        "reasons": [
+          "automatic_checks_passed",
+          "artifact:hand",
+          "artifact:face"
+        ]
+      },
+      {
+        "sourceId": "41a3d84e-18c8-5098-ba1d-50adc66493e7",
+        "productId": null,
+        "bindingKey": "guidingcross",
+        "state": "REVIEW",
+        "reasons": [
+          "automatic_checks_passed",
+          "artifact:face"
+        ]
+      }
+    ],
+    "counts": {
+      "READY": 5,
+      "REVIEW": 5
+    },
+    "admittedCount": 10,
+    "reviewWarning": true
+  },
+  "edl": {
+    "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811/edit/render-plan-edl.json",
+    "duration": 9.366667,
+    "cuts": [
+      2.033333,
+      3.933333,
+      5.8,
+      7.3
+    ]
+  },
+  "render": {
+    "renderedAt": "2026-11-19T12:38:54.158Z",
+    "route": {
+      "revision": "classic-website-template/20261113-r1",
+      "state": "website_template",
+      "requestedTemplateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+      "reason": null,
+      "templateId": "1527e301-7707-449d-8e7c-d27014080c8d",
+      "profileSha256": "83769cac7b05fa8629c53df67d53997453a0a269afd7981324f653a6815a596c",
+      "entrypoints": [
+        "deriveScriptTemplate",
+        "routeProductSchedule",
+        "scheduleProductView",
+        "renderBatchFromRenderPlans"
+      ]
+    },
+    "finalShotCheck": {
+      "reports": [
+        {
+          "output": "guidingcross.mp4",
+          "duration": 9.4,
+          "fps": 30,
+          "timeBase": 0.00006510416666666667,
+          "plans": [
+            {
+              "segmentId": "guidingcross-S01",
+              "plannedTime": 0,
+              "frame": 0,
+              "encodedCount": 61
+            },
+            {
+              "segmentId": "guidingcross-S02",
+              "plannedTime": 2.033333,
+              "frame": 61,
+              "encodedCount": 57
+            },
+            {
+              "segmentId": "guidingcross-S03",
+              "plannedTime": 3.933333,
+              "frame": 118,
+              "encodedCount": 56
+            },
+            {
+              "segmentId": "guidingcross-S04",
+              "plannedTime": 5.8,
+              "frame": 174,
+              "encodedCount": 45
+            },
+            {
+              "segmentId": "guidingcross-S05",
+              "plannedTime": 7.3,
+              "frame": 219,
+              "encodedCount": 63
+            }
+          ],
+          "encodedLayoutProven": true,
+          "boundaries": [
+            0,
+            61,
+            118,
+            174,
+            219,
+            282
+          ],
+          "shots": [
+            {
+              "startFrame": 0,
+              "endFrame": 61,
+              "start": 0,
+              "end": 2.033333333333333,
+              "duration": 2.033333333333333,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\02-e5c02f44-e76b-402f-b1dc-97b31597d23a.mp4"
+            },
+            {
+              "startFrame": 61,
+              "endFrame": 118,
+              "start": 2.033333333333333,
+              "end": 3.933333333333333,
+              "duration": 1.9,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+            },
+            {
+              "startFrame": 118,
+              "endFrame": 174,
+              "start": 3.933333333333333,
+              "end": 5.8,
+              "duration": 1.8666666666666667,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+            },
+            {
+              "startFrame": 174,
+              "endFrame": 219,
+              "start": 5.8,
+              "end": 7.3,
+              "duration": 1.5,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\02-e5c02f44-e76b-402f-b1dc-97b31597d23a.mp4"
+            },
+            {
+              "startFrame": 219,
+              "endFrame": 282,
+              "start": 7.3,
+              "end": 9.4,
+              "duration": 2.1000000000000005,
+              "source": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\inbox\\multi-4ee904b6-e73f-40b0-8777-d61e67e92811\\sources\\01-ed86641f-cee9-4bfb-bcdc-aa099a414e38.mp4"
+            }
+          ],
+          "terminalPadding": {
+            "frames": 1,
+            "meanDifference": 0.007921006944444444,
+            "maxDifference": 1,
+            "reason": "verified_repeated_final_frame_after_cfr_duration_rounding"
+          },
+          "cuts": [
+            {
+              "time": 7.3,
+              "nativeFrameSeconds": 0.033333333333333215,
+              "confidence": "high",
+              "evidence": {
+                "normalizedDifference": 0.2657990733811302,
+                "localMotionRatio": 78.09410063736553,
+                "spatialCoverage": 1,
+                "persistence": 0.2656981536303797,
+                "brightnessOffsetRemoved": true
+              },
+              "frame": 219
+            }
+          ],
+          "pass": true,
+          "shortShotReviewWarning": false,
+          "shortShotIntervals": []
+        }
+      ]
+    },
+    "qualityGates": {
+      "productConsistency": "passed",
+      "originalSpeed": "passed",
+      "decodeCheck": "passed",
+      "outputDuration": "passed",
+      "uniqueMusic": "passed",
+      "shortShotReview": "passed"
+    },
+    "shortShotQuality": {
+      "products": [],
+      "reviewWarnings": []
+    },
+    "productVisualReview": {
+      "status": "not_run",
+      "reason": "semantic_evidence_unavailable",
+      "threshold": 0.5,
+      "products": [],
+      "failures": []
+    }
+  },
+  "evidence": [
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\analyze\\source-cut-candidates.v1.json",
+      "sha256": "c9bb19b0023ff069b457fb99555e407b2fb4409ef42f543576046c323b05c9fd"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\quality\\classic-multisource-quality.v1.json",
+      "sha256": "d0f71ab94db25d8c7e7202b276c64f2632a67cb15910c87ab75e9e3bdb86d665"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\edit\\render-plan-edl.json",
+      "sha256": "75102f81ca4895c2e66033b6843b674d0253ab0bb5b7dc908a996b0edc1b9fd7"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\edit\\multisource-schedule-result.json",
+      "sha256": "3068b9f42b728ddde4b7cba981f0dbf42563c39c6d3f2de5cf2d1115d936b0fe"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811\\output\\render-manifest.json",
+      "sha256": "98bc060e13e259a02637e626e8f3ff73adabefc5246ddd2000aa9d11f1f0b894"
+    },
+    {
+      "path": "E:\\cutflow批量\\classic-multisource\\4ee904b6-e73f-40b0-8777-d61e67e92811/edit/ootd-final-shot-check.json",
+      "sha256": "505f9eedb368bdd0567bbb32f6615f0ab7a2b555fb834476d7bb6bae64d28b24"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\eee491d2-c054-40bf-beb5-bd10bbed95e3.mp4",
+      "sha256": "0a8009f5ab8ad463fbf1520f0c11c924bc0b83533c7d8c855bd28e4c51ac8f79",
+      "size": 10595778,
+      "fullDecodePass": true,
+      "decodeStderr": "",
+      "duration": 9.4,
+      "streams": [
+        {
+          "type": "video",
+          "codec": "h264",
+          "width": 1080,
+          "height": 1920,
+          "fps": "30/1"
+        },
+        {
+          "type": "audio",
+          "codec": "aac",
+          "fps": "0/0"
+        }
+      ]
+    }
+  ],
+  "nasStatus": {
+    "path": "\\\\192.168.120.60\\新成片交付\\批量剪辑素材\\test\\cutflow-link-only-20261015-180959-e6583121\\classic-lan-v1\\outbox\\4ee904b6-e73f-40b0-8777-d61e67e92811\\status.json",
+    "sha256": "3de991f1cacd5b4c852ebde59e1045f70eb70df772b47c38c92339fefb3bf7b7",
+    "status": "completed",
+    "revision": 3
+  },
+  "ALLWE_CALLBACK_PASS": "UNCONFIRMED",
+  "limitations": [
+    "Completion and technical decode do not independently prove visual acceptance.",
+    "No live short-shot warning case or true wrong-SKU/insufficient negative sample has been established by these successful samples."
+  ]
+}
