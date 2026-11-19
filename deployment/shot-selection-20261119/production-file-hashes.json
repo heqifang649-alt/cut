@@ -1,0 +1,22 @@
+[
+  {
+    "file": "lib/cut-aware-source-segments.mjs",
+    "expected": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e",
+    "actual": "2654589e4a1c7fb3eb34480d28e168372292a951ef39652b2d45b31e6069912e"
+  },
+  {
+    "file": "worker/classic-multisource-analyze.mjs",
+    "expected": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9",
+    "actual": "a59caccaa3969066342833b487d64d76260b80850b32e5ed69526b85b694a1e9"
+  },
+  {
+    "file": "worker/ootd-min-shot.mjs",
+    "expected": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648",
+    "actual": "7a843a86eaabe175f04e6b691ba7ba3ba3bacd9b72c58e82808c76f5003ca648"
+  },
+  {
+    "file": "worker/ootd-template-render.mjs",
+    "expected": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481",
+    "actual": "01b1e67978c75911ae49398b4f5a60d83af333011b1e36da68081726d8b5d481"
+  }
+]
