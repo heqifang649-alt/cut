@@ -7,7 +7,27 @@ export async function POST(request: Request) {
     const config = multisourceConfig(process.env, process.cwd());
     if (!authenticateMultisource(request.headers.get("authorization"), config)) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     if (!config.ready) return NextResponse.json({ error: config.gate }, { status: 503 });
-    const raw = await request.text(); if (raw.length > 8192) return NextResponse.json({ error: "BODY_TOO_LARGE" }, { status: 413 });
+    const reader = request.body?.getReader();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let raw = "";
+    let bytes = 0;
+    if (reader) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > 256 * 1024) {
+            void reader.cancel().catch(() => undefined);
+            return NextResponse.json({ error: "BODY_TOO_LARGE" }, { status: 413 });
+          }
+          raw += decoder.decode(value, { stream: true });
+        }
+        raw += decoder.decode();
+      } finally {
+        reader.releaseLock();
+      }
+    }
     const accepted = await admitMultisource(process.cwd(), config, JSON.parse(raw));
     return NextResponse.json({ seen: true, taskId: accepted.taskId }, { status: 202 });
   } catch (error) {
