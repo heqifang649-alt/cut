@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
+import ts from "typescript";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import {
   admitMultisource, authenticateMultisource, completeMultisource, MULTISOURCE_CONTRACT,
@@ -22,6 +23,65 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
 runtime.ffprobeExecutable = process.env.CUTFLOW_TEST_FFPROBE || runtime.ffprobeExecutable;
 const testFfmpeg = () => process.env.CUTFLOW_TEST_FFMPEG || runtime.ffmpegExecutable;
+
+const routeSource = await readFile(new URL("../app/api/integrations/libtv-multisource/route.ts", import.meta.url), "utf8");
+const routeModule = ts.transpileModule(routeSource, { compilerOptions: {
+  module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
+} }).outputText;
+
+for (const [binding, identities, valid] of [
+  ["tokyotiger", ["TT", "TT"], true],
+  ["Tokyo-Tiger", ["TT", "TT"], true],
+  ["teachersgram", ["TSG", "TSG"], true],
+  ["goodnurselife", ["NS", "NS"], true],
+  ["TT", ["TSG", "TSG"], false],
+  ["TT", ["TT", "TSG"], false],
+  ["XYZ", ["XYZ", "XYZ"], false],
+  ["TT", ["XYZ", "XYZ"], false],
+  ["483d70a2-c291-4102-93e5-734166a8767a",
+    ["483d70a2-c291-4102-93e5-734166a8767a", "483d70a2-c291-4102-93e5-734166a8767a"], false],
+]) {
+  test(`HTTP and READY brand binding ${binding} / ${identities.join(",")}`, async () => {
+    const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT });
+    const businessBrandId = randomUUID();
+    f.manifest.sourceBinding = { kind: "brand", value: binding, businessBrandId,
+      granularity: "brand-profile", productIdProvided: false };
+    f.manifest.sources = f.manifest.sources.map((source, index) => ({
+      ...source, productId: null, brandIdentity: identities[index], businessBrandId,
+    }));
+    const raw = JSON.stringify(f.manifest);
+    f.input.manifestSha256 = hash(raw);
+    await writeFile(path.join(f.dir, "manifest.json"), raw);
+    await writeJsonAtomic(path.join(f.dir, "READY"), { sha256: f.input.manifestSha256 });
+    const route = {};
+    new Function("require", "exports", routeModule)(name => {
+      if (name === "next/server") return { NextResponse: Response };
+      assert.equal(name, "@/lib/classic-multisource.mjs");
+      return { authenticateMultisource, multisourceConfig: () => f.config,
+        admitMultisource: (_root, config, input) => admitMultisource(f.root, config, input) };
+    }, route);
+    const notify = () => route.POST(new Request("http://localhost/api/integrations/libtv-multisource", {
+      method: "POST", headers: { authorization: "Bearer fixture-token" }, body: JSON.stringify(f.input),
+    }));
+    const [response, scanned, duplicate] = await Promise.all([notify(), scanMultisourceReady(f.root, f.config), notify()]);
+    assert.equal(response.status, valid ? 202 : 409);
+    assert.equal(duplicate.status, response.status);
+    if (!valid) {
+      assert.equal(scanned.length, 0);
+      assert.equal((await response.json()).reason, "INVALID_SOURCE");
+      await assert.rejects(multisourceStatus(f.root, f.input.taskId), /NOT_FOUND/);
+      return;
+    }
+    const records = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"), "utf8"));
+    assert.equal(records.length, 1);
+    for (const record of scanned) assert.equal(records[0].batchId, record.batchId);
+    assert.deepEqual(records[0].sources.map(source => source.brandIdentity), identities);
+    assert.equal(records[0].sourceBinding.value, binding);
+    assert.equal(records[0].sourceBinding.businessBrandId, businessBrandId);
+    assert.equal(records[0].idempotencyKey, f.input.idempotencyKey);
+    assert.equal(await readFile(path.join(f.dir, "manifest.json"), "utf8"), raw);
+  });
+}
 
 test("READY resumes after an unavailable inbox while an execution slot is busy", { timeout: 25_000 }, async t => {
   const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 8 });
