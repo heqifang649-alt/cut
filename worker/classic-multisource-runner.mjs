@@ -56,12 +56,47 @@ export async function runMultisourceTick({
   return result;
 }
 
+export function startMultisourceScanners(root, config, { recentInterval = 15_000, historyInterval = 60_000 } = {}) {
+  const startedAt = Date.now();
+  function startScanner(lane, interval) {
+    let scanning = false;
+    let lastCompleted = startedAt;
+    async function scanInbox() {
+      if (scanning) return;
+      scanning = true;
+      try {
+        await scanMultisourceReady(root, config, { lane, startedAt });
+        lastCompleted = Date.now();
+      } catch (error) {
+        console.error("[multisource] READY scan failed", lane, error.code || error.name);
+      } finally {
+        scanning = false;
+      }
+    }
+    void scanInbox();
+    return setInterval(() => {
+      if (Date.now() - lastCompleted >= 300_000) {
+        console.error("[multisource] READY scan has not completed for five minutes", lane);
+      }
+      void scanInbox();
+    }, interval).unref();
+  }
+  if (!config.ready) return () => {};
+  const recent = startScanner("recent", recentInterval);
+  const history = startScanner("history", historyInterval);
+  return () => { clearInterval(recent); clearInterval(history); };
+}
+
 if (direct) {
   process.loadEnvFile?.(".env.local");
   const root = process.cwd();
   const once = process.argv.includes("--once");
+  const config = multisourceConfig();
+  if (!once) startMultisourceScanners(root, config);
   do {
-    const result = await withMultisourceHeartbeat(() => runMultisourceTick({ root }),
+    const result = await withMultisourceHeartbeat(() => runMultisourceTick({
+      root, config, ...(once ? {} : { scan: async () => [] }),
+    }),
       () => writeJsonAtomic(path.join(root, "data", "classic-multisource-heartbeat.json"), {
         schemaVersion: 1, at: new Date().toISOString(), pid: process.pid, busy: true,
         gate: multisourceConfig().gate,

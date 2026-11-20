@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
+import { runMultisourceTick, startMultisourceScanners } from "../worker/classic-multisource-runner.mjs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -20,6 +22,43 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const runtime = JSON.parse(await readFile(new URL("../config/cutflow-runtime.json", import.meta.url), "utf8"));
 runtime.ffprobeExecutable = process.env.CUTFLOW_TEST_FFPROBE || runtime.ffprobeExecutable;
 const testFfmpeg = () => process.env.CUTFLOW_TEST_FFMPEG || runtime.ffmpegExecutable;
+
+test("READY resumes after an unavailable inbox while an execution slot is busy", { timeout: 25_000 }, async t => {
+  const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT, sourceCount: 8 });
+  const inbox = path.dirname(f.dir);
+  await rename(inbox, inbox + "-offline");
+  let finish;
+  let began = false;
+  const processing = new Promise(resolve => { finish = resolve; });
+  const tick = runMultisourceTick({
+    root: f.root, config: f.config, canClaim: true, scan: async () => [],
+    claim: async () => began ? null : (began = true, { taskId: randomUUID() }),
+    heartbeat: async () => true, resolveContext: async () => ({}), execute: () => processing,
+  });
+  const stop = startMultisourceScanners(f.root, f.config);
+  try {
+    await delay(250);
+    assert.equal(began, true);
+    await assert.rejects(multisourceStatus(f.root, f.input.taskId), /NOT_FOUND/);
+    const restoredAt = performance.now();
+    await rename(inbox + "-offline", inbox);
+    let status;
+    for (let attempt = 0; attempt < 400 && !status; attempt++) {
+      status = await multisourceStatus(f.root, f.input.taskId).catch(() => null);
+      if (!status) await delay(50);
+    }
+    assert.equal(status?.status, "accepted");
+    t.diagnostic(`READY recovery to accepted: ${Math.round(performance.now() - restoredAt)} ms`);
+    const retries = await Promise.all(Array.from({ length: 4 }, () => admitMultisource(f.root, f.config, f.input)));
+    assert.equal(new Set([status.batchId, ...retries.map(record => record.batchId)]).size, 1);
+    const records = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"), "utf8"));
+    assert.equal(records.length, 1);
+  } finally {
+    stop();
+    finish();
+    await tick;
+  }
+});
 
 async function fixture({ contractVersion = MULTISOURCE_CONTRACT_V1, sourceCount = 2 } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "cut-multi-"));
