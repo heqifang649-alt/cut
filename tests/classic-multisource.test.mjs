@@ -10,6 +10,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
 import ts from "typescript";
+import { classicMultisourceBgm } from "../worker/classic-multisource-bgm.mjs";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import {
   admitMultisource, authenticateMultisource, completeMultisource, MULTISOURCE_CONTRACT,
@@ -44,6 +45,9 @@ for (const [binding, identities, valid] of [
   test(`HTTP and READY brand binding ${binding} / ${identities.join(",")}`, async () => {
     const f = await fixture({ contractVersion: MULTISOURCE_CONTRACT });
     const businessBrandId = randomUUID();
+    const audioPolicy = { sourceAudio: "mute", bgm: "auto_match", beatSync: true };
+    f.manifest.edit_policy = { version: "yiying-ootd/2", audioPolicy };
+    f.input.editPolicy = f.manifest.edit_policy;
     f.manifest.sourceBinding = { kind: "brand", value: binding, businessBrandId,
       granularity: "brand-profile", productIdProvided: false };
     f.manifest.sources = f.manifest.sources.map((source, index) => ({
@@ -60,9 +64,15 @@ for (const [binding, identities, valid] of [
       return { authenticateMultisource, multisourceConfig: () => f.config,
         admitMultisource: (_root, config, input) => admitMultisource(f.root, config, input) };
     }, route);
-    const notify = () => route.POST(new Request("http://localhost/api/integrations/libtv-multisource", {
-      method: "POST", headers: { authorization: "Bearer fixture-token" }, body: JSON.stringify(f.input),
+    const notify = (input = f.input) => route.POST(new Request("http://localhost/api/integrations/libtv-multisource", {
+      method: "POST", headers: { authorization: "Bearer fixture-token" }, body: JSON.stringify(input),
     }));
+    if (valid) {
+      const rejected = await notify({ ...f.input, editPolicy: { ...f.input.editPolicy,
+        audioPolicy: { ...audioPolicy, beatSync: false } } });
+      assert.equal(rejected.status, 409);
+      assert.equal((await rejected.json()).reason, "EDIT_POLICY_INVALID");
+    }
     const [response, scanned, duplicate] = await Promise.all([notify(), scanMultisourceReady(f.root, f.config), notify()]);
     assert.equal(response.status, valid ? 202 : 409);
     assert.equal(duplicate.status, response.status);
@@ -79,6 +89,10 @@ for (const [binding, identities, valid] of [
     assert.equal(records[0].sourceBinding.value, binding);
     assert.equal(records[0].sourceBinding.businessBrandId, businessBrandId);
     assert.equal(records[0].idempotencyKey, f.input.idempotencyKey);
+    assert.deepEqual(records[0].audioPolicy, audioPolicy);
+    const renderBatch = classicMultisourceBgm(records[0]);
+    assert.deepEqual(renderBatch.audioPolicy, audioPolicy);
+    assert.equal(renderBatch.brandBgmEnabled, true);
     assert.equal(await readFile(path.join(f.dir, "manifest.json"), "utf8"), raw);
   });
 }
