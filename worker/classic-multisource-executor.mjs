@@ -17,6 +17,7 @@ import { createProductViews, enforceMinimumSafeDuration, MINIMUM_SAFE_DURATION_S
 import { renderBatchFromRenderPlans } from "./batch-renderer.mjs";
 import { runClassicMultisourceQuality } from "./classic-multisource-quality.mjs";
 import { prepareClassicMultisourceAnalyze } from "./classic-multisource-analyze.mjs";
+import { scheduleClassicRepeat } from "./classic-repeat-schedule.mjs";
 import { writeJsonAtomic } from "../lib/atomic-json.mjs";
 import { completionStatusForContract, loadMultisourceExecution, publishMultisourceResults, recordMultisourceVerification, recordMultisourceProgress, updateMultisourceStatus } from "../lib/classic-multisource.mjs";
 import { acquireRenderPermit, heartbeatRenderPermit, releaseRenderPermit } from "./resource-governor.mjs";
@@ -149,8 +150,13 @@ export async function executeClassicMultisource({
       try { editingEvidence = await collectGuidedEditingEvidence({shots:quality.shotPool.shots,ffmpeg,includeInternalCuts:process.env.CUTFLOW_GUIDED_SELECTION_MODE==='fusion-v2.1'}); }
       catch { editingEvidence = {shots:{},warnings:['optional_local_probe_failed']}; }
     }
-    const scheduledProducts = scheduleClassicMultisource({ record, shotPool: quality.shotPool,editingEvidence,
-      scriptTemplate: resolvedTemplate, semanticEvidence: quality.semanticEvidence });
+    const schedule = (shotPool) => scheduleClassicMultisource({
+      record, shotPool, editingEvidence, scriptTemplate: resolvedTemplate, semanticEvidence: quality.semanticEvidence,
+    });
+    const scheduledProducts = await scheduleClassicRepeat({
+      root, nasRoot: config.nasRoot, workspaceDir, record, shotPool: quality.shotPool,
+      baseline: schedule(quality.shotPool), semanticEvidence: quality.semanticEvidence, schedule,
+    });
     await writeJsonAtomic(path.join(workspaceDir, taskId, "edit", "multisource-schedule-result.json"), {
       taskId, manifestSha256: record.manifestSha256, templateSlots: resolvedTemplate.slots.length,
       admittedShots: quality.shotPool.shots.length, scheduledProducts,
