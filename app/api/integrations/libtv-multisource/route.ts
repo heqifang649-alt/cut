@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { admitMultisource, authenticateMultisource, multisourceConfig } from "@/lib/classic-multisource.mjs";
+import { authenticateMultisource, multisourceConfig, recordMultisourceNotification } from "@/lib/classic-multisource.mjs";
 
 export const runtime = "nodejs";
 export async function POST(request: Request) {
@@ -28,11 +28,14 @@ export async function POST(request: Request) {
         reader.releaseLock();
       }
     }
-    const accepted = await admitMultisource(process.cwd(), config, JSON.parse(raw));
-    return NextResponse.json({ seen: true, taskId: accepted.taskId }, { status: 202 });
+    const notification = await recordMultisourceNotification(process.cwd(), JSON.parse(raw));
+    return NextResponse.json({ seen: true, taskId: notification.taskId }, { status: 202 });
   } catch (error) {
     if (error instanceof Error && error.message === "CLOSED_MISSING_TRUSTED_DEPENDENCIES") {
       return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    if (error instanceof Error && "code" in error) {
+      return NextResponse.json({ error: "NOTIFICATION_UNAVAILABLE" }, { status: 503 });
     }
     const reason = error instanceof Error && /^[A-Z][A-Z0-9_]+$/.test(error.message)
       ? error.message : "VALIDATION_FAILED";

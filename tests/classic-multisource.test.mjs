@@ -17,7 +17,7 @@ import {
   MULTISOURCE_CONTRACT_V1, MULTISOURCE_STATUS_SCHEMA,
   reconcileMultisourceCompletion, claimMultisourceTask, multisourceConfig, multisourceStatus, publishMultisourceResults, scanMultisourceReady,
   updateMultisourceStatus,
-  recordMultisourceProgress,
+  recordMultisourceProgress, recordMultisourceNotification,
 } from "../lib/classic-multisource.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
@@ -62,29 +62,41 @@ for (const [binding, identities, valid] of [
       if (name === "next/server") return { NextResponse: Response };
       assert.equal(name, "@/lib/classic-multisource.mjs");
       return { authenticateMultisource, multisourceConfig: () => f.config,
-        admitMultisource: (_root, config, input) => admitMultisource(f.root, config, input) };
+        recordMultisourceNotification: (_root, input) => recordMultisourceNotification(f.root, input) };
     }, route);
     const notify = (input = f.input) => route.POST(new Request("http://localhost/api/integrations/libtv-multisource", {
       method: "POST", headers: { authorization: "Bearer fixture-token" }, body: JSON.stringify(input),
     }));
-    if (valid) {
-      const rejected = await notify({ ...f.input, editPolicy: { ...f.input.editPolicy,
-        audioPolicy: { ...audioPolicy, beatSync: false } } });
-      assert.equal(rejected.status, 409);
-      assert.equal((await rejected.json()).reason, "EDIT_POLICY_INVALID");
+    // The notification route must respond even while the NAS package is inaccessible.
+    const offline = `${f.dir}-offline`;
+    await rename(f.dir, offline);
+    const [response, duplicate] = await Promise.all([notify(), notify()]);
+    await rename(offline, f.dir);
+    assert.equal(response.status, 202);
+    assert.equal(duplicate.status, 202);
+    assert.deepEqual(await response.json(), { seen: true, taskId: f.taskId });
+    await assert.rejects(multisourceStatus(f.root, f.taskId), /NOT_FOUND/);
+    const notice = path.join(f.root, "data", "classic-multisource-notifications", `${f.taskId}.json`);
+    assert.equal(JSON.parse(await readFile(notice, "utf8")).taskId, f.taskId);
+    if (binding === "tokyotiger") {
+      const oversized = await notify({ ...f.input, padding: "x".repeat(256 * 1024) });
+      assert.equal(oversized.status, 413);
     }
-    const [response, scanned, duplicate] = await Promise.all([notify(), scanMultisourceReady(f.root, f.config), notify()]);
-    assert.equal(response.status, valid ? 202 : 409);
-    assert.equal(duplicate.status, response.status);
+    const [scanned, concurrent] = await Promise.all([
+      scanMultisourceReady(f.root, f.config, { lane: "recent" }),
+      scanMultisourceReady(f.root, f.config),
+    ]);
     if (!valid) {
-      assert.equal(scanned.length, 0);
-      assert.equal((await response.json()).reason, "INVALID_SOURCE");
-      await assert.rejects(multisourceStatus(f.root, f.input.taskId), /NOT_FOUND/);
+      assert.equal(scanned.length + concurrent.length, 0);
+      await assert.rejects(multisourceStatus(f.root, f.taskId), /NOT_FOUND/);
       return;
     }
+    assert.equal((await multisourceStatus(f.root, f.taskId)).status, "accepted");
+    await assert.rejects(access(notice), { code: "ENOENT" });
     const records = JSON.parse(await readFile(path.join(f.root, "data", "classic-multisource-records.json"), "utf8"));
     assert.equal(records.length, 1);
-    for (const record of scanned) assert.equal(records[0].batchId, record.batchId);
+    for (const record of [...scanned, ...concurrent]) assert.equal(records[0].batchId, record.batchId);
+    assert.equal(records[0].policyReceipt.costPolicy, "settled_upstream_no_additional_charge");
     assert.deepEqual(records[0].sources.map(source => source.brandIdentity), identities);
     assert.equal(records[0].sourceBinding.value, binding);
     assert.equal(records[0].sourceBinding.businessBrandId, businessBrandId);
