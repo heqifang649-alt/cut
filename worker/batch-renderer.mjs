@@ -1,3 +1,4 @@
+import { resolveOotdDetailCrop } from "./ootd-detail-crop.mjs";
 import { classicBrandActivation } from '../lib/classic-brand-activation.mjs';
 import { isGuidedBatch } from "../lib/libtv-guided-policy.mjs";
 import { assertGuidedMusic } from "./libtv-guided-auto.mjs";
@@ -385,6 +386,8 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
         slot: slot.id,
         shot_id: shot.id,
         content_tags: shot.tags || [],
+        ...(index === 1 && shot.videoType === "ootd" && !shot.tags.includes("quality:review")
+          && resolveOotdDetailCrop(shot.ootdComposition?.detailBox) && { detail_box: shot.ootdComposition.detailBox }),
         duration,
         source_name: sourceName,
         source_original: shot.path,
@@ -396,7 +399,7 @@ export function renderPlansToEdl({ master = {}, scheduledProducts, excludedProdu
     });
     const mergedSegments = rawSegments.reduce((segments, segment) => {
       const previous = segments.at(-1);
-      if (previous && previous.source_original === segment.source_original
+      if (previous && !previous.detail_box && !segment.detail_box && previous.source_original === segment.source_original
         && Math.abs(previous.source_out - segment.source_in) <= 1e-3) {
         previous.duration = Number((previous.duration + segment.duration).toFixed(6));
         previous.source_out = segment.source_out;
@@ -1005,7 +1008,8 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
       const sourceInfo = await stat(source).catch(() => null);
       if (!sourceInfo?.isFile()) throw new Error(`NAS原片不可读：${source}`);
       const segmentDuration = Number(segment.duration || (segment.source_out - segment.source_in));
-      const segmentSignature = renderHash({ source, sourceIn: segment.source_in, duration: segmentDuration, width, height, fps, colorStrategy });
+      const detailCrop = width * 16 === height * 9 ? resolveOotdDetailCrop(segment.detail_box) : null;
+      const segmentSignature = renderHash({ ...(detailCrop && { detailCrop }), source, sourceIn: segment.source_in, duration: segmentDuration, width, height, fps, colorStrategy });
       const segmentPath = path.join(productClips, `${String(index + 1).padStart(2, "0")}-${colorStrategy}-${segmentSignature}.mp4`);
       const filters = [
         `scale=${width}:${height}:force_original_aspect_ratio=increase`,
@@ -1015,7 +1019,13 @@ export async function renderBatchFromEdl({ root, batch, batchDir, editDir: suppl
         "format=yuv420p",
       ];
       if (!(await isUsableVideo(ffmpeg, segmentPath))) {
-        await run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(segment.source_in), "-i", source, "-an", "-vf", filters.join(","), "-frames:v", String(Math.round(segmentDuration * fps)), "-c:v", "h264_mf", "-b:v", "9M", "-movflags", "+faststart", segmentPath], `渲染${product.display_name}片段${index + 1}/${product.segments.length}`, onActivity);
+        const renderSegment = videoFilters => run(ffmpeg, ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(segment.source_in), "-i", source, "-an", "-vf", videoFilters.join(","), "-frames:v", String(Math.round(segmentDuration * fps)), "-c:v", "h264_mf", "-b:v", "9M", "-movflags", "+faststart", segmentPath], `渲染${product.display_name}片段${index + 1}/${product.segments.length}`, onActivity);
+        if (detailCrop) {
+          const { size, x, y } = detailCrop;
+          const crop = `crop=trunc(iw*${size}/2)*2:trunc(ih*${size}/2)*2:iw*${x}:ih*${y}`;
+          try { await renderSegment([crop, ...filters]); }
+          catch { await assertActive(); await renderSegment(filters); }
+        } else await renderSegment(filters);
       }
       segmentPaths.push(segmentPath);
     }

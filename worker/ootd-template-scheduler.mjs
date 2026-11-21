@@ -117,7 +117,7 @@ function semanticEligible(shot, semantic, slot, semanticRequired) {
   if (![productMatch, clothingVisibility, confidence].every(Number.isFinite)) return false;
   if (productMatch < 0.5 || clothingVisibility < 0.5 || confidence < 0.5) return false;
   const allowedTypes = SHOT_TYPES_BY_SLOT[slot.id];
-  if (allowedTypes && !allowedTypes.has(semantic.shot_type)) return false;
+  if (allowedTypes && !allowedTypes.has(semantic.shot_type) && !(slot.id === 'hook' && semantic.shot_type === 'back_full_body' && semantic.prefer_back_opening === true)) return false;
   if (slot.id === "hook" && (!Number.isFinite(Number(semantic.hook_value)) || Number(semantic.hook_value) < 0.5)) return false;
   return true;
 }
@@ -143,7 +143,7 @@ function planIdFor(batchId, scriptTemplate, slots, contextKey = "", transitionPr
     .digest("hex").slice(0, 32);
 }
 
-function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference }) {
+function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference, candidateAllowed }) {
   if (transitionProfile !== undefined && !isTransitionProfile(transitionProfile)) throw new TypeError("transitionProfile is invalid");
   const semanticByShotId = semanticRecordMap(semanticEvidence);
   const semanticRequired = semanticByShotId !== null;
@@ -152,7 +152,7 @@ function scheduleShots({ batchId, shots, scriptTemplate, createdAt, contextKey, 
   let firstMissingSlotId = null;
   for (const slot of scriptTemplate.slots) {
     const candidates = shots
-      .filter((shot) => !usedShotIds.has(shot.id) && (!preserveSourceOrder || selected.every((entry) => entry.shot.source !== shot.source || shot.start >= entry.shot.end)) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
+      .filter((shot) => !usedShotIds.has(shot.id) && (!preserveSourceOrder || selected.every((entry) => entry.shot.source !== shot.source || shot.start >= entry.shot.end)) && (!candidateAllowed || candidateAllowed(shot, slot, selected)) && matchesSlot(shot, slot) && semanticEligible(shot, semanticByShotId?.get(shot.id), slot, semanticRequired))
       .map((shot) => ({ ...rankCandidate(shot, slot), semanticScore: semanticScore(semanticByShotId?.get(shot.id)) }))
       .sort((a,b) => (candidatePreference ? candidatePreference(b.shot,slot,selected)-candidatePreference(a.shot,slot,selected) : 0) || (preserveSourceOrder ? a.shot.start-b.shot.start || compareCandidates(a,b) : compareCandidates(a,b)));
     const best = candidates[0]?.shot;
@@ -184,11 +184,11 @@ export function scheduleShotPool({ batchId, shotPool, scriptTemplate, createdAt 
   return scheduleShots({ batchId, shots: shotPool.shots, scriptTemplate, createdAt, contextKey: "legacy-shot-pool", transitionProfile, semanticEvidence });
 }
 
-export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference }) {
+export function scheduleProductView({ batchId, productView, scriptTemplate, createdAt = new Date().toISOString(), transitionProfile, semanticEvidence, allowPartial = false, preserveSourceOrder = false, candidatePreference, candidateAllowed }) {
   if (typeof batchId !== "string" || batchId.length === 0) throw new TypeError("batchId is required");
   validateProductView(productView);
   validateScriptTemplate(scriptTemplate);
-  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial, preserveSourceOrder, candidatePreference });
+  return scheduleShots({ batchId, shots: productView.shots, scriptTemplate, createdAt, contextKey: productView.product.id, transitionProfile, semanticEvidence, allowPartial, preserveSourceOrder, candidatePreference, candidateAllowed });
 }
 
 export function enforceMinimumSafeDuration(scheduleResult, minimum = MINIMUM_SAFE_DURATION_SECONDS) {

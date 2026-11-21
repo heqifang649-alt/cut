@@ -290,3 +290,31 @@ test("Both master analyzers require evidence before enabling transition reuse", 
     assert.match(source, /enabled=false、placements=\[\]/);
   }
 });
+
+test("Optional OOTD crop preserves normal segment merging when coordinates are unusable", async () => {
+  const dataset = await fixture();
+  const views = createProductViews({
+    shotPool: dataset.success.shotPool,
+    productGroups: [{ id: "product", label: "Product", files: ["hook-street.mp4", "detail-fabric.mp4"] }],
+  });
+  const view = views[0];
+  const scheduleResult = scheduleProductView({ batchId: dataset.batchId, productView: view, scriptTemplate: dataset.success.scriptTemplate });
+  const [first, second] = scheduleResult.renderPlan.slots;
+  const secondStart = first.shot.start + first.slot.targetDuration;
+  const contiguous = { ...second.shot, path: first.shot.path, source: first.shot.source,
+    start: secondStart, end: secondStart + second.shot.duration, videoType: "ootd" };
+  const composition = { shotType: "front_full_body", framing: "medium", printProminence: .8, confidence: .95 };
+  const secondShot = { ...contiguous, ootdComposition: { ...composition,
+    detailBox: { left: .25, top: .35, right: .57, bottom: .6, confidence: .92 } } };
+  const convert = shot => renderPlansToEdl({
+    master: { width: 1080, height: 1920 },
+    scheduledProducts: [{ product: view.product, sourceNamesByShotId: view.sourceNamesByShotId,
+      scheduleResult: { ...scheduleResult, renderPlan: { ...scheduleResult.renderPlan, slots: [first, { ...second, shot }] } } }],
+  }).products[0].segments;
+  assert.equal(convert(contiguous).length, 1);
+  const invalid = { ...secondShot, ootdComposition: { ...composition, detailBox: { ...secondShot.ootdComposition.detailBox, confidence: .4 } } };
+  assert.deepEqual(convert(invalid), convert(contiguous));
+  const cropped = convert(secondShot);
+  assert.equal(cropped.length, 2);
+  assert.deepEqual(cropped[1].detail_box, secondShot.ootdComposition.detailBox);
+});

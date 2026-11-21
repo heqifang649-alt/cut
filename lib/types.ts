@@ -328,6 +328,13 @@ export type RejectReason = (typeof REJECT_REASONS)[number];
 
 export type Shot = {
   videoType?: "ootd" | "unboxing";
+  ootdComposition?: {
+    shotType: string;
+    framing: string;
+    printProminence: number;
+    confidence: number;
+    pairedPrint?: { frontIndex: number; backIndex: number; dominance: "front" | "back" | "similar"; confidence: number };
+  };
   unboxingAction?: { action: string; confidence: number; evidence_frames: number[] };
   id: string;
   source: string;
@@ -427,10 +434,15 @@ export const isTransitionMode = (value: unknown): value is TransitionMode => TRA
 
 export function isShot(value: unknown): value is Shot {
   if (!isRecord(value)) return false;
-  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy", "videoType", "unboxingAction"])
+  return hasOnlyKeys(value, ["id", "source", "path", "start", "end", "duration", "tags", "reject", "rejectReason", "origin", "productVisibility", "productCentered", "motionEnergy", "videoType", "unboxingAction", "ootdComposition"])
     && isString(value.id)
     && (value.videoType === undefined || value.videoType === "ootd" || value.videoType === "unboxing")
     && (value.unboxingAction === undefined || isRecord(value.unboxingAction) && isString(value.unboxingAction.action) && isNonNegativeNumber(value.unboxingAction.confidence) && value.unboxingAction.confidence <= 1 && Array.isArray(value.unboxingAction.evidence_frames) && value.unboxingAction.evidence_frames.every(n => Number.isInteger(n) && n >= 0 && n <= 4))
+    && (value.ootdComposition === undefined || isRecord(value.ootdComposition)
+      && ["front_full_body", "back_full_body", "detail", "overall", "other"].includes(String(value.ootdComposition.shotType))
+      && ["full", "medium", "close", "detail", "unknown"].includes(String(value.ootdComposition.framing))
+      && isNonNegativeNumber(value.ootdComposition.printProminence) && value.ootdComposition.printProminence <= 1
+      && isNonNegativeNumber(value.ootdComposition.confidence) && value.ootdComposition.confidence <= 1)
     && isString(value.source)
     && isString(value.path)
     && isNonNegativeNumber(value.start)

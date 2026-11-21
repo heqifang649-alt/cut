@@ -40,11 +40,12 @@ function provider(sourceId, mode) {
       productError: "match", graphic_text_logo: "match", color: "match", structure: "match", confidence: 0.96 } };
 }
 
-async function runCase(env, modeByShot) {
+async function runCase(env, modeByShot, observe = () => {}) {
   return runClassicMultisourceQuality({ root: env.root, record: env.record, sources: env.sources,
     batchDir: path.join(env.root, "quality"), artifactDir: path.join(env.root, "artifacts"), ffmpeg: "not-called",
     candidatesBySource: env.candidatesBySource, referencesByProduct: env.referencesByProduct, verifier: "quality-v2-production",
-    validate: async ({ file, evidenceStateDir, referenceOverrides }) => {
+    validate: async ({ file, evidenceStateDir, referenceOverrides, classicMultisourceOotd }) => {
+      observe(classicMultisourceOotd);
       await mkdir(evidenceStateDir, { recursive: true });
       const source = env.sources.find((item) => env.candidatesBySource.get(item.id).some(shot => shot.id === file.id));
       await writeJsonAtomic(path.join(evidenceStateDir, "quality-evidence.v2.json"), { policy: env.policy, sources: [{
@@ -115,4 +116,14 @@ for (const [failure, expected] of [['reference', /PRODUCT_REFERENCE_BINDING_INVA
  if (failure === 'size') env.sources[0].sizeBytes++;
  if (failure === 'shots') env.candidatesBySource.clear();
  await assert.rejects(runCase(env, {}), expected);
+});
+
+test('only an entirely OOTD Classic multi-source batch opts in to composition evidence', async () => {
+  for (const [types, expected] of [[['ootd', 'ootd'], true], [['ootd'], false], [['ootd', 'unboxing'], false], [['unboxing', 'unboxing'], false]]) {
+    const env = await setup(types.length);
+    const seen = [];
+    env.sources.forEach((source, index) => { source.videoType = types[index]; });
+    await runCase(env, {}, enabled => seen.push(enabled));
+    assert.deepEqual(seen, types.map(() => expected));
+  }
 });
